@@ -38,7 +38,7 @@ repl:
 		-c '((@ (ares server) run-nrepl-server))'
 
 # Unit tests
-test:
+test: fmt
 	guix shell -m manifest.scm -- \
 		guile --fresh-auto-compile -L ./src \
 		-L ./test \
