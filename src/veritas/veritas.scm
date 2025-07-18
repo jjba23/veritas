@@ -109,8 +109,10 @@
          (ass-res (apply append assertion-results))
          (are-there-failures? (if (member #f ass-res) #t #f)))
     
-    (display (format #f "\nare-there-failures?: ~a" are-there-failures?))
-    (display (format #f "\n\ndebugging suite-results: ~a\n" suite-results))
+    (newline)
+    (apply (assoc-ref (test-reporter)
+                      'log-fail)
+           (list (format #f "suite-has-failures?: ~a" are-there-failures?)))
     (when are-there-failures?
       (display "\naborting due to error in test case...\n")
       (exit 1)) suite-results))
