@@ -6,9 +6,9 @@
   (+ 2 x))
 
 (define (simple-check)
-  (define tt
+  (define numeric-tests
     (list (lambda ()
-            (test "do some numeric checks"
+            (test "Simple Numeric Tests"
                   #:debug? #t
                   #:cases (list (lambda ()
                                   (assert-equal #:expected 1
@@ -16,7 +16,10 @@
                                                          (- 0 9))))
                                 (lambda ()
                                   (assert-equal #:expected 1
-                                                #:sut (* 1 1 1 1 1))))))
+                                                #:sut (* 1 1 1 1 1)))
+                                (lambda ()
+                                  (assert-equal #:expected 0
+                                                #:sut (* 1 1 1 1 0))))))
           (lambda ()
             (test "check that function calls work"
                   #:debug? #t
@@ -26,11 +29,11 @@
   (run-suite (lambda ()
                (suite "simple-check"
                       #:debug? #t
-                      #:tests tt)))
+                      #:tests numeric-tests)))
 
-  (define ttstr
+  (define string-operation-tests
     (list (lambda ()
-            (test "String Operations"
+            (test "String Operation Tests"
                   #:debug? #f
                   #:cases (list (lambda ()
                                   (assert-equal #:expected "hello world"
@@ -44,5 +47,5 @@
   (run-suite (lambda ()
                (suite "str"
                       #:debug? #t
-                      #:tests ttstr))))
+                      #:tests string-operation-tests))))
 
