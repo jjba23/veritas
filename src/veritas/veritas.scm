@@ -36,6 +36,7 @@
                          run-suite
                          log-assert
                          suite
+                         shuffle
                          simple-check))
 
 (define ansi-color-escapes
