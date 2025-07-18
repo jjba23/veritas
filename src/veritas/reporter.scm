@@ -43,28 +43,16 @@
 (define colorful-stdout-reporter
   `((log-pass unquote
               (lambda (msg)
-                (log-stdout (format #f
-                                    "    [~a✅ pass~a] ~a~a~a"
+                (log-stdout (format #f "    ~a✅ pass - ~a~a"
                                     (assoc-ref ansi-color-escapes
-                                               'green)
-                                    (assoc-ref ansi-color-escapes
-                                               'reset)
-                                    (assoc-ref ansi-color-escapes
-                                               'green)
-                                    msg
+                                               'green) msg
                                     (assoc-ref ansi-color-escapes
                                                'reset)))))
     (log-fail unquote
               (lambda (msg)
-                (log-stdout (format #f
-                                    "    [~a❌ fail~a] ~a~a~a"
+                (log-stdout (format #f "    ~a❌ fail - ~a~a"
                                     (assoc-ref ansi-color-escapes
-                                               'red)
-                                    (assoc-ref ansi-color-escapes
-                                               'reset)
-                                    (assoc-ref ansi-color-escapes
-                                               'red)
-                                    msg
+                                               'red) msg
                                     (assoc-ref ansi-color-escapes
                                                'reset)))))
     (log-test unquote

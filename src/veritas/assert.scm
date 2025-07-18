@@ -35,11 +35,11 @@
       (begin
         (apply (assoc-ref (test-reporter)
                           'log-pass)
-               (list (format #f "== expected: ~a, sut: ~a" expected sut))) #t)
+               (list (format #f "expected: ~a, sut: ~a" expected sut))) #t)
       (begin
         (apply (assoc-ref (test-reporter)
                           'log-fail)
-               (list (format #f "error != expected: ~a, sut: ~a" expected sut)))
+               (list (format #f "error, expected: ~a, sut: ~a" expected sut)))
 
         #f)))
 
