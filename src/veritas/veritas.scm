@@ -110,22 +110,33 @@
                        (assoc-ref ansi-color-escapes
                                   'reset))))
 
-(define* (assert-equal left right
-                       #:key (compare-f equal?))
-  (if (compare-f left right)
-      (begin
-        (log-pass "assert-equal, function: ~s, left: ~a, right: ~a"
-                  (procedure-name compare-f) left right) #t)
-      (begin
-        (log-fail
-         "assert-equal did not match expectation, function: ~s, left: ~a, right: ~a"
-         (procedure-name compare-f) left right) #f)))
+(define-syntax-rule (assert-equal* x y compare-f)
+  (begin
+    (newline)
+    (write (format #f "(compare-f x y): ~a | ~a ~a"
+                   (compare-f x y) x y))
+    (if (compare-f x y)
+        (begin
+          (write x)
+          (write y)
+          (log-pass "x: ~a, y: ~a" x y) #t)
+        (begin
+          (write x)
+          (write y)
+          (log-fail "error matching x: ~a, y: ~a" x y) #f))))
 
-(define* (assert-true x)
-  (assert-equal x #t))
+(define-syntax-rule (assert-equal x y)
+  (assert-equal* x y equal?))
+(define-syntax-rule (assert-eqv x y)
+  (assert-equal* x y eqv?))
+(define-syntax-rule (assert-eq x y)
+  (assert-equal* x y eq?))
 
-(define* (assert-false x)
-  (assert-equal x #f))
+(define-syntax-rule (assert-true x)
+  (assert-equal* x #t eq?))
+
+(define-syntax-rule (assert-false x)
+  (assert-equal* x #f eq?))
 
 ;;(assert-equal 1 1)
 
@@ -134,7 +145,8 @@
 ;;     ((when c e ...)
 ;;      (if c (begin e ...)))))
 
-(define* (test message asserts #:key (env (interaction-environment)))
+(define* (test message asserts
+               #:key (env (interaction-environment)))
   (log-test message)
   (let* ((idx -1)
          (asserts-i (map (lambda (a)
@@ -149,11 +161,10 @@
                              (expression unquote
                                          (car (cdr a)))
                              (result unquote
-                                     (eval (car (cdr a))
-                                           env))))
-                         asserts-i)))))
+                                     (eval (car (cdr a)) env)))) asserts-i)))))
 
-(define* (suite message tests #:key (env (interaction-environment)))
+(define* (suite message tests
+                #:key (env (interaction-environment)))
   (log-suite message)
   (let* ((idx -1)
          (tests-i (map (lambda (t)
@@ -165,7 +176,8 @@
                              (map (lambda (t)
                                     (let* ((msg (cadr (car (cdr t))))
                                            (cases (caddr (car (cdr t)))))
-                                      (test msg cases #:env env))) tests-i)))))
+                                      (test msg cases
+                                            #:env env))) tests-i)))))
     (newline)
     (write s) s))
 
