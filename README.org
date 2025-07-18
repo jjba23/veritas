@@ -9,14 +9,12 @@
 
 [Work in progress] Unit, Integration and Black Box testing framework powered by Guile Scheme, a dialect of Lisp.
 
-[[https://jointhefreeworld.org/static-assets/veritas/image-small-negative.png]]
-
-
 ~veritas~ aims to be a simple and lightweight testing framework written in Scheme. Its main purpose is to help developers verify that their code behaves as expected. It achieves this by providing a clear structure for writing tests and producing easy-to-read, color-coded feedback.
 
 The framework is built around the concepts of "suites," which group related "tests," and "assertions," which perform the actual checks.
 
 If you like my work, please support me by [[https://bmc.link/jjbigorra][buying me a cup of coffee ☕]] so I can continue with a lot of motivation.
+
 
 [[https://jointhefreeworld.org/static-assets/veritas/2025-07-18.png]]
 
@@ -87,3 +85,5 @@ We welcome everyone to feel invited to the veritas Project, and encourage active
 Find here the Backlog and Kanban boards for veritas: https://lucidplan.jointhefreeworld.org/tickets/veritas
 
 -----
+
+[[https://jointhefreeworld.org/static-assets/veritas/image-small-negative.png]]
