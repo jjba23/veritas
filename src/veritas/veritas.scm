@@ -24,97 +24,15 @@
   #:use-module (ice-9 popen)
   #:use-module (ice-9 textual-ports)
   #:use-module (ice-9 rdelim)
+  #:use-module (veritas reporter)
   #:export (assert-equal assert-true
                          assert-false
                          test
-                         log-stdout
-                         colorful-reporter
                          test-reporter
                          run-suite
                          suite
                          shuffle
                          simple-check))
-
-(define ansi-color-escapes
-  `((yellow . "\x1b[0;33m") (magenta . "\x1b[0;35m")
-    (green . "\x1b[0;32m")
-    (default . "\x1b[0;39m")
-    (bold . "\x1b[1m")
-    (red . "\x1b[0;31m")
-    (blue . "\x1b[0;34m")
-    (cyan . "\x1b[0;36m")
-    (reset . "\x1b[0m")))
-
-(define (log-stdout msg)
-  (display (format #f "\n~a" msg)))
-
-(define colorful-reporter
-  `((log-pass unquote
-              (lambda (msg)
-                (log-stdout (format #f
-                                    "    [~a✅ pass~a] ~a~a~a"
-                                    (assoc-ref ansi-color-escapes
-                                               'green)
-                                    (assoc-ref ansi-color-escapes
-                                               'reset)
-                                    (assoc-ref ansi-color-escapes
-                                               'green)
-                                    msg
-                                    (assoc-ref ansi-color-escapes
-                                               'reset)))))
-    (log-fail unquote
-              (lambda (msg)
-                (log-stdout (format #f
-                                    "    [~a❌ fail~a] ~a~a~a"
-                                    (assoc-ref ansi-color-escapes
-                                               'red)
-                                    (assoc-ref ansi-color-escapes
-                                               'reset)
-                                    (assoc-ref ansi-color-escapes
-                                               'red)
-                                    msg
-                                    (assoc-ref ansi-color-escapes
-                                               'reset)))))
-    (log-test unquote
-              (lambda (msg)
-                (log-stdout (format #f
-                                    "  [~a🧪 test~a] ~a~a~a"
-                                    (assoc-ref ansi-color-escapes
-                                               'bold)
-                                    (assoc-ref ansi-color-escapes
-                                               'reset)
-                                    (assoc-ref ansi-color-escapes
-                                               'bold)
-                                    msg
-                                    (assoc-ref ansi-color-escapes
-                                               'reset)))))
-    (log-suite unquote
-               (lambda (msg)
-                 (log-stdout "------------------------------------------")
-                 (log-stdout (format #f
-                                     "[~a📑 suite~a] ~a~a~a"
-                                     (assoc-ref ansi-color-escapes
-                                                'bold)
-                                     (assoc-ref ansi-color-escapes
-                                                'reset)
-                                     (assoc-ref ansi-color-escapes
-                                                'bold)
-                                     msg
-                                     (assoc-ref ansi-color-escapes
-                                                'reset)))))
-    (log-assert unquote
-                (lambda (msg)
-                  (log-stdout (format #f
-                                      "    [~a⚙️ assert~a] ~a~a~a"
-                                      (assoc-ref ansi-color-escapes
-                                                 'bold)
-                                      (assoc-ref ansi-color-escapes
-                                                 'reset)
-                                      (assoc-ref ansi-color-escapes
-                                                 'bold)
-                                      msg
-                                      (assoc-ref ansi-color-escapes
-                                                 'reset)))))))
 
 (define test-reporter
   (make-parameter colorful-reporter))

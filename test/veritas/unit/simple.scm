@@ -1,5 +1,6 @@
 (define-module (veritas unit simple)
   #:use-module (veritas veritas)
+  #:use-module (veritas reporter)
   #:export (simple-check))
 
 (define (add-two x)
@@ -37,18 +38,19 @@
                                  #:sut (add-two 40)))))))
 
 (define (str-suite)
-  (suite "str"
-         #:debug? #f
-         (lambda ()
-           (test "String Operation Tests"
-                 #:debug? #f
-                 (lambda ()
-                   (assert-equal #:expected "hello world"
-                                 #:sut (string-append "hello" " " "world")))
-                 (lambda ()
-                   (assert-true (string=? "scheme" "scheme")))
-                 (lambda ()
-                   (assert-false (string=? "guile" "Scheme")))))))
+  (parameterize ((test-reporter monotone-reporter))
+    (suite "str"
+           #:debug? #f
+           (lambda ()
+             (test "String Operation Tests"
+                   #:debug? #f
+                   (lambda ()
+                     (assert-equal #:expected "hello world"
+                                   #:sut (string-append "hello" " " "world")))
+                   (lambda ()
+                     (assert-true (string=? "scheme" "scheme")))
+                   (lambda ()
+                     (assert-false (string=? "guile" "Scheme"))))))))
 
 (define (simple-check)
   (run-suite basic-suite str-suite))
