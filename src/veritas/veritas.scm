@@ -188,7 +188,6 @@
                #:rest cases)
   (let* ((_ (log-test name))
          (idx -1)
-         (cc (caddr cases))
          (ccc (filter procedure? cases))
          (asserts-i (map (lambda (a)
                            (set! idx
