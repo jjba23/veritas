@@ -44,14 +44,17 @@
     (cyan . "\x1b[0;36m")
     (reset . "\x1b[0m")))
 
-(define (log-message msg)
+;; (define-syntax-rule (when c e ...)
+;;   (if c (begin e ...)))
+
+(define-syntax-rule (log-message msg)
   (display (format #f "\n~a" msg)))
 
-(define (log msg . args)
+(define-syntax-rule (log msg ...)
   (log-message (apply format
-                      (append (list #f msg) args))))
+                      (append (list #f msg) ...))))
 
-(define (log-pass msg . args)
+(define-syntax-rule (log-pass msg ...)
   (log-message (format #f
                        "[~apass~a] ~a~a~a"
                        (assoc-ref ansi-color-escapes
@@ -61,11 +64,11 @@
                        (assoc-ref ansi-color-escapes
                                   'green)
                        (apply format
-                              (append (list #f msg) args))
+                              (append (list #f msg) ...))
                        (assoc-ref ansi-color-escapes
                                   'reset))))
 
-(define (log-fail msg . args)
+(define-syntax-rule (log-fail msg ...)
   (log-message (format #f
                        "[~afail~a] ~a~a~a"
                        (assoc-ref ansi-color-escapes
@@ -75,11 +78,11 @@
                        (assoc-ref ansi-color-escapes
                                   'red)
                        (apply format
-                              (append (list #f msg) args))
+                              (append (list #f msg) ...))
                        (assoc-ref ansi-color-escapes
                                   'reset))))
 
-(define (log-test msg . args)
+(define-syntax-rule (log-test msg ...)
   (log-message (format #f
                        "[~atest~a] ~a~a~a"
                        (assoc-ref ansi-color-escapes
@@ -89,11 +92,11 @@
                        (assoc-ref ansi-color-escapes
                                   'bold)
                        (apply format
-                              (append (list #f msg) args))
+                              (append (list #f msg) ...))
                        (assoc-ref ansi-color-escapes
                                   'reset))))
 
-(define (log-suite msg . args)
+(define-syntax-rule (log-suite msg ...)
   (log-message (format #f
                        "[~asuite~a] ~a~a~a"
                        (assoc-ref ansi-color-escapes
@@ -103,7 +106,7 @@
                        (assoc-ref ansi-color-escapes
                                   'bold)
                        (apply format
-                              (append (list #f msg) args))
+                              (append (list #f msg) ...))
                        (assoc-ref ansi-color-escapes
                                   'reset))))
 
@@ -125,6 +128,11 @@
   (assert-equal x #f))
 
 ;;(assert-equal 1 1)
+
+;; (define-syntax when
+;;   (syntax-rules ()
+;;     ((when c e ...)
+;;      (if c (begin e ...)))))
 
 (define* (test message asserts #:key (env (interaction-environment)))
   (log-test message)
