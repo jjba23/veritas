@@ -51,8 +51,7 @@
   (display (format #f "\n~a" msg)))
 
 (define (log msg)
-  (log-message (apply format
-                      (list #f msg))))
+  (log-message msg))
 
 (define (log-pass msg)
   (log (format #f
@@ -63,8 +62,7 @@
                           'reset)
                (assoc-ref ansi-color-escapes
                           'green)
-               (apply format
-                      (list #f msg))
+               msg
                (assoc-ref ansi-color-escapes
                           'reset))))
 
@@ -77,8 +75,7 @@
                           'reset)
                (assoc-ref ansi-color-escapes
                           'red)
-               (apply format
-                      (list #f msg))
+               msg
                (assoc-ref ansi-color-escapes
                           'reset))))
 
@@ -91,8 +88,7 @@
                           'reset)
                (assoc-ref ansi-color-escapes
                           'bold)
-               (apply format
-                      (list #f msg))
+               msg
                (assoc-ref ansi-color-escapes
                           'reset))))
 
@@ -105,8 +101,7 @@
                           'reset)
                (assoc-ref ansi-color-escapes
                           'bold)
-               (apply format
-                      (list #f msg))
+               msg
                (assoc-ref ansi-color-escapes
                           'reset))))
 
@@ -172,5 +167,4 @@
               (suite-results unquote suite-results))))
     (newline)
     (write s) s))
-
 

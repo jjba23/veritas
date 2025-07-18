@@ -14,12 +14,13 @@
                (assert-equal 1 2))
          (test "check that function calls work"
                (assert-equal (add-two 40) 42)))
+  
   (suite "smaller"
        (test "String Operations"
-             '(assert-equal "hello world"
+             (assert-equal "hello world"
                             (string-append "hello" " " "world"))
-             '(assert-equal #t
+             (assert-equal #t
                             (string=? "scheme" "scheme"))
-             '(assert-equal #f
+             (assert-equal #f
                             (string=? "guile" "Scheme")))))
 
