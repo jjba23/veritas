@@ -1,0 +1,122 @@
+#+title: kracht
+#+author: Josep Bigorra
+#+email: jjbigorra@gmail.com
+#+language: en
+
+[[https://jointhefreeworld.org/ggg/dist/scheme-guile.svg]] [[https://jointhefreeworld.org/ggg/dist/gnu-guix.svg]]  
+[[https://jointhefreeworld.org/ggg/dist/gnu-make.svg]] 
+[[https://jointhefreeworld.org/ggg/dist/license-lgpl3+.svg]]    [[https://jointhefreeworld.org/ggg/dist/license-fdl13+.svg]]
+
+Utility methods and functionalities for Guile Scheme programming.
+
+kracht is a recursive acronym which stands for /KRACHT Reliable And Consistent Helper Tools/, and it also means means power/strength in the Dutch language.
+
+Kracht provides helpful and convenient functionalities that can help you develop more comfortably in your Guile Scheme project.  You can see it as a batteries-included addition to the (already great) standard library, complementing it, and helping developers write cleaner code.
+
+If you like my work, please support me by [[https://bmc.link/jjbigorra][buying me a cup of coffee ☕]] so I can continue with a lot of motivation.
+
+------------------------
+
+* What Kracht gives you
+
+Find below a list of some functionalities that Kracht exports:
+
+- log-message :: A function for displaying a message to the console, with newlines surrounding it.
+- log :: A versatile logging function that formats and displays messages, supporting format-style arguments.
+- log-info :: A logging function specifically for displaying informational messages, prefixed with "[INFO]".
+- log-error :: A logging function specifically for displaying error messages, prefixed with "[ERROR]".
+- non-empty-string? :: A predicate that checks if a given input is a string and is not empty.
+- empty-string? :: A predicate that checks if a given string is empty.
+- string-drop-first-last :: Removes the first and last characters from a string.
+- string-drop-first-last-n :: Removes the first `n` characters and the last `n` characters from a string.
+- string-drop-first-last-line :: Removes the first and last lines from a multi-line string.
+- assoc-ref-or-empty-str :: Retrieves a value from an association list (alist) based on a given field; if the field is not found, it returns an empty string.
+- build-asset-library :: Creates an in-memory cache (an alist) by reading content from a list of specified files, with special handling for CSS files (minifying them by removing newlines).
+- syscall :: Executes a shell command and returns its standard output as a string.
+- alist-from-url-encoded-body :: Parses a URL-encoded string (typically from an HTTP request body) into an association list, decoding URL-encoded characters.
+- html-escape :: Escapes (most) special HTML characters and common accented characters in a string to their HTML entities.
+- html-unescape :: Unescapes (most) HTML entities back to their corresponding characters in a string.
+- get-short-commit-sha :: Retrieves the short commit SHA of the current Git repository using a `git log` command.
+
+
+------------------------
+
+* Licensing
+
+kracht and all of its source code are free software, licensed under the GNU Lesser General Public License v3 (or newer at your convenience).
+
+https://www.gnu.org/licenses/lgpl-3.0.html
+
+The documentation and examples, including this document, which are provided with kracht, are all licensed under the GNU Free Documentation License v1.3 (or newer at your convenience).
+
+https://www.gnu.org/licenses/fdl-1.3.html
+
+---------
+
+* Projects that use Kracht
+
+- WikiMusic :: https://codeberg.org/jjba23/wikimusic
+- LucidPlan :: https://codeberg.org/jjba23/lucidplan
+- Byggsteg :: https://codeberg.org/jjba23/byggsteg
+
+--------------
+
+* Installing and using
+
+kracht is packaged via the Guix package manager officially, as ~guile-kracht~. It is recommended you use Guix to work on your Guile Scheme projects, and install kracht with it (in your manifest.scm for example).
+
+Alternatively, you can install it by downloading the source code files and adding them directly to your ~GUILE_LOAD_PATH~ or even better, use a Guix shell ~manifest.scm~ and add the package with something like this:
+
+#+begin_src scheme
+(define-public guile-kracht
+  (package
+    (name "guile-kracht")
+    (version "x.x.x")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://codeberg.org/jjba23/kracht.git")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "<dependent on version>"))))
+    (build-system guile-build-system)
+    (native-inputs (list guile-3.0))
+    (arguments
+     (list
+      #:source-directory "src"))
+    (home-page "https://codeberg.org/jjba23/kracht")
+    (synopsis
+     "Utility methods and functionalities for Guile Scheme programming")
+    (description
+     "Kracht provides helpful and convenient functionalities that can help you
+develop more comfortably in your Guile Scheme project.  You can see it as a
+batteries-included addition to the (already great) standard library,
+complementing it, and helping developers write cleaner code.")
+    (license license:lgpl3+)))
+#+end_src
+
+-------------
+
+* Code of conduct
+
+This project adheres to the jointhefreeworld code of conduct. Find it here:
+
+https://jointhefreeworld.org/blog/articles/personal/jointhefreeworld-code-of-conduct/index.html
+
+In summary, we foster an inclusive, respectful, and cooperative environment for all contributors and users of this free software project. Inspired by the ideals of the GNU Project, we strive to uphold freedom, equality, and community as guiding principles. We believe that collaboration in a community of mutual respect is essential to creating excellent free software.
+
+-------
+
+* Kracht Project
+
+Contributing to free software is a uniquely beautiful act because it embodies principles of generosity, collaboration, and empowerment.
+
+We welcome everyone to feel invited to the kracht Project, and encourage active contribution in all forms, to improve it and/or suggest improvements, brainstorm with me, make it more modular/flexible, etc, feel free to contact me <jjbigorra@gmail.com> to chat, discuss or report feedback.
+
+Find here the Backlog and Kanban boards for kracht: https://lucidplan.jointhefreeworld.org/tickets/kracht
+
+-----
+
+[[https://jointhefreeworld.org/static-assets/kracht/kracht-2-small.png]]
