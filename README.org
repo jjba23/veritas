@@ -50,6 +50,10 @@ This, combined with the colorful and neatly formatted output, makes debugging fa
 
 ------------------------
 
+Refer to the Makefile to understand how to run this project and more. 
+
+------------------------
+
 
 * Licensing
 
