@@ -57,7 +57,7 @@
 
 (define (log-pass msg)
   (log (format #f
-               "\t\t[~a✅ pass~a] ~a~a~a"
+               "    [~a✅ pass~a] ~a~a~a"
                (assoc-ref ansi-color-escapes
                           'green)
                (assoc-ref ansi-color-escapes
@@ -70,7 +70,7 @@
 
 (define (log-fail msg)
   (log (format #f
-               "\t\t[~a❌ fail~a] ~a~a~a"
+               "    [~a❌ fail~a] ~a~a~a"
                (assoc-ref ansi-color-escapes
                           'red)
                (assoc-ref ansi-color-escapes
@@ -83,7 +83,7 @@
 
 (define (log-test msg)
   (log (format #f
-               "\t[~a🧪 test~a] ~a~a~a"
+               "  [~a🧪 test~a] ~a~a~a"
                (assoc-ref ansi-color-escapes
                           'bold)
                (assoc-ref ansi-color-escapes
@@ -110,7 +110,7 @@
 
 (define (log-assert msg)
   (log (format #f
-               "\t\t[~a⚙️ assert~a] ~a~a~a"
+               "    [~a⚙️ assert~a] ~a~a~a"
                (assoc-ref ansi-color-escapes
                           'bold)
                (assoc-ref ansi-color-escapes
@@ -185,19 +185,23 @@
 (define* (test name
                #:key (debug? #f)
                (shuffle? #t)
-               (cases '()))
+               #:allow-other-keys #:rest cases)
   (let* ((_ (log-test name))
          (idx -1)
+         (cc (caddr cases))
          (asserts-i (map (lambda (a)
                            (set! idx
                                  (+ idx 1))
                            (list idx a))
-                         (if shuffle?
-                             (shuffle cases) cases))))
+                         (if (list? cc)
+                             (if shuffle?
+                                 (shuffle cc) cc)
+                             (list cc)))))
     
     `((test-name unquote name)
       (test-results unquote
                     (map (lambda (a)
+                           (write a)
                            (let* ((proc-doc (procedure-documentation (car (cdr
                                                                            a)))))
                              (if proc-doc
