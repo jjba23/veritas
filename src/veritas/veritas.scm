@@ -34,6 +34,7 @@
                          log
                          log-message
                          run-suite
+                         log-assert
                          suite
                          simple-check))
 
@@ -55,7 +56,7 @@
 
 (define (log-pass msg)
   (log (format #f
-               "[~apass~a] ~a~a~a"
+               "\t\t[~a✅ pass~a] ~a~a~a"
                (assoc-ref ansi-color-escapes
                           'green)
                (assoc-ref ansi-color-escapes
@@ -68,7 +69,7 @@
 
 (define (log-fail msg)
   (log (format #f
-               "[~afail~a] ~a~a~a"
+               "\t\t[~a❌ fail~a] ~a~a~a"
                (assoc-ref ansi-color-escapes
                           'red)
                (assoc-ref ansi-color-escapes
@@ -81,7 +82,7 @@
 
 (define (log-test msg)
   (log (format #f
-               "[~atest~a] ~a~a~a"
+               "\t[~a🧪 test~a] ~a~a~a"
                (assoc-ref ansi-color-escapes
                           'bold)
                (assoc-ref ansi-color-escapes
@@ -95,7 +96,20 @@
 (define (log-suite msg)
   (log "------------------------------------------")
   (log (format #f
-               "[~asuite~a] ~a~a~a"
+               "[~a📑 suite~a] ~a~a~a"
+               (assoc-ref ansi-color-escapes
+                          'bold)
+               (assoc-ref ansi-color-escapes
+                          'reset)
+               (assoc-ref ansi-color-escapes
+                          'bold)
+               msg
+               (assoc-ref ansi-color-escapes
+                          'reset))))
+
+(define (log-assert msg)
+  (log (format #f
+               "\t\t[~a⚙️ assert~a] ~a~a~a"
                (assoc-ref ansi-color-escapes
                           'bold)
                (assoc-ref ansi-color-escapes
@@ -149,24 +163,20 @@
                            (set! idx
                                  (+ idx 1))
                            (list idx a)) cases)))
-    (when debug?
-      (newline)
-      (write cases))
-
+    
     `((test-name unquote name)
       (test-results unquote
                     (map (lambda (a)
-                           (write a)
-                           `((assertion-index unquote
-                                              (car a))
-                             (results unquote
-                                      (if (list? (car (cdr a)))
-                                          (map (lambda (ll)
-                                                 (apply ll
-                                                        '()))
-                                               (car (cdr a)))
-                                          (apply (car (cdr a))
-                                                 '()))))) asserts-i)))))
+                           (let* ((proc-doc (procedure-documentation (car (cdr
+                                                                           a)))))
+                             (when proc-doc
+                               (log-assert proc-doc))
+                             `((assertion-index unquote
+                                                (car a))
+                               (assertion-documentation unquote proc-doc)
+                               (assertion-succesful unquote
+                                                    (apply (car (cdr a))
+                                                           '()))))) asserts-i)))))
 
 (define* (suite name
                 #:key debug?
@@ -191,3 +201,4 @@
   (let* ((suite-result (apply x
                               '())))
     suite-result))
+

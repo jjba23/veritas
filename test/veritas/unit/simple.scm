@@ -8,7 +8,7 @@
 (define (simple-check)
   (define numeric-tests
     (list (lambda ()
-            (test "Simple Numeric Tests"
+            (test "Basic Numeric Tests"
                   #:debug? #t
                   #:cases (list (lambda ()
                                   (assert-equal #:expected 1
@@ -21,13 +21,19 @@
                                   (assert-equal #:expected 0
                                                 #:sut (* 1 1 1 1 0))))))
           (lambda ()
-            (test "check that function calls work"
+            (test "Basic Boolean Tests"
+                  #:debug? #t
+                  #:cases (list (lambda ()
+                                  "Ridiculous assertion to prove tests can fail if checking that true is false"
+                                  (assert-false #t)))))
+          (lambda ()
+            (test "Check that function calls work"
                   #:debug? #t
                   #:cases (list (lambda ()
                                   (assert-equal #:expected 42
                                                 #:sut (add-two 40))))))))
   (run-suite (lambda ()
-               (suite "simple-check"
+               (suite "Basic Suite"
                       #:debug? #t
                       #:tests numeric-tests)))
 
