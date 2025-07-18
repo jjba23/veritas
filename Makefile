@@ -40,6 +40,6 @@ repl:
 # Unit tests
 test:
 	guix shell -m manifest.scm -- \
-		guile -L ./src \
+		guile --fresh-auto-compile -L ./src \
 		-L ./test \
 		-c '((@ (veritas unit simple) simple-check))'

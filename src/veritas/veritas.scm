@@ -47,113 +47,102 @@
 ;; (define-syntax-rule (when c e ...)
 ;;   (if c (begin e ...)))
 
-(define-syntax-rule (log-message msg)
+(define (log-message msg)
   (display (format #f "\n~a" msg)))
 
-(define-syntax-rule (log msg ...)
+(define (log msg)
   (log-message (apply format
-                      (append (list #f msg) ...))))
+                      (list #f msg))))
 
-(define-syntax-rule (log-pass msg ...)
-  (log-message (format #f
-                       "[~apass~a] ~a~a~a"
-                       (assoc-ref ansi-color-escapes
-                                  'green)
-                       (assoc-ref ansi-color-escapes
-                                  'reset)
-                       (assoc-ref ansi-color-escapes
-                                  'green)
-                       (apply format
-                              (append (list #f msg) ...))
-                       (assoc-ref ansi-color-escapes
-                                  'reset))))
+(define (log-pass msg)
+  (log (format #f
+               "[~apass~a] ~a~a~a"
+               (assoc-ref ansi-color-escapes
+                          'green)
+               (assoc-ref ansi-color-escapes
+                          'reset)
+               (assoc-ref ansi-color-escapes
+                          'green)
+               (apply format
+                      (list #f msg))
+               (assoc-ref ansi-color-escapes
+                          'reset))))
 
-(define-syntax-rule (log-fail msg ...)
-  (log-message (format #f
-                       "[~afail~a] ~a~a~a"
-                       (assoc-ref ansi-color-escapes
-                                  'red)
-                       (assoc-ref ansi-color-escapes
-                                  'reset)
-                       (assoc-ref ansi-color-escapes
-                                  'red)
-                       (apply format
-                              (append (list #f msg) ...))
-                       (assoc-ref ansi-color-escapes
-                                  'reset))))
+(define (log-fail msg)
+  (log (format #f
+               "[~afail~a] ~a~a~a"
+               (assoc-ref ansi-color-escapes
+                          'red)
+               (assoc-ref ansi-color-escapes
+                          'reset)
+               (assoc-ref ansi-color-escapes
+                          'red)
+               (apply format
+                      (list #f msg))
+               (assoc-ref ansi-color-escapes
+                          'reset))))
 
-(define-syntax-rule (log-test msg ...)
-  (log-message (format #f
-                       "[~atest~a] ~a~a~a"
-                       (assoc-ref ansi-color-escapes
-                                  'bold)
-                       (assoc-ref ansi-color-escapes
-                                  'reset)
-                       (assoc-ref ansi-color-escapes
-                                  'bold)
-                       (apply format
-                              (append (list #f msg) ...))
-                       (assoc-ref ansi-color-escapes
-                                  'reset))))
+(define (log-test msg)
+  (log (format #f
+               "[~atest~a] ~a~a~a"
+               (assoc-ref ansi-color-escapes
+                          'bold)
+               (assoc-ref ansi-color-escapes
+                          'reset)
+               (assoc-ref ansi-color-escapes
+                          'bold)
+               (apply format
+                      (list #f msg))
+               (assoc-ref ansi-color-escapes
+                          'reset))))
 
-(define-syntax-rule (log-suite msg ...)
-  (log-message (format #f
-                       "[~asuite~a] ~a~a~a"
-                       (assoc-ref ansi-color-escapes
-                                  'bold)
-                       (assoc-ref ansi-color-escapes
-                                  'reset)
-                       (assoc-ref ansi-color-escapes
-                                  'bold)
-                       (apply format
-                              (append (list #f msg) ...))
-                       (assoc-ref ansi-color-escapes
-                                  'reset))))
+(define (log-suite msg)
+  (log (format #f
+               "[~asuite~a] ~a~a~a"
+               (assoc-ref ansi-color-escapes
+                          'bold)
+               (assoc-ref ansi-color-escapes
+                          'reset)
+               (assoc-ref ansi-color-escapes
+                          'bold)
+               (apply format
+                      (list #f msg))
+               (assoc-ref ansi-color-escapes
+                          'reset))))
 
-(define-syntax-rule (assert-equal* x y compare-f)
+(define (assert-equal* x y compare-f)
   (begin
-    (newline)
-    (write (format #f "(compare-f x y): ~a | ~a ~a"
-                   (compare-f x y) x y))
     (if (compare-f x y)
         (begin
           (write x)
           (write y)
-          (log-pass "x: ~a, y: ~a" x y) #t)
+          (log-pass (format #f "x: ~a, y: ~a" x y)) #t)
         (begin
           (write x)
           (write y)
-          (log-fail "error matching x: ~a, y: ~a" x y) #f))))
+          (log-fail (format #f "error matching x: ~a, y: ~a" x y)) #f))))
 
-(define-syntax-rule (assert-equal x y)
+(define (assert-equal x y)
   (assert-equal* x y equal?))
-(define-syntax-rule (assert-eqv x y)
+(define (assert-eqv x y)
   (assert-equal* x y eqv?))
-(define-syntax-rule (assert-eq x y)
+(define (assert-eq x y)
   (assert-equal* x y eq?))
 
-(define-syntax-rule (assert-true x)
+(define (assert-true x)
   (assert-equal* x #t eq?))
 
-(define-syntax-rule (assert-false x)
+(define (assert-false x)
   (assert-equal* x #f eq?))
 
-;;(assert-equal 1 1)
-
-;; (define-syntax when
-;;   (syntax-rules ()
-;;     ((when c e ...)
-;;      (if c (begin e ...)))))
-
-(define* (test message asserts
-               #:key (env (interaction-environment)))
-  (log-test message)
+(define (test name . tail)
+  (log-test name)
   (let* ((idx -1)
          (asserts-i (map (lambda (a)
                            (set! idx
                                  (+ idx 1))
-                           (list idx a)) asserts)))
-    `((test-description unquote message)
+                           (list idx a)) tail)))
+    `((test-name unquote name)
       (test-results unquote
                     (map (lambda (a)
                            `((assertion-index unquote
@@ -161,23 +150,27 @@
                              (expression unquote
                                          (car (cdr a)))
                              (result unquote
-                                     (eval (car (cdr a)) env)))) asserts-i)))))
+                                     (eval (car (cdr a))
+                                           (interaction-environment)))))
+                         asserts-i)))))
 
-(define* (suite message tests
-                #:key (env (interaction-environment)))
-  (log-suite message)
+(define (suite name . tail)
+  (log-suite name)
   (let* ((idx -1)
          (tests-i (map (lambda (t)
                          (set! idx
                                (+ idx 1))
-                         (list idx t)) tests))
-         (s `((suite-description unquote message)
-              (suite-results unquote
-                             (map (lambda (t)
-                                    (let* ((msg (cadr (car (cdr t))))
-                                           (cases (caddr (car (cdr t)))))
-                                      (test msg cases
-                                            #:env env))) tests-i)))))
+                         (list idx t)) tail))
+         (suite-results (map (lambda (t)
+                               (write t)
+                               (let* ((msg (format #f "~a"
+                                                   (assoc-ref t
+                                                              'test-name)))
+                                      (cases (car (cdr t))))
+                                 (test (append (list msg) cases)))) tests-i))
+         (s `((suite-name unquote name)
+              (suite-results unquote suite-results))))
     (newline)
     (write s) s))
+
 
