@@ -31,6 +31,8 @@
                          log-pass
                          log-suite
                          log-fail
+                         log
+                         log-message
                          suite
                          simple-check))
 
@@ -93,6 +95,7 @@
                           'reset))))
 
 (define (log-suite msg)
+  (log "------------------------------------------")
   (log (format #f
                "[~asuite~a] ~a~a~a"
                (assoc-ref ansi-color-escapes
@@ -109,12 +112,8 @@
   (begin
     (if (compare-f x y)
         (begin
-          (write x)
-          (write y)
           (log-pass (format #f "x: ~a, y: ~a" x y)) #t)
         (begin
-          (write x)
-          (write y)
           (log-fail (format #f "error matching x: ~a, y: ~a" x y)) #f))))
 
 (define (assert-equal x y)
@@ -131,40 +130,36 @@
   (assert-equal* x #f eq?))
 
 (define (test name . tail)
-  (log-test name)
-  (let* ((idx -1)
+  (let* ((_ (log-test name))
+         (idx -1)
          (asserts-i (map (lambda (a)
                            (set! idx
                                  (+ idx 1))
                            (list idx a)) tail)))
+    
     `((test-name unquote name)
       (test-results unquote
                     (map (lambda (a)
                            `((assertion-index unquote
                                               (car a))
-                             (expression unquote
-                                         (car (cdr a)))
                              (result unquote
                                      (eval (car (cdr a))
                                            (interaction-environment)))))
                          asserts-i)))))
 
-(define (suite name . tail)
-  (log-suite name)
-  (let* ((idx -1)
+(define* (suite name #:key debug? . tail)
+  (let* ((_ (log-suite name))
+         (idx -1)
          (tests-i (map (lambda (t)
                          (set! idx
                                (+ idx 1))
-                         (list idx t)) tail))
-         (suite-results (map (lambda (t)
-                               (write t)
-                               (let* ((msg (format #f "~a"
-                                                   (assoc-ref t
-                                                              'test-name)))
-                                      (cases (car (cdr t))))
-                                 (test (append (list msg) cases)))) tests-i))
+                         (list idx
+                               (eval t
+                                     (interaction-environment)))) tail))
          (s `((suite-name unquote name)
-              (suite-results unquote suite-results))))
-    (newline)
-    (write s) s))
+              (suite-results unquote tests-i))))
+    (when debug?
+      (newline)
+      (write s)
+      (newline)) s))
 
