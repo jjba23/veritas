@@ -29,6 +29,7 @@
                          test
                          log-stdout
                          colorful-reporter
+                         test-reporter
                          run-suite
                          suite
                          shuffle
@@ -115,46 +116,43 @@
                                       (assoc-ref ansi-color-escapes
                                                  'reset)))))))
 
-(define* (assert-equal* #:key expected sut compare
-                        (reporter colorful-reporter))
+(define test-reporter
+  (make-parameter colorful-reporter))
+
+(define* (assert-equal* #:key expected sut compare)
   (if (compare expected sut)
       (begin
-        (apply (assoc-ref reporter
+        (apply (assoc-ref (test-reporter)
                           'log-pass)
                (list (format #f "== expected: ~a, sut: ~a" expected sut))) #t)
       (begin
-        (apply (assoc-ref reporter
+        (apply (assoc-ref (test-reporter)
                           'log-fail)
                (list (format #f "error != expected: ~a, sut: ~a" expected sut)))
 
         #f)))
 
-(define* (assert-equal #:key expected sut
-                       (reporter colorful-reporter))
+(define* (assert-equal #:key expected sut)
   (assert-equal* #:expected expected
                  #:sut sut
                  #:compare equal?))
 
-(define* (assert-eqv #:key expected sut
-                     (reporter colorful-reporter))
+(define* (assert-eqv #:key expected sut)
   (assert-equal* #:expected expected
                  #:sut sut
                  #:compare eqv?))
 
-(define* (assert-eq #:key expected sut
-                    (reporter colorful-reporter))
+(define* (assert-eq #:key expected sut)
   (assert-equal* #:expected expected
                  #:sut sut
                  #:compare eq?))
 
-(define* (assert-true x
-                      #:key (reporter colorful-reporter))
+(define* (assert-true x)
   (assert-equal* #:sut x
                  #:expected #t
                  #:compare eq?))
 
-(define* (assert-false x
-                       #:key (reporter colorful-reporter))
+(define* (assert-false x)
   (assert-equal* #:sut x
                  #:expected #f
                  #:compare eq?))
@@ -189,9 +187,8 @@
 (define* (test name
                #:key (debug? #f)
                (shuffle? #t)
-               (reporter colorful-reporter)
                #:rest cases)
-  (let* ((_ (apply (assoc-ref reporter
+  (let* ((_ (apply (assoc-ref (test-reporter)
                               'log-test)
                    (list name)))
          (idx -1)
@@ -209,10 +206,10 @@
                            (let* ((proc-doc (procedure-documentation (car (cdr
                                                                            a)))))
                              (if proc-doc
-                                 (apply (assoc-ref reporter
+                                 (apply (assoc-ref (test-reporter)
                                                    'log-assert)
                                         (list proc-doc))
-                                 (apply (assoc-ref reporter
+                                 (apply (assoc-ref (test-reporter)
                                                    'log-assert)
                                         (list "")))
                              `((assertion-index unquote
@@ -225,9 +222,8 @@
 (define* (suite name
                 #:key debug?
                 (shuffle? #t)
-                (reporter colorful-reporter)
                 #:rest tests)
-  (let* ((_ (apply (assoc-ref reporter
+  (let* ((_ (apply (assoc-ref (test-reporter)
                               'log-suite)
                    (list name)))
          (idx -1)
