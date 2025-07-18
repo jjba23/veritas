@@ -185,23 +185,21 @@
 (define* (test name
                #:key (debug? #f)
                (shuffle? #t)
-               #:allow-other-keys #:rest cases)
+               #:rest cases)
   (let* ((_ (log-test name))
          (idx -1)
          (cc (caddr cases))
+         (ccc (filter procedure? cases))
          (asserts-i (map (lambda (a)
                            (set! idx
                                  (+ idx 1))
                            (list idx a))
-                         (if (list? cc)
-                             (if shuffle?
-                                 (shuffle cc) cc)
-                             (list cc)))))
+                         (if shuffle?
+                             (shuffle ccc) ccc))))
     
     `((test-name unquote name)
       (test-results unquote
                     (map (lambda (a)
-                           (write a)
                            (let* ((proc-doc (procedure-documentation (car (cdr
                                                                            a)))))
                              (if proc-doc
@@ -217,9 +215,10 @@
 (define* (suite name
                 #:key debug?
                 (shuffle? #t)
-                (tests '()))
+                #:rest tests)
   (let* ((_ (log-suite name))
          (idx -1)
+         (ttt (filter procedure? tests))
          (tests-i (map (lambda (t)
                          (set! idx
                                (+ idx 1))
@@ -227,7 +226,7 @@
                                (apply t
                                       '())))
                        (if shuffle?
-                           (shuffle tests) tests)))
+                           (shuffle ttt) ttt)))
          (s `((suite-name unquote name)
               (suite-results unquote tests-i))))
     (when debug?
@@ -240,4 +239,3 @@
   (let* ((suite-result (apply x
                               '())))
     suite-result))
-
