@@ -126,7 +126,7 @@
 
 ;;(assert-equal 1 1)
 
-(define (test message asserts)
+(define* (test message asserts #:key (env (interaction-environment)))
   (log-test message)
   (let* ((idx -1)
          (asserts-i (map (lambda (a)
@@ -142,25 +142,22 @@
                                          (car (cdr a)))
                              (result unquote
                                      (eval (car (cdr a))
-                                           (interaction-environment)))))
+                                           env))))
                          asserts-i)))))
 
-(define (suite message tests)
+(define* (suite message tests #:key (env (interaction-environment)))
   (log-suite message)
   (let* ((idx -1)
          (tests-i (map (lambda (t)
                          (set! idx
                                (+ idx 1))
-                         (list idx t)) tests)))
-    `((suite-description unquote message)
-      (suite-results unquote
-                     (map (lambda (t)
-                            (let* ((msg (cadr (car (cdr t))))
-                                   (cases (caddr (car (cdr t)))))
-                              (test msg cases))) tests-i)))))
-
-(suite "simple-check"
-       '((test "do some numeric checks"
-               ((assert-equal 1 1)
-                (assert-equal 1 2)))))
+                         (list idx t)) tests))
+         (s `((suite-description unquote message)
+              (suite-results unquote
+                             (map (lambda (t)
+                                    (let* ((msg (cadr (car (cdr t))))
+                                           (cases (caddr (car (cdr t)))))
+                                      (test msg cases #:env env))) tests-i)))))
+    (newline)
+    (write s) s))
 

@@ -2,9 +2,15 @@
   #:use-module (veritas veritas)
   #:export (simple-check))
 
+(define (add-two x)
+  (+ 2 x))
+
 (define (simple-check)
   (use-modules (veritas veritas))
+
   (suite "simple-check"
-         '((test "do some numeric checks"
-               ((assert-equal 1 1)
-                 (assert-equal 1 2))))))
+         `((test "do some numeric checks"
+                 ((assert-equal 1 1)
+                  (assert-equal 1 2)))
+           (test "check that function calls work"
+                 ((assert-equal ,(add-two 40) 42))))))
