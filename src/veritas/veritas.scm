@@ -24,7 +24,7 @@
   #:use-module (ice-9 popen)
   #:use-module (ice-9 textual-ports)
   #:use-module (ice-9 rdelim)
-  #:export ())
+  #:export (assert-equal assert-true assert-false test))
 
 (define ansi-color-escapes
   `((yellow . "\x1b[0;33m") (magenta . "\x1b[0;35m")
@@ -43,22 +43,32 @@
                       (append (list #f msg) args))))
 
 (define (log-pass msg . args)
-  (log-message (format #f "[~aPASS~a] ~a"
+  (log-message (format #f
+                       "[~aPASS~a] ~a~a~a"
                        (assoc-ref ansi-color-escapes
                                   'green)
                        (assoc-ref ansi-color-escapes
                                   'reset)
+                       (assoc-ref ansi-color-escapes
+                                  'green)
                        (apply format
-                              (append (list #f msg) args)))))
+                              (append (list #f msg) args))
+                       (assoc-ref ansi-color-escapes
+                                  'reset))))
 
 (define (log-fail msg . args)
-  (log-message (format #f "[~aFAIL~a] ~a"
+  (log-message (format #f
+                       "[~aFAIL~a] ~a~a~a"
                        (assoc-ref ansi-color-escapes
                                   'red)
                        (assoc-ref ansi-color-escapes
                                   'reset)
+                       (assoc-ref ansi-color-escapes
+                                  'red)
                        (apply format
-                              (append (list #f msg) args)))))
+                              (append (list #f msg) args))
+                       (assoc-ref ansi-color-escapes
+                                  'reset))))
 
 (define* (assert-equal left right
                        #:key (compare-f equal?))
@@ -76,3 +86,16 @@
 
 (define* (assert-false x)
   (assert-equal x #f))
+
+;;(assert-equal 1 1)
+
+(define (evaluate-expression-list expr-list)
+  (map (lambda (expr) (eval expr (interaction-environment))) expr-list))
+
+(define (test msg asserts)
+  (log-message msg)
+  (write asserts)
+  (evaluate-expression-list asserts))
+
+;; (test ""  '((assert-equal 1 1) (assert-equal 1 2)))
+;;(test "" '(assert-equal 1 1))

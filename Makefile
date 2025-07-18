@@ -37,9 +37,3 @@ repl:
 		-L ./src \
 		-c '((@ (ares server) run-nrepl-server))'
 
-# Unit tests
-test:
-	guix shell -m manifest.scm -- \
-		guile -L ./src \
-		-L ./test \
-		-c "((@ (veritas test-runners) run-project-tests))"
