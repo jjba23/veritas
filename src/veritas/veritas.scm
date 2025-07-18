@@ -154,15 +154,46 @@
                  #:expected #f
                  #:compare eq?))
 
+(set! *random-state*
+      (random-state-from-platform))
+
+;; List shuffle which implements the modern Fisher-Yates shuffle algorithm.
+;; It converts the list to a vector for efficient O(1) random access
+;; and mutation, shuffles the vector in-place, and then converts it back to a list.
+(define (shuffle lst)
+  "Returns a randomly shuffled copy of LST."
+  (if (or (null? lst)
+          (null? (cdr lst)))
+      ;; If the list has 0 or 1 elements, it's already "shuffled".
+      lst
+      (let* ((vec (list->vector lst))
+             (len (vector-length vec)))
+        ;; Loop from the last element down to the second element.
+        (do ((i (- len 1)
+                (- i 1)))
+            ((< i 1))
+            ;; Pick a random index j from 0 to i (inclusive).
+            (let* ((j (random (1+ i)))
+                   ;; Swap the elements at positions i and j.
+                   (temp (vector-ref vec i)))
+              (vector-set! vec i
+                           (vector-ref vec j))
+              (vector-set! vec j temp)))
+        ;; Convert the shuffled vector back to a list.
+        (vector->list vec))))
+
 (define* (test name
                #:key (debug? #f)
+               (shuffle? #t)
                (cases '()))
   (let* ((_ (log-test name))
          (idx -1)
          (asserts-i (map (lambda (a)
                            (set! idx
                                  (+ idx 1))
-                           (list idx a)) cases)))
+                           (list idx a))
+                         (if shuffle?
+                             (shuffle cases) cases))))
     
     `((test-name unquote name)
       (test-results unquote
@@ -180,6 +211,7 @@
 
 (define* (suite name
                 #:key debug?
+                (shuffle? #t)
                 (tests '()))
   (let* ((_ (log-suite name))
          (idx -1)
@@ -188,7 +220,9 @@
                                (+ idx 1))
                          (list idx
                                (apply t
-                                      '()))) tests))
+                                      '())))
+                       (if shuffle?
+                           (shuffle tests) tests)))
          (s `((suite-name unquote name)
               (suite-results unquote tests-i))))
     (when debug?
