@@ -24,19 +24,28 @@
   #:use-module (ice-9 popen)
   #:use-module (ice-9 textual-ports)
   #:use-module (ice-9 rdelim)
-  #:export (assert-equal assert-true assert-false test))
+  #:export (assert-equal assert-true
+                         assert-false
+                         test
+                         log-test
+                         log-pass
+                         log-suite
+                         log-fail
+                         suite
+                         simple-check))
 
 (define ansi-color-escapes
   `((yellow . "\x1b[0;33m") (magenta . "\x1b[0;35m")
     (green . "\x1b[0;32m")
     (default . "\x1b[0;39m")
+    (bold . "\x1b[1m")
     (red . "\x1b[0;31m")
     (blue . "\x1b[0;34m")
     (cyan . "\x1b[0;36m")
     (reset . "\x1b[0m")))
 
 (define (log-message msg)
-  (display (format #f "\n~a\n" msg)))
+  (display (format #f "\n~a" msg)))
 
 (define (log msg . args)
   (log-message (apply format
@@ -44,7 +53,7 @@
 
 (define (log-pass msg . args)
   (log-message (format #f
-                       "[~aPASS~a] ~a~a~a"
+                       "[~apass~a] ~a~a~a"
                        (assoc-ref ansi-color-escapes
                                   'green)
                        (assoc-ref ansi-color-escapes
@@ -58,13 +67,41 @@
 
 (define (log-fail msg . args)
   (log-message (format #f
-                       "[~aFAIL~a] ~a~a~a"
+                       "[~afail~a] ~a~a~a"
                        (assoc-ref ansi-color-escapes
                                   'red)
                        (assoc-ref ansi-color-escapes
                                   'reset)
                        (assoc-ref ansi-color-escapes
                                   'red)
+                       (apply format
+                              (append (list #f msg) args))
+                       (assoc-ref ansi-color-escapes
+                                  'reset))))
+
+(define (log-test msg . args)
+  (log-message (format #f
+                       "[~atest~a] ~a~a~a"
+                       (assoc-ref ansi-color-escapes
+                                  'bold)
+                       (assoc-ref ansi-color-escapes
+                                  'reset)
+                       (assoc-ref ansi-color-escapes
+                                  'bold)
+                       (apply format
+                              (append (list #f msg) args))
+                       (assoc-ref ansi-color-escapes
+                                  'reset))))
+
+(define (log-suite msg . args)
+  (log-message (format #f
+                       "[~asuite~a] ~a~a~a"
+                       (assoc-ref ansi-color-escapes
+                                  'bold)
+                       (assoc-ref ansi-color-escapes
+                                  'reset)
+                       (assoc-ref ansi-color-escapes
+                                  'bold)
                        (apply format
                               (append (list #f msg) args))
                        (assoc-ref ansi-color-escapes
@@ -89,13 +126,41 @@
 
 ;;(assert-equal 1 1)
 
-(define (evaluate-expression-list expr-list)
-  (map (lambda (expr) (eval expr (interaction-environment))) expr-list))
+(define (test message asserts)
+  (log-test message)
+  (let* ((idx -1)
+         (asserts-i (map (lambda (a)
+                           (set! idx
+                                 (+ idx 1))
+                           (list idx a)) asserts)))
+    `((test-description unquote message)
+      (test-results unquote
+                    (map (lambda (a)
+                           `((assertion-index unquote
+                                              (car a))
+                             (expression unquote
+                                         (car (cdr a)))
+                             (result unquote
+                                     (eval (car (cdr a))
+                                           (interaction-environment)))))
+                         asserts-i)))))
 
-(define (test msg asserts)
-  (log-message msg)
-  (write asserts)
-  (evaluate-expression-list asserts))
+(define (suite message tests)
+  (log-suite message)
+  (let* ((idx -1)
+         (tests-i (map (lambda (t)
+                         (set! idx
+                               (+ idx 1))
+                         (list idx t)) tests)))
+    `((suite-description unquote message)
+      (suite-results unquote
+                     (map (lambda (t)
+                            (let* ((msg (cadr (car (cdr t))))
+                                   (cases (caddr (car (cdr t)))))
+                              (test msg cases))) tests-i)))))
 
-;; (test ""  '((assert-equal 1 1) (assert-equal 1 2)))
-;;(test "" '(assert-equal 1 1))
+(suite "simple-check"
+       '((test "do some numeric checks"
+               ((assert-equal 1 1)
+                (assert-equal 1 2)))))
+
