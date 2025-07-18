@@ -38,7 +38,7 @@
                                  #:sut (add-two 40)))))))
 
 (define (str-suite)
-  (parameterize ((test-reporter monotone-reporter))
+  (parameterize ((test-reporter monotone-stdout-reporter))
     (suite "str"
            #:debug? #f
            (lambda ()

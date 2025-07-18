@@ -24,7 +24,8 @@
   #:use-module (ice-9 popen)
   #:use-module (ice-9 textual-ports)
   #:use-module (ice-9 rdelim)
-  #:export (colorful-reporter log-stdout ansi-color-escapes monotone-reporter))
+  #:export (colorful-stdout-reporter log-stdout ansi-color-escapes
+                                     monotone-stdout-reporter))
 
 (define ansi-color-escapes
   `((yellow . "\x1b[0;33m") (magenta . "\x1b[0;35m")
@@ -39,7 +40,7 @@
 (define (log-stdout msg)
   (display (format #f "\n~a" msg)))
 
-(define colorful-reporter
+(define colorful-stdout-reporter
   `((log-pass unquote
               (lambda (msg)
                 (log-stdout (format #f
@@ -107,7 +108,7 @@
                                       (assoc-ref ansi-color-escapes
                                                  'reset)))))))
 
-(define monotone-reporter
+(define monotone-stdout-reporter
   `((log-pass unquote
               (lambda (msg)
                 (log-stdout (format #f "    [pass] ~a" msg))))

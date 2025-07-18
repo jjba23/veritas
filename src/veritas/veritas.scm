@@ -35,7 +35,7 @@
                          simple-check))
 
 (define test-reporter
-  (make-parameter colorful-reporter))
+  (make-parameter colorful-stdout-reporter))
 
 (define* (assert-equal* #:key expected sut compare)
   (if (compare expected sut)
