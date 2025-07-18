@@ -98,5 +98,19 @@
   (let* ((ss (filter procedure? suites))
          (suite-results (map (lambda (s)
                                (apply s
-                                      '())) ss)))
-    suite-results))
+                                      '())) ss))
+         (assertion-results (map (lambda (sr)
+                                   (map (lambda (s)
+                                          (assoc-ref s
+                                                     'assertion-succesful))
+                                        (assoc-ref sr
+                                                   'suite-results)))
+                                 suite-results))
+         (ass-res (apply append assertion-results))
+         (are-there-failures? (if (member #f ass-res) #t #f)))
+    
+    (display (format #f "\nare-there-failures?: ~a" are-there-failures?))
+    (display (format #f "\n\ndebugging suite-results: ~a\n" suite-results))
+    (when are-there-failures?
+      (display "\naborting due to error in test case...\n")
+      (exit 1)) suite-results))
