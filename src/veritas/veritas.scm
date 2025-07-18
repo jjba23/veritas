@@ -200,8 +200,9 @@
                     (map (lambda (a)
                            (let* ((proc-doc (procedure-documentation (car (cdr
                                                                            a)))))
-                             (when proc-doc
-                               (log-assert proc-doc))
+                             (if proc-doc
+                                 (log-assert proc-doc)
+                                 (log-assert ""))
                              `((assertion-index unquote
                                                 (car a))
                                (assertion-documentation unquote proc-doc)

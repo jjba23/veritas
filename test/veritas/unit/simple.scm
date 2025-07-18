@@ -18,6 +18,10 @@
                                   (assert-equal #:expected 1
                                                 #:sut (* 1 1 1 1 1)))
                                 (lambda ()
+                                  "checks if addition works"
+                                  (assert-equal #:expected 4
+                                                #:sut (+ 2 2)))
+                                (lambda ()
                                   (assert-equal #:expected 0
                                                 #:sut (* 1 1 1 1 0))))))
           (lambda ()

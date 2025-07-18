@@ -11,15 +11,16 @@
 
 [[https://jointhefreeworld.org/static-assets/veritas/image-small.png]]
 
+
+~veritas~ aims to be a simple and lightweight testing framework written in Scheme. Its main purpose is to help developers verify that their code behaves as expected. It achieves this by providing a clear structure for writing tests and producing easy-to-read, color-coded feedback.
+
+The framework is built around the concepts of "suites," which group related "tests," and "assertions," which perform the actual checks.
+
 If you like my work, please support me by [[https://bmc.link/jjbigorra][buying me a cup of coffee ☕]] so I can continue with a lot of motivation.
 
 [[https://jointhefreeworld.org/static-assets/veritas/2025-07-18.png]]
 
 -----------------------------
-
-~veritas~ aims to be a simple and lightweight testing framework written in Scheme. Its main purpose is to help developers verify that their code behaves as expected. It achieves this by providing a clear structure for writing tests and producing easy-to-read, color-coded feedback.
-
-The framework is built around the concepts of "suites," which group related "tests," and "assertions," which perform the actual checks.
 
 ** API and Structure
 
@@ -33,14 +34,19 @@ The ~veritas~ API is organized hierarchically, making tests easy to write and ma
 
 A typical workflow involves defining a suite that contains several tests, with each test making one or more assertions. The framework then executes everything and reports a summary on-the-go.
 
-** Key Features and Power
+** The Key Ideas
+
 The power of ~veritas~ lies in its simplicity and a few clever features that promote robust testing practices.
 
 A significant feature is the *randomization of execution order*, which is important for correctness, and by default, ~veritas~ shuffles both the tests within a suite and the assertion cases within a test using a Fisher-Yates algorithm.
 
 This is a powerful technique for detecting hidden dependencies between tests, where one test might only pass because another test ran before it and modified some state.
 
-Another powerful aspect is its focus on *developer experience and clarity*. The framework automatically extracts and prints any documentation string associated with an assertion procedure, which encourages developers to write self-documenting tests. For example, ~(lambda () "checks if addition works" (assert-equal #:expected 4 #:sut (+ 2 2)))~ would print the message "checks if addition works" before running the assertion. This, combined with the colorful and neatly formatted output, makes debugging failures quick and intuitive. The entire library is self-contained in a single module with minimal dependencies, making it easy to integrate into any project.
+Another powerful aspect is its focus on *developer experience and clarity*. The framework automatically extracts and prints any documentation string associated with an assertion procedure, which encourages developers to write self-documenting tests.
+
+For example, ~(lambda () "checks if addition works" (assert-equal #:expected 4 #:sut (+ 2 2)))~ would print the message "checks if addition works" before running the assertion.
+
+This, combined with the colorful and neatly formatted output, makes debugging failures quick and intuitive. The entire library is self-contained and has minimal dependencies, making it easy to integrate into any project. (WIP Guix packaging)
 
 ------------------------
 
