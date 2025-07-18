@@ -154,14 +154,13 @@
                  #:expected #f
                  #:compare eq?))
 
-(set! *random-state*
-      (random-state-from-platform))
-
 ;; List shuffle which implements the modern Fisher-Yates shuffle algorithm.
 ;; It converts the list to a vector for efficient O(1) random access
 ;; and mutation, shuffles the vector in-place, and then converts it back to a list.
 (define (shuffle lst)
   "Returns a randomly shuffled copy of LST."
+  (set! *random-state*
+        (random-state-from-platform))
   (if (or (null? lst)
           (null? (cdr lst)))
       ;; If the list has 0 or 1 elements, it's already "shuffled".
