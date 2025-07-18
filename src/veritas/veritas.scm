@@ -233,8 +233,10 @@
       (write s)
       (newline)) s))
 
-(define* (run-suite x
-                    #:key (fail-fast? #t))
-  (let* ((suite-result (apply x
-                              '())))
-    suite-result))
+(define* (run-suite #:key (fail-fast? #t)
+                    #:rest suites)
+  (let* ((ss (filter procedure? suites))
+         (suite-results (map (lambda (s)
+                               (apply s
+                                      '())) ss)))
+    suite-results))
