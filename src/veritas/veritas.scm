@@ -110,9 +110,10 @@
          (are-there-failures? (if (member #f ass-res) #t #f)))
     
     (newline)
-    (apply (assoc-ref (test-reporter)
-                      'log-fail)
-           (list (format #f "suite-has-failures?: ~a" are-there-failures?)))
+
     (when are-there-failures?
-      (display "\naborting due to error in test case...\n")
+      (apply (assoc-ref (test-reporter)
+                        'log-fail)
+
+             (list "aborting due to error in test case...\n"))
       (exit 1)) suite-results))
