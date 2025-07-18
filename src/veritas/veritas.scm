@@ -46,9 +46,6 @@
     (cyan . "\x1b[0;36m")
     (reset . "\x1b[0m")))
 
-;; (define-syntax-rule (when c e ...)
-;;   (if c (begin e ...)))
-
 (define (log-message msg)
   (display (format #f "\n~a" msg)))
 

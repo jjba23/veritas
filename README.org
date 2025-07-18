@@ -7,7 +7,9 @@
 [[https://jointhefreeworld.org/ggg/dist/gnu-make.svg]] 
 [[https://jointhefreeworld.org/ggg/dist/license-lgpl3+.svg]]    [[https://jointhefreeworld.org/ggg/dist/license-fdl13+.svg]]
 
-Unit, Integration and Black Box testing framework powered by Guile Scheme, a dialect of Lisp.
+[Work in progress] Unit, Integration and Black Box testing framework powered by Guile Scheme, a dialect of Lisp.
+
+[[https://jointhefreeworld.org/static-assets/veritas/image-small.png]]
 
 If you like my work, please support me by [[https://bmc.link/jjbigorra][buying me a cup of coffee ☕]] so I can continue with a lot of motivation.
 
