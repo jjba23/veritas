@@ -33,6 +33,7 @@
                          log-fail
                          log
                          log-message
+                         run-suite
                          suite
                          simple-check))
 
@@ -109,9 +110,9 @@
   (begin
     (if (compare-f x y)
         (begin
-          (log-pass (format #f "x: ~a, y: ~a" x y)) #t)
+          (log-pass (format #f "== x: ~a, y: ~a" x y)) #t)
         (begin
-          (log-fail (format #f "error matching x: ~a, y: ~a" x y)) #f))))
+          (log-fail (format #f "error != x: ~a, y: ~a" x y)) #f))))
 
 (define (assert-equal x y)
   (assert-equal* x y equal?))
@@ -160,3 +161,8 @@
       (write s)
       (newline)) s))
 
+(define* (run-suite x
+                    #:key (fail-fast? #t)
+                    (env (interaction-environment)))
+  (let* ((suite-result (eval x env)))
+    suite-result))
