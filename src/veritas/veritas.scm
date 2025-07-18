@@ -25,82 +25,14 @@
   #:use-module (ice-9 textual-ports)
   #:use-module (ice-9 rdelim)
   #:use-module (veritas reporter)
-  #:export (assert-equal assert-true
-                         assert-false
-                         test
-                         test-reporter
-                         run-suite
-                         suite
-                         shuffle
-                         simple-check))
+  #:use-module (veritas assert)
+  #:use-module (veritas shuffle)
+  #:re-export (assert-equal assert-eqv assert-true assert-false
+                            fisher-yates-shuffle)
+  #:export (test test-reporter run-suite suite))
 
 (define test-reporter
   (make-parameter colorful-stdout-reporter))
-
-(define* (assert-equal* #:key expected sut compare)
-  (if (compare expected sut)
-      (begin
-        (apply (assoc-ref (test-reporter)
-                          'log-pass)
-               (list (format #f "== expected: ~a, sut: ~a" expected sut))) #t)
-      (begin
-        (apply (assoc-ref (test-reporter)
-                          'log-fail)
-               (list (format #f "error != expected: ~a, sut: ~a" expected sut)))
-
-        #f)))
-
-(define* (assert-equal #:key expected sut)
-  (assert-equal* #:expected expected
-                 #:sut sut
-                 #:compare equal?))
-
-(define* (assert-eqv #:key expected sut)
-  (assert-equal* #:expected expected
-                 #:sut sut
-                 #:compare eqv?))
-
-(define* (assert-eq #:key expected sut)
-  (assert-equal* #:expected expected
-                 #:sut sut
-                 #:compare eq?))
-
-(define* (assert-true x)
-  (assert-equal* #:sut x
-                 #:expected #t
-                 #:compare eq?))
-
-(define* (assert-false x)
-  (assert-equal* #:sut x
-                 #:expected #f
-                 #:compare eq?))
-
-;; List shuffle which implements the modern Fisher-Yates shuffle algorithm.
-;; It converts the list to a vector for efficient O(1) random access
-;; and mutation, shuffles the vector in-place, and then converts it back to a list.
-(define (shuffle lst)
-  "Returns a randomly shuffled copy of LST."
-  (set! *random-state*
-        (random-state-from-platform))
-  (if (or (null? lst)
-          (null? (cdr lst)))
-      ;; If the list has 0 or 1 elements, it's already "shuffled".
-      lst
-      (let* ((vec (list->vector lst))
-             (len (vector-length vec)))
-        ;; Loop from the last element down to the second element.
-        (do ((i (- len 1)
-                (- i 1)))
-            ((< i 1))
-            ;; Pick a random index j from 0 to i (inclusive).
-            (let* ((j (random (1+ i)))
-                   ;; Swap the elements at positions i and j.
-                   (temp (vector-ref vec i)))
-              (vector-set! vec i
-                           (vector-ref vec j))
-              (vector-set! vec j temp)))
-        ;; Convert the shuffled vector back to a list.
-        (vector->list vec))))
 
 (define* (test name
                #:key (debug? #f)
@@ -116,7 +48,7 @@
                                  (+ idx 1))
                            (list idx a))
                          (if shuffle?
-                             (shuffle ccc) ccc))))
+                             (fisher-yates-shuffle ccc) ccc))))
     
     `((test-name unquote name)
       (test-results unquote
@@ -153,7 +85,7 @@
                                (apply t
                                       '())))
                        (if shuffle?
-                           (shuffle ttt) ttt)))
+                           (fisher-yates-shuffle ttt) ttt)))
          (s `((suite-name unquote name)
               (suite-results unquote tests-i))))
     (when debug?
