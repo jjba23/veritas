@@ -2,29 +2,47 @@
   #:use-module (veritas veritas)
   #:export (simple-check))
 
-(define some-suite
-  '(suite "str"
-          #:debug? #t
-          '(test "String Operations"
-                 (assert-equal "hello world"
-                               (string-append "hello" " " "world"))
-                 (assert-equal #t
-                               (string=? "scheme" "scheme"))
-                 (assert-equal #f
-                               (string=? "guile" "Scheme")))))
-
-(define numeric-suite
-  `(suite "simple-check"
-          #:debug? #t
-          '(test "do some numeric checks"
-                 (assert-equal 1 1)
-                 (assert-equal 1 2))
-          '(test "check that function calls work"
-                 (assert-equal (+ 2 40) 42))))
+(define (add-two x)
+  (+ 2 x))
 
 (define (simple-check)
-  (use-modules (veritas veritas))
-  (eval numeric-suite
-        (interaction-environment))
-  (run-suite some-suite))
+  (define tt
+    (list (lambda ()
+            (test "do some numeric checks"
+                  #:debug? #t
+                  #:cases (list (lambda ()
+                                  (assert-equal #:expected 1
+                                                #:sut (+ 10
+                                                         (- 0 9))))
+                                (lambda ()
+                                  (assert-equal #:expected 1
+                                                #:sut (* 1 1 1 1 1))))))
+          (lambda ()
+            (test "check that function calls work"
+                  #:debug? #t
+                  #:cases (list (lambda ()
+                                  (assert-equal #:expected 42
+                                                #:sut (add-two 40))))))))
+  (run-suite (lambda ()
+               (suite "simple-check"
+                      #:debug? #t
+                      #:tests tt)))
+
+  (define ttstr
+    (list (lambda ()
+            (test "String Operations"
+                  #:debug? #f
+                  #:cases (list (lambda ()
+                                  (assert-equal #:expected "hello world"
+                                                #:sut (string-append "hello"
+                                                                     " "
+                                                                     "world")))
+                                (lambda ()
+                                  (assert-true (string=? "scheme" "scheme")))
+                                (lambda ()
+                                  (assert-false (string=? "guile" "Scheme"))))))))
+  (run-suite (lambda ()
+               (suite "str"
+                      #:debug? #t
+                      #:tests ttstr))))
 

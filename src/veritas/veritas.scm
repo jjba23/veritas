@@ -106,54 +106,79 @@
                (assoc-ref ansi-color-escapes
                           'reset))))
 
-(define (assert-equal* x y compare-f)
+(define* (assert-equal* #:key expected sut compare)
   (begin
-    (if (compare-f x y)
+    (if (compare expected sut)
         (begin
-          (log-pass (format #f "== x: ~a, y: ~a" x y)) #t)
+          (log-pass (format #f "== expected: ~a, sut: ~a" expected sut)) #t)
         (begin
-          (log-fail (format #f "error != x: ~a, y: ~a" x y)) #f))))
+          (log-fail (format #f "error != expected: ~a, sut: ~a" expected sut))
+          #f))))
 
-(define (assert-equal x y)
-  (assert-equal* x y equal?))
-(define (assert-eqv x y)
-  (assert-equal* x y eqv?))
-(define (assert-eq x y)
-  (assert-equal* x y eq?))
+(define* (assert-equal #:key expected sut)
+  (assert-equal* #:expected expected
+                 #:sut sut
+                 #:compare equal?))
+
+(define* (assert-eqv #:key expected sut)
+  (assert-equal* #:expected expected
+                 #:sut sut
+                 #:compare eqv?))
+
+(define* (assert-eq #:key expected sut)
+  (assert-equal* #:expected expected
+                 #:sut sut
+                 #:compare eq?))
 
 (define (assert-true x)
-  (assert-equal* x #t eq?))
+  (assert-equal* #:sut x
+                 #:expected #t
+                 #:compare eq?))
 
 (define (assert-false x)
-  (assert-equal* x #f eq?))
+  (assert-equal* #:sut x
+                 #:expected #f
+                 #:compare eq?))
 
-(define (test name . tail)
+(define* (test name
+               #:key (debug? #f)
+               (cases '()))
   (let* ((_ (log-test name))
          (idx -1)
          (asserts-i (map (lambda (a)
                            (set! idx
                                  (+ idx 1))
-                           (list idx a)) tail)))
-    
+                           (list idx a)) cases)))
+    (when debug?
+      (newline)
+      (write cases))
+
     `((test-name unquote name)
       (test-results unquote
                     (map (lambda (a)
+                           (write a)
                            `((assertion-index unquote
                                               (car a))
-                             (result unquote
-                                     (eval (car (cdr a))
-                                           (interaction-environment)))))
-                         asserts-i)))))
+                             (results unquote
+                                      (if (list? (car (cdr a)))
+                                          (map (lambda (ll)
+                                                 (apply ll
+                                                        '()))
+                                               (car (cdr a)))
+                                          (apply (car (cdr a))
+                                                 '()))))) asserts-i)))))
 
-(define* (suite name #:key debug? . tail)
+(define* (suite name
+                #:key debug?
+                (tests '()))
   (let* ((_ (log-suite name))
          (idx -1)
          (tests-i (map (lambda (t)
                          (set! idx
                                (+ idx 1))
                          (list idx
-                               (eval t
-                                     (interaction-environment)))) tail))
+                               (apply t
+                                      '()))) tests))
          (s `((suite-name unquote name)
               (suite-results unquote tests-i))))
     (when debug?
@@ -162,7 +187,7 @@
       (newline)) s))
 
 (define* (run-suite x
-                    #:key (fail-fast? #t)
-                    (env (interaction-environment)))
-  (let* ((suite-result (eval x env)))
+                    #:key (fail-fast? #t))
+  (let* ((suite-result (apply x
+                              '())))
     suite-result))
