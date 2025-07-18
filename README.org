@@ -9,7 +9,7 @@
 
 [Work in progress] Unit, Integration and Black Box testing framework powered by Guile Scheme, a dialect of Lisp.
 
-[[https://jointhefreeworld.org/static-assets/veritas/image-small.png]]
+[[https://jointhefreeworld.org/static-assets/veritas/image-small-negative.png]]
 
 
 ~veritas~ aims to be a simple and lightweight testing framework written in Scheme. Its main purpose is to help developers verify that their code behaves as expected. It achieves this by providing a clear structure for writing tests and producing easy-to-read, color-coded feedback.
