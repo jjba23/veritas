@@ -107,9 +107,11 @@
                     (reporter colorful-stdout-reporter)
                     #:rest suites)
   (let* ((ss (filter procedure? suites))
-         (suite-results (map (lambda (s)
-                               (apply s
-                                      (list reporter))) ss))
+         (suite-thunks (map (lambda (s)
+                              (lambda ()
+                                (apply s
+                                       (list reporter)))) ss))
+         (suite-results (evaluate-thunks-concurrently suite-thunks))
          (test-results-with-id (map (lambda (sr)
                                       (assoc-ref sr
                                                  'suite-results))
