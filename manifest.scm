@@ -33,5 +33,7 @@
               #:prefix license:))
 
 (packages->manifest (list (specification->package "make") guile-next
+                          guile-fibers
+                          (specification->package "guile-json@4")
                           guile-ares-rs))
 

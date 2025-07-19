@@ -24,8 +24,7 @@
   #:use-module (ice-9 popen)
   #:use-module (ice-9 textual-ports)
   #:use-module (ice-9 rdelim)
-  #:export (colorful-stdout-reporter log-stdout ansi-color-escapes
-                                     monotone-stdout-reporter))
+  #:export (colorful-reporter log ansi-color-escapes monotone-reporter))
 
 (define ansi-color-escapes
   `((yellow . "\x1b[0;33m") (magenta . "\x1b[0;35m")
@@ -37,97 +36,97 @@
     (cyan . "\x1b[0;36m")
     (reset . "\x1b[0m")))
 
-(define (log-stdout msg)
-  (display (format #f "\n~a" msg)))
+(define (log msg)
+  (format #t "\n~a" msg))
 
-(define colorful-stdout-reporter
+(define colorful-reporter
   `((log-pass unquote
               (lambda (msg)
-                (log-stdout (format #f "    ~a✅ pass - ~a~a"
-                                    (assoc-ref ansi-color-escapes
-                                               'green) msg
-                                    (assoc-ref ansi-color-escapes
-                                               'reset)))))
+                (log (format #f "    ~a✅ pass - ~a~a"
+                             (assoc-ref ansi-color-escapes
+                                        'green) msg
+                             (assoc-ref ansi-color-escapes
+                                        'reset)))))
     (log-fail unquote
               (lambda (msg)
-                (log-stdout (format #f "    ~a❌ fail - ~a~a"
-                                    (assoc-ref ansi-color-escapes
-                                               'red) msg
-                                    (assoc-ref ansi-color-escapes
-                                               'reset)))))
+                (log (format #f "    ~a❌ fail - ~a~a"
+                             (assoc-ref ansi-color-escapes
+                                        'red) msg
+                             (assoc-ref ansi-color-escapes
+                                        'reset)))))
     (log-error unquote
                (lambda (msg)
-                 (log-stdout (format #f "\n~a❌ error - ~a~a\n"
-                                     (assoc-ref ansi-color-escapes
-                                                'red) msg
-                                     (assoc-ref ansi-color-escapes
-                                                'reset)))))
+                 (log (format #f "\n~a❌ error - ~a~a\n"
+                              (assoc-ref ansi-color-escapes
+                                         'red) msg
+                              (assoc-ref ansi-color-escapes
+                                         'reset)))))
     (log-test unquote
               (lambda (msg)
-                (log-stdout (format #f
-                                    "  [~a🧪 test~a] ~a~a~a"
-                                    (assoc-ref ansi-color-escapes
-                                               'bold)
-                                    (assoc-ref ansi-color-escapes
-                                               'reset)
-                                    (assoc-ref ansi-color-escapes
-                                               'bold)
-                                    msg
-                                    (assoc-ref ansi-color-escapes
-                                               'reset)))))
+                (log (format #f
+                             "  [~a🧪 test~a] ~a~a~a"
+                             (assoc-ref ansi-color-escapes
+                                        'bold)
+                             (assoc-ref ansi-color-escapes
+                                        'reset)
+                             (assoc-ref ansi-color-escapes
+                                        'bold)
+                             msg
+                             (assoc-ref ansi-color-escapes
+                                        'reset)))))
     (log-suite unquote
                (lambda (msg)
-                 (log-stdout "------------------------------------------")
-                 (log-stdout (format #f
-                                     "[~a📑 suite~a] ~a~a~a"
-                                     (assoc-ref ansi-color-escapes
-                                                'bold)
-                                     (assoc-ref ansi-color-escapes
-                                                'reset)
-                                     (assoc-ref ansi-color-escapes
-                                                'bold)
-                                     msg
-                                     (assoc-ref ansi-color-escapes
-                                                'reset)))))
+                 (log "------------------------------------------")
+                 (log (format #f
+                              "[~a📑 suite~a] ~a~a~a"
+                              (assoc-ref ansi-color-escapes
+                                         'bold)
+                              (assoc-ref ansi-color-escapes
+                                         'reset)
+                              (assoc-ref ansi-color-escapes
+                                         'bold)
+                              msg
+                              (assoc-ref ansi-color-escapes
+                                         'reset)))))
     (log-assert unquote
                 (lambda (msg)
-                  (log-stdout (format #f
-                                      "    [~a⚙️ assert~a] ~a~a~a"
-                                      (assoc-ref ansi-color-escapes
-                                                 'bold)
-                                      (assoc-ref ansi-color-escapes
-                                                 'reset)
-                                      (assoc-ref ansi-color-escapes
-                                                 'bold)
-                                      msg
-                                      (assoc-ref ansi-color-escapes
-                                                 'reset)))))))
+                  (log (format #f
+                               "    [~a⚙️ assert~a] ~a~a~a"
+                               (assoc-ref ansi-color-escapes
+                                          'bold)
+                               (assoc-ref ansi-color-escapes
+                                          'reset)
+                               (assoc-ref ansi-color-escapes
+                                          'bold)
+                               msg
+                               (assoc-ref ansi-color-escapes
+                                          'reset)))))))
 
-(define monotone-stdout-reporter
+(define monotone-reporter
   `((log-pass unquote
               (lambda (msg)
-                (log-stdout (format #f "    [pass] ~a" msg))))
+                (log (format #f "    [pass] ~a" msg))))
     (log-fail unquote
               (lambda (msg)
-                (log-stdout (format #f "    [fail] ~a"
+                (log (format #f "    [fail] ~a"
 
-                                    msg))))
+                             msg))))
     (log-error unquote
                (lambda (msg)
-                 (log-stdout (format #f "\n[error] ~a\n"
+                 (log (format #f "\n[error] ~a\n"
 
-                                     msg))))
+                              msg))))
     (log-test unquote
               (lambda (msg)
-                (log-stdout (format #f "  [test] ~a"
+                (log (format #f "  [test] ~a"
 
-                                    msg))))
+                             msg))))
     (log-suite unquote
                (lambda (msg)
-                 (log-stdout "------------------------------------------")
-                 (log-stdout (format #f "[suite] ~a"
+                 (log "------------------------------------------")
+                 (log (format #f "[suite] ~a"
 
-                                     msg))))
+                              msg))))
     (log-assert unquote
                 (lambda (msg)
-                  (log-stdout (format #f "    [assert] ~a" msg))))))
+                  (log (format #f "    [assert] ~a" msg))))))

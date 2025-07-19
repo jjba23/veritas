@@ -163,9 +163,9 @@
                              #:name "Vector ref at index 0"))))
 
 (define (simple-check)
-  (run-suite #:reporter colorful-stdout-reporter
+  (run-suite #:reporter colorful-reporter
              predicate-suite
              list-suite
              error-handling-suite
              complex-data-suite)
-  (run-suite #:reporter colorful-stdout-reporter basic-suite str-suite))
+  (run-suite #:reporter colorful-reporter basic-suite str-suite))
