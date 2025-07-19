@@ -64,9 +64,7 @@
                                              (apply (cadr ai)
                                                     (list reporter))))))
                                asserts-with-index))
-           (test-results (map (lambda (at)
-                                (apply at
-                                       '())) assert-thunks)))
+           (test-results (evaluate-thunks assert-thunks)))
       
       `((test-name unquote name)
         (test-results unquote

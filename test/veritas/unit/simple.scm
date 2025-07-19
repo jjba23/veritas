@@ -132,7 +132,7 @@
                              #:name "Valid division result"))))
 
 (define some-alist
-  '((name . "Alice") (age . 30)
+  '((name . "Alice") (age . 31)
     (city . "New York")))
 
 (define some-vector

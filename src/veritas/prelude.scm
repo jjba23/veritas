@@ -26,7 +26,8 @@
   #:use-module (ice-9 rdelim)
   #:use-module (fibers)
   #:use-module (fibers channels)
-  #:export (evaluate-thunks-concurrently collect-assertion-succesful))
+  #:export (evaluate-thunks-concurrently evaluate-thunks
+                                         collect-assertion-succesful))
 
 (define (evaluate-thunks-concurrently thunks)
   (let* ((channel
@@ -40,6 +41,11 @@
                 #:drain? #t)
     (map (lambda (_)
            (get-message channel)) thunks)))
+
+(define (evaluate-thunks thunks)
+  (map (lambda (t)
+         (apply t
+                '())) thunks))
 
 (define (collect-assertion-succesful xs)
   (cond
