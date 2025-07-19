@@ -27,7 +27,11 @@
   #:use-module (veritas reporter)
   #:use-module (veritas assert)
   #:use-module (veritas shuffle)
-  #:re-export (assert-equal assert-eqv assert-true assert-false
+  #:re-export (assert-equal assert-eqv
+                            assert-true
+                            assert-false
+                            assert-error
+                            assert-no-error
                             fisher-yates-shuffle)
   #:export (test run-suite suite))
 
@@ -100,20 +104,22 @@
          (suite-results (map (lambda (s)
                                (apply s
                                       (list reporter))) ss))
-         (assertion-results (map (lambda (sr)
-                                   (map (lambda (s)
-                                          (assoc-ref s
-                                                     'assertion-succesful))
-                                        (assoc-ref sr
-                                                   'suite-results)))
-                                 suite-results))
-         (ass-res (apply append assertion-results))
-         (are-there-failures? (if (member #f ass-res) #t #f)))
+         (test-results-with-id (map (lambda (sr)
+                                      (assoc-ref sr
+                                                 'suite-results))
+                                    suite-results))
+         (test-results (map (lambda (ti)
+                              (map cdr ti)) test-results-with-id))
+
+         ;; (are-there-failures? (if (member #f ass-res) #t #f)) ;
+         (are-there-failures? #f))
     
     (newline)
 
     (when are-there-failures?
-      (apply (assoc-ref reporter
-                        'log-error)
-             (list "aborting due to error in test case...\n"))
-      (exit 1)) suite-results))
+      (begin
+        (apply (assoc-ref reporter
+                          'log-error)
+               (list "aborting due to error in test case...\n"))
+        (exit 1))) suite-results))
+

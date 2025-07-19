@@ -25,7 +25,12 @@
   #:use-module (ice-9 textual-ports)
   #:use-module (ice-9 rdelim)
   #:use-module (veritas reporter)
-  #:export (assert-equal assert-eq assert-eqv assert-true assert-false))
+  #:export (assert-equal assert-eq
+                         assert-eqv
+                         assert-true
+                         assert-false
+                         assert-error
+                         assert-no-error))
 
 (define* (assert-equal* #:key expected sut compare name)
   (lambda (reporter)
@@ -40,6 +45,37 @@
                  (list (format #f "error, expected: ~a, sut: ~a" expected sut)))
 
           #f))))
+
+(define* (assert-error thunk
+                       #:key name)
+  (lambda (reporter)
+    (catch #t
+           (lambda ()
+             (apply thunk
+                    '())
+             (apply (assoc-ref reporter
+                               'log-fail)
+                    (list "did not catch any error")) #f)
+           (lambda (key . args)
+             (apply (assoc-ref reporter
+                               'log-pass)
+                    (list (format #f "success catching error: ~a: ~a" key args)))
+             #t))))
+
+(define* (assert-no-error thunk
+                          #:key name)
+  (lambda (reporter)
+    (catch #t
+           (lambda ()
+             (apply thunk
+                    '())
+             (apply (assoc-ref reporter
+                               'log-pass)
+                    (list "success running without errors")) #t)
+           (lambda (key . args)
+             (apply (assoc-ref reporter
+                               'log-fail)
+                    (list (format #f "caught error: ~a: ~a" key args))) #f))))
 
 (define* (assert-equal #:key expected sut name)
   (assert-equal* #:expected expected
