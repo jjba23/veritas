@@ -24,6 +24,8 @@
   #:use-module (ice-9 popen)
   #:use-module (ice-9 textual-ports)
   #:use-module (ice-9 rdelim)
+  #:use-module (fibers)
+  #:use-module (fibers channels)
   #:use-module (veritas reporter)
   #:use-module (veritas assert)
   #:use-module (veritas shuffle)
@@ -77,19 +79,21 @@
                 (shuffle? #t)
                 #:rest tests)
   (lambda (reporter)
-    (let* ((_ (apply (assoc-ref reporter
-                                'log-suite)
-                     (list name)))
-           (idx -1)
+    (apply (assoc-ref reporter
+                      'log-suite)
+           (list name))
+    (let* ((idx -1)
            (ttt (filter procedure? tests))
-           (tests-i (map (lambda (t)
-                           (set! idx
-                                 (+ idx 1))
-                           (list idx
-                                 (apply t
-                                        (list reporter))))
-                         (if shuffle?
-                             (fisher-yates-shuffle ttt) ttt)))
+           (tests-with-index (map (lambda (t)
+                                    (set! idx
+                                          (+ idx 1))
+                                    (list idx t))
+                                  (if shuffle?
+                                      (fisher-yates-shuffle ttt) ttt)))
+           (tests-i (map (lambda (ti)
+                           (list (car ti)
+                                 (apply (cadr ti)
+                                        (list reporter)))) tests-with-index))
            (s `((suite-name unquote name)
                 (suite-results unquote tests-i))))
       (when debug?
