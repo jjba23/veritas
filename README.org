@@ -11,7 +11,7 @@
 
 ~veritas~ aims to be a simple and lightweight testing framework written in Scheme. Its main purpose is to help developers verify that their code behaves as expected. It achieves this by providing a clear structure for writing tests and producing easy-to-read feedback in various formats.
 
-The framework is built around the concepts of "suites," which group related "tests," and "assertions," which perform the actual checks.
+The framework is built around the concepts of "suites," which group related "tests," and "assertions," which perform the actual checks. I'd encourage you to peruse the ~test/~ folder of this project to see real examples of how to use ~veritas~.
 
 If you like my work, please support me by [[https://bmc.link/jjbigorra][buying me a cup of coffee ☕]] so I can continue with a lot of motivation.
 
