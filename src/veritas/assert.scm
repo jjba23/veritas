@@ -30,40 +30,48 @@
 (define test-reporter
   (make-parameter colorful-stdout-reporter))
 
-(define* (assert-equal* #:key expected sut compare)
-  (if (compare expected sut)
-      (begin
-        (apply (assoc-ref (test-reporter)
-                          'log-pass)
-               (list (format #f "expected: ~a, sut: ~a" expected sut))) #t)
-      (begin
-        (apply (assoc-ref (test-reporter)
-                          'log-fail)
-               (list (format #f "error, expected: ~a, sut: ~a" expected sut)))
+(define* (assert-equal* #:key expected sut compare name)
+  (lambda ()
+    (if (compare expected sut)
+        (begin
+          (apply (assoc-ref (test-reporter)
+                            'log-pass)
+                 (list (format #f "expected: ~a, sut: ~a" expected sut))) #t)
+        (begin
+          (apply (assoc-ref (test-reporter)
+                            'log-fail)
+                 (list (format #f "error, expected: ~a, sut: ~a" expected sut)))
 
-        #f)))
+          #f))))
 
-(define* (assert-equal #:key expected sut)
+(define* (assert-equal #:key expected sut name)
   (assert-equal* #:expected expected
                  #:sut sut
-                 #:compare equal?))
+                 #:compare equal?
+                 #:name name))
 
-(define* (assert-eqv #:key expected sut)
+(define* (assert-eqv #:key expected sut name)
   (assert-equal* #:expected expected
                  #:sut sut
-                 #:compare eqv?))
+                 #:compare eqv?
+                 #:name name))
 
-(define* (assert-eq #:key expected sut)
+(define* (assert-eq #:key expected sut name)
   (assert-equal* #:expected expected
                  #:sut sut
-                 #:compare eq?))
+                 #:compare eq?
+                 #:name name))
 
-(define* (assert-true x)
+(define* (assert-true x
+                      #:key name)
   (assert-equal* #:sut x
                  #:expected #t
-                 #:compare eq?))
+                 #:compare eq?
+                 #:name name))
 
-(define* (assert-false x)
+(define* (assert-false x
+                       #:key name)
   (assert-equal* #:sut x
                  #:expected #f
-                 #:compare eq?))
+                 #:compare eq?
+                 #:name name))

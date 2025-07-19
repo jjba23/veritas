@@ -38,60 +38,63 @@
                #:key (debug? #f)
                (shuffle? #t)
                #:rest cases)
-  (let* ((_ (apply (assoc-ref (test-reporter)
-                              'log-test)
-                   (list name)))
-         (idx -1)
-         (ccc (filter procedure? cases))
-         (asserts-i (map (lambda (a)
-                           (set! idx
-                                 (+ idx 1))
-                           (list idx a))
-                         (if shuffle?
-                             (fisher-yates-shuffle ccc) ccc))))
-    
-    `((test-name unquote name)
-      (test-results unquote
-                    (map (lambda (a)
-                           (let* ((proc-doc (procedure-documentation (car (cdr
-                                                                           a)))))
-                             (if proc-doc
-                                 (apply (assoc-ref (test-reporter)
-                                                   'log-assert)
-                                        (list proc-doc))
-                                 (apply (assoc-ref (test-reporter)
-                                                   'log-assert)
-                                        (list "")))
-                             `((assertion-index unquote
-                                                (car a))
-                               (assertion-documentation unquote proc-doc)
-                               (assertion-succesful unquote
-                                                    (apply (car (cdr a))
-                                                           '()))))) asserts-i)))))
+  (lambda ()
+    (let* ((_ (apply (assoc-ref (test-reporter)
+                                'log-test)
+                     (list name)))
+           (idx -1)
+           (ccc (filter procedure? cases))
+           (asserts-i (map (lambda (a)
+                             (set! idx
+                                   (+ idx 1))
+                             (list idx a))
+                           (if shuffle?
+                               (fisher-yates-shuffle ccc) ccc))))
+      
+      `((test-name unquote name)
+        (test-results unquote
+                      (map (lambda (a)
+                             (let* ((proc-doc (procedure-documentation (car (cdr
+                                                                             a)))))
+                               (if proc-doc
+                                   (apply (assoc-ref (test-reporter)
+                                                     'log-assert)
+                                          (list proc-doc))
+                                   (apply (assoc-ref (test-reporter)
+                                                     'log-assert)
+                                          (list "")))
+                               `((assertion-index unquote
+                                                  (car a))
+                                 (assertion-documentation unquote proc-doc)
+                                 (assertion-succesful unquote
+                                                      (apply (car (cdr a))
+                                                             '())))))
+                           asserts-i))))))
 
 (define* (suite name
                 #:key debug?
                 (shuffle? #t)
                 #:rest tests)
-  (let* ((_ (apply (assoc-ref (test-reporter)
-                              'log-suite)
-                   (list name)))
-         (idx -1)
-         (ttt (filter procedure? tests))
-         (tests-i (map (lambda (t)
-                         (set! idx
-                               (+ idx 1))
-                         (list idx
-                               (apply t
-                                      '())))
-                       (if shuffle?
-                           (fisher-yates-shuffle ttt) ttt)))
-         (s `((suite-name unquote name)
-              (suite-results unquote tests-i))))
-    (when debug?
-      (newline)
-      (write s)
-      (newline)) s))
+  (lambda ()
+    (let* ((_ (apply (assoc-ref (test-reporter)
+                                'log-suite)
+                     (list name)))
+           (idx -1)
+           (ttt (filter procedure? tests))
+           (tests-i (map (lambda (t)
+                           (set! idx
+                                 (+ idx 1))
+                           (list idx
+                                 (apply t
+                                        '())))
+                         (if shuffle?
+                             (fisher-yates-shuffle ttt) ttt)))
+           (s `((suite-name unquote name)
+                (suite-results unquote tests-i))))
+      (when debug?
+        (newline)
+        (write s)
+        (newline)) s)))
 
 (define* (run-suite #:key (fail-fast? #t)
                     #:rest suites)
