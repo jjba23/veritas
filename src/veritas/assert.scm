@@ -27,51 +27,62 @@
   #:use-module (veritas reporter)
   #:export (assert-equal assert-eq assert-eqv assert-true assert-false))
 
-(define test-reporter
-  (make-parameter colorful-stdout-reporter))
-
-(define* (assert-equal* #:key expected sut compare name)
+(define* (assert-equal* #:key expected
+                        sut
+                        compare
+                        name
+                        reporter)
   (lambda ()
     (if (compare expected sut)
         (begin
-          (apply (assoc-ref (test-reporter)
+          (apply (assoc-ref reporter
                             'log-pass)
                  (list (format #f "expected: ~a, sut: ~a" expected sut))) #t)
         (begin
-          (apply (assoc-ref (test-reporter)
+          (apply (assoc-ref reporter
                             'log-fail)
                  (list (format #f "error, expected: ~a, sut: ~a" expected sut)))
 
           #f))))
 
-(define* (assert-equal #:key expected sut name)
+(define* (assert-equal #:key expected sut name
+                       (reporter colorful-stdout-reporter))
   (assert-equal* #:expected expected
                  #:sut sut
                  #:compare equal?
-                 #:name name))
+                 #:name name
+                 #:reporter reporter))
 
-(define* (assert-eqv #:key expected sut name)
+(define* (assert-eqv #:key expected sut name
+                     (reporter colorful-stdout-reporter))
   (assert-equal* #:expected expected
                  #:sut sut
                  #:compare eqv?
-                 #:name name))
+                 #:name name
+                 #:reporter reporter))
 
-(define* (assert-eq #:key expected sut name)
+(define* (assert-eq #:key expected sut name
+                    (reporter colorful-stdout-reporter))
   (assert-equal* #:expected expected
                  #:sut sut
                  #:compare eq?
-                 #:name name))
+                 #:name name
+                 #:reporter reporter))
 
 (define* (assert-true x
-                      #:key name)
+                      #:key name
+                      (reporter colorful-stdout-reporter))
   (assert-equal* #:sut x
                  #:expected #t
                  #:compare eq?
-                 #:name name))
+                 #:name name
+                 #:reporter reporter))
 
 (define* (assert-false x
-                       #:key name)
+                       #:key name
+                       (reporter colorful-stdout-reporter))
   (assert-equal* #:sut x
                  #:expected #f
                  #:compare eq?
-                 #:name name))
+                 #:name name
+                 #:reporter reporter))

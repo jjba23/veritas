@@ -29,17 +29,15 @@
   #:use-module (veritas shuffle)
   #:re-export (assert-equal assert-eqv assert-true assert-false
                             fisher-yates-shuffle)
-  #:export (test test-reporter run-suite suite))
-
-(define test-reporter
-  (make-parameter colorful-stdout-reporter))
+  #:export (test run-suite suite))
 
 (define* (test name
                #:key (debug? #f)
                (shuffle? #t)
+               (reporter colorful-stdout-reporter)
                #:rest cases)
   (lambda ()
-    (let* ((_ (apply (assoc-ref (test-reporter)
+    (let* ((_ (apply (assoc-ref reporter
                                 'log-test)
                      (list name)))
            (idx -1)
@@ -57,10 +55,10 @@
                              (let* ((proc-doc (procedure-documentation (car (cdr
                                                                              a)))))
                                (if proc-doc
-                                   (apply (assoc-ref (test-reporter)
+                                   (apply (assoc-ref reporter
                                                      'log-assert)
                                           (list proc-doc))
-                                   (apply (assoc-ref (test-reporter)
+                                   (apply (assoc-ref reporter
                                                      'log-assert)
                                           (list "")))
                                `((assertion-index unquote
@@ -74,9 +72,10 @@
 (define* (suite name
                 #:key debug?
                 (shuffle? #t)
+                (reporter colorful-stdout-reporter)
                 #:rest tests)
   (lambda ()
-    (let* ((_ (apply (assoc-ref (test-reporter)
+    (let* ((_ (apply (assoc-ref reporter
                                 'log-suite)
                      (list name)))
            (idx -1)
@@ -97,6 +96,7 @@
         (newline)) s)))
 
 (define* (run-suite #:key (fail-fast? #t)
+                    (reporter colorful-stdout-reporter)
                     #:rest suites)
   (let* ((ss (filter procedure? suites))
          (suite-results (map (lambda (s)
@@ -115,7 +115,7 @@
     (newline)
 
     (when are-there-failures?
-      (apply (assoc-ref (test-reporter)
+      (apply (assoc-ref reporter
                         'log-fail)
 
              (list "aborting due to error in test case...\n"))
