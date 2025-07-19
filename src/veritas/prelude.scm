@@ -48,20 +48,19 @@
                 '())) thunks))
 
 (define (collect-assertion-succesful xs)
+  (newline)
+  (write "xs")
+  (newline)
+  (write xs)
+  (newline)
   (cond
     ((null? xs)
      '())
-    ((pair? xs)
-     (let ((head (car xs))
-           (tail (cdr xs)))
-       (cond
-         ((and (pair? head)
-               (eq? (car head)
-                    'assertion-succesful))
-          (cons (assoc-ref (cdr head)
-                           'assertion-succesful)
-                (collect-assertion-succesful tail)))
-         (else (append (collect-assertion-succesful head)
-                       (collect-assertion-succesful tail))))))
+    ((and (list? xs)
+          (assoc-ref xs
+                     'suite-results))
+     (error "GOOD TRACK"))
+    ((list? xs)
+     (map collect-assertion-succesful xs))
     (else '())))
 

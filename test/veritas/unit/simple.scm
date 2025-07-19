@@ -9,7 +9,8 @@
 (define basic-suite
   (suite "Basic Suite"
          (test "Basic Numeric Tests"
-               (assert-equal #:expected 1
+               #:debug? #t
+               (assert-equal #:expected 2
                              #:sut (+ 10
                                       (- 0 9)))
                (assert-equal #:expected 1

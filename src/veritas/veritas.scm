@@ -45,34 +45,38 @@
                (shuffle? #t)
                #:rest cases)
   (lambda (reporter)
-    (let* ((_ (apply (assoc-ref reporter
-                                'log-test)
-                     (list name)))
-           (idx -1)
-           (ccc (filter procedure? cases))
-           (asserts-with-index (map (lambda (a)
-                                      (set! idx
-                                            (+ idx 1))
-                                      (list idx a))
-                                    (if shuffle?
-                                        (fisher-yates-shuffle ccc) ccc)))
-           (assert-thunks (map (lambda (ai)
-                                 (lambda ()
-                                   `((index unquote
-                                            (car ai))
-                                     (assertion-succesful unquote
-                                                          (apply (cadr ai)
-                                                                 (list
-                                                                  reporter))))))
-                               asserts-with-index))
-           (test-results (evaluate-thunks assert-thunks)))
+    ((assoc-ref reporter
+                'log-test)
+     name)
+
+    (let* ((procedure-cases (filter procedure? cases))
+           (indexed-cases (map (lambda (case-proc i)
+                                 (list i case-proc))
+                               (if shuffle?
+                                   (fisher-yates-shuffle procedure-cases)
+                                   procedure-cases)
+                               (iota (length procedure-cases))))
+           (assertion-thunks (map (lambda (indexed-case)
+                                    (let ((idx (car indexed-case))
+                                          (case-proc (cadr indexed-case)))
+                                      (lambda ()
+                                        `((assertion-index unquote idx)
+                                          (assertion-successful unquote
+                                                                (case-proc
+                                                                 reporter))))))
+                                  indexed-cases))
+           (test-results (evaluate-thunks assertion-thunks)))
       
+      (when debug?
+        (newline)
+        (write test-results)
+        (newline))
+
       `((test-name unquote name)
         (test-results unquote
-                      (map (lambda (a)
-                             `((assertion-index unquote
-                                                (car a))
-                               (assertion-succesful unquote a))) test-results))))))
+                      (map (lambda (assertion-result)
+                             (list (car assertion-result)
+                                   (cadr assertion-result))) test-results))))))
 
 (define* (suite name
                 #:key (debug? #f)
@@ -101,8 +105,8 @@
            (suite-results (if concurrent?
                               (evaluate-thunks-concurrently test-thunks)
                               (evaluate-thunks test-thunks)))
-           (final-suite-data `((suite-name ,name)
-                               (suite-results ,suite-results))))
+           (final-suite-data `((suite-name unquote name)
+                               (suite-results unquote suite-results))))
       (when debug?
         (newline)
         (write final-suite-data)
@@ -126,6 +130,9 @@
                                    (assoc-ref sr
                                               'suite-results)))
                             all-suite-results))
+
+         (_ (write "(collect-assertion-succesful test-results)"))
+         (_ (write (collect-assertion-succesful test-results)))
          (assertion-results (collect-assertion-succesful test-results)))
     
     (when (member #f assertion-results)
