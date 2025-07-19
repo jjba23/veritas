@@ -26,7 +26,7 @@
   #:use-module (ice-9 rdelim)
   #:use-module (fibers)
   #:use-module (fibers channels)
-  #:export (evaluate-thunks-concurrently))
+  #:export (evaluate-thunks-concurrently collect-assertion-succesful))
 
 (define (evaluate-thunks-concurrently thunks)
   (let* ((channel
@@ -40,3 +40,20 @@
                 #:drain? #t)
     (map (lambda (_)
            (get-message channel)) thunks)))
+
+(define (collect-assertion-succesful xs)
+  (cond
+    ((null? xs)
+     '())
+    ((pair? xs)
+     (let ((head (car xs))
+           (tail (cdr xs)))
+       (cond
+         ((and (pair? head)
+               (eq? (car head)
+                    'assertion-succesful))
+          (cons (cdr head)
+                (collect-assertion-succesful tail)))
+         (else (append (collect-assertion-succesful head)
+                       (collect-assertion-succesful tail))))))
+    (else '())))

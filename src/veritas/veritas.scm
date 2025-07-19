@@ -35,8 +35,10 @@
                             assert-false
                             assert-error
                             assert-no-error
+                            evaluate-thunks-concurrently
+                            collect-assertion-succesful
                             fisher-yates-shuffle)
-  #:export (test run-suite suite collect-assertion-succesful))
+  #:export (test run-suite suite))
 
 (define* (test name
                #:key (debug? #f)
@@ -130,19 +132,3 @@
                (list "aborting due to error in test case...\n"))
         (exit 1))) suite-results))
 
-(define (collect-assertion-succesful xs)
-  (cond
-    ((null? xs)
-     '())
-    ((pair? xs)
-     (let ((head (car xs))
-           (tail (cdr xs)))
-       (cond
-         ((and (pair? head)
-               (eq? (car head)
-                    'assertion-succesful))
-          (cons (cdr head)
-                (collect-assertion-succesful tail)))
-         (else (append (collect-assertion-succesful head)
-                       (collect-assertion-succesful tail))))))
-    (else '())))
