@@ -75,37 +75,38 @@
                                (assertion-succesful unquote a))) test-results))))))
 
 (define* (suite name
-                #:key debug?
+                #:key (debug? #f)
                 (shuffle? #t)
                 (concurrent? #t)
                 #:rest tests)
   (lambda (reporter)
-    (apply (assoc-ref reporter
-                      'log-suite)
-           (list name))
-    (let* ((idx -1)
-           (ttt (filter procedure? tests))
-           (tests-with-index (map (lambda (t)
-                                    (set! idx
-                                          (+ idx 1))
-                                    (list idx t))
-                                  (if shuffle?
-                                      (fisher-yates-shuffle ttt) ttt)))
-           (tests-thunks (map (lambda (ti)
-                                (lambda ()
-                                  (list (car ti)
-                                        (apply (cadr ti)
-                                               (list reporter)))))
-                              tests-with-index))
+    ((assoc-ref reporter
+                'log-suite)
+     name)
+
+    (let* ((procedure-tests (filter procedure? tests))
+           (indexed-tests (map (lambda (test-proc i)
+                                 (list i test-proc))
+                               (if shuffle?
+                                   (fisher-yates-shuffle procedure-tests)
+                                   procedure-tests)
+                               (iota (length procedure-tests))))
+           (test-thunks (map (lambda (indexed-test)
+                               (let ((idx (car indexed-test))
+                                     (test-proc (cadr indexed-test)))
+                                 (lambda ()
+                                   (list idx
+                                         (test-proc reporter)))))
+                             indexed-tests))
            (suite-results (if concurrent?
-                              (evaluate-thunks-concurrently tests-thunks)
-                              (evaluate-thunks tests-thunks)))
-           (s `((suite-name unquote name)
-                (suite-results unquote suite-results))))
+                              (evaluate-thunks-concurrently test-thunks)
+                              (evaluate-thunks test-thunks)))
+           (final-suite-data `((suite-name ,name)
+                               (suite-results ,suite-results))))
       (when debug?
         (newline)
-        (write s)
-        (newline)) s)))
+        (write final-suite-data)
+        (newline)) final-suite-data)))
 
 (define* (run-suites #:key (shuffle? #t)
                      (concurrent? #t)
