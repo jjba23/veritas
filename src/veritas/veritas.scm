@@ -77,6 +77,7 @@
 (define* (suite name
                 #:key debug?
                 (shuffle? #t)
+                (concurrent? #t)
                 #:rest tests)
   (lambda (reporter)
     (apply (assoc-ref reporter
@@ -96,7 +97,9 @@
                                         (apply (cadr ti)
                                                (list reporter)))))
                               tests-with-index))
-           (suite-results (evaluate-thunks-concurrently tests-thunks))
+           (suite-results (if concurrent?
+                              (evaluate-thunks-concurrently tests-thunks)
+                              (evaluate-thunks tests-thunks)))
            (s `((suite-name unquote name)
                 (suite-results unquote suite-results))))
       (when debug?
@@ -104,15 +107,20 @@
         (write s)
         (newline)) s)))
 
-(define* (run-suites #:key (fail-fast? #t)
+(define* (run-suites #:key (shuffle? #t)
+                     (concurrent? #t)
                      (reporter colorful-stdout-reporter)
                      #:rest suites)
   (let* ((ss (filter procedure? suites))
          (suite-thunks (map (lambda (s)
                               (lambda ()
                                 (apply s
-                                       (list reporter)))) ss))
-         (suite-results (evaluate-thunks-concurrently suite-thunks))
+                                       (list reporter))))
+                            (if shuffle?
+                                (fisher-yates-shuffle ss) ss)))
+         (suite-results (if concurrent?
+                            (evaluate-thunks-concurrently suite-thunks)
+                            (evaluate-thunks suite-thunks)))
          (test-results-with-id (map (lambda (sr)
                                       (assoc-ref sr
                                                  'suite-results))

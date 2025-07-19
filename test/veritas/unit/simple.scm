@@ -117,7 +117,6 @@
 
 (define error-handling-suite
   (suite "Error Handling Tests"
-         #:debug? #t
          (test "Division by Zero Error"
                (assert-error (lambda ()
                                (divide 10 0))
