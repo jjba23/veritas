@@ -28,6 +28,7 @@
   #:use-module (fibers channels)
   #:use-module (veritas reporter)
   #:use-module (veritas assert)
+  #:use-module (veritas prelude)
   #:use-module (veritas shuffle)
   #:re-export (assert-equal assert-eqv
                             assert-true
@@ -90,12 +91,15 @@
                                     (list idx t))
                                   (if shuffle?
                                       (fisher-yates-shuffle ttt) ttt)))
-           (tests-i (map (lambda (ti)
-                           (list (car ti)
-                                 (apply (cadr ti)
-                                        (list reporter)))) tests-with-index))
+           (tests-thunks (map (lambda (ti)
+                                (lambda ()
+                                  (list (car ti)
+                                        (apply (cadr ti)
+                                               (list reporter)))))
+                              tests-with-index))
+           (suite-results (evaluate-thunks-concurrently tests-thunks))
            (s `((suite-name unquote name)
-                (suite-results unquote tests-i))))
+                (suite-results unquote suite-results))))
       (when debug?
         (newline)
         (write s)
