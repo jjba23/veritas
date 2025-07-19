@@ -50,32 +50,28 @@
                      (list name)))
            (idx -1)
            (ccc (filter procedure? cases))
-           (asserts-i (map (lambda (a)
-                             (set! idx
-                                   (+ idx 1))
-                             (list idx a))
-                           (if shuffle?
-                               (fisher-yates-shuffle ccc) ccc))))
+           (asserts-with-index (map (lambda (a)
+                                      (set! idx
+                                            (+ idx 1))
+                                      (list idx a))
+                                    (if shuffle?
+                                        (fisher-yates-shuffle ccc) ccc)))
+           (assert-thunks (map (lambda (ai)
+                                 (lambda ()
+                                   `((index unquote
+                                            (car ai))
+                                     (result unquote
+                                             (apply (cadr ai)
+                                                    (list reporter))))))
+                               asserts-with-index))
+           (test-results (evaluate-thunks-concurrently assert-thunks)))
       
       `((test-name unquote name)
         (test-results unquote
                       (map (lambda (a)
-                             (let* ((proc-doc (procedure-documentation (car (cdr
-                                                                             a)))))
-                               (if proc-doc
-                                   (apply (assoc-ref reporter
-                                                     'log-assert)
-                                          (list proc-doc))
-                                   (apply (assoc-ref reporter
-                                                     'log-assert)
-                                          (list "")))
-                               `((assertion-index unquote
-                                                  (car a))
-                                 (assertion-documentation unquote proc-doc)
-                                 (assertion-succesful unquote
-                                                      (apply (car (cdr a))
-                                                             (list reporter))))))
-                           asserts-i))))))
+                             `((assertion-index unquote
+                                                (car a))
+                               (assertion-succesful unquote a))) test-results))))))
 
 (define* (suite name
                 #:key debug?

@@ -34,6 +34,11 @@
 
 (define* (assert-equal* #:key expected sut compare name)
   (lambda (reporter)
+    (when name
+      (apply (assoc-ref reporter
+                        'log-assert)
+             (list name)))
+
     (if (compare expected sut)
         (begin
           (apply (assoc-ref reporter
@@ -49,6 +54,10 @@
 (define* (assert-error thunk
                        #:key name)
   (lambda (reporter)
+    (when name
+      (apply (assoc-ref reporter
+                        'log-assert)
+             (list name)))
     (catch #t
            (lambda ()
              (apply thunk
@@ -65,6 +74,10 @@
 (define* (assert-no-error thunk
                           #:key name)
   (lambda (reporter)
+    (when name
+      (apply (assoc-ref reporter
+                        'log-assert)
+             (list name)))
     (catch #t
            (lambda ()
              (apply thunk
