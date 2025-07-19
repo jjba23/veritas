@@ -32,18 +32,13 @@
 (define str-suite
   (suite "str"
          #:debug? #f
-         #:reporter monotone-stdout-reporter
          (test "String Operation Tests"
                #:debug? #f
-               #:reporter monotone-stdout-reporter
                (assert-equal #:expected "hello world"
-                             #:sut (string-append "hello" " " "world")
-                             #:reporter monotone-stdout-reporter)
-               (assert-true (string=? "scheme" "scheme")
-                            #:reporter monotone-stdout-reporter)
-               (assert-false (string=? "guile" "Scheme")
-                             #:reporter monotone-stdout-reporter))))
+                             #:sut (string-append "hello" " " "world"))
+               (assert-true (string=? "scheme" "scheme"))
+               (assert-false (string=? "guile" "Scheme")))))
 
 (define (simple-check)
-  (run-suite #:reporter monotone-stdout-reporter basic-suite str-suite))
+  (run-suite #:reporter colorful-stdout-reporter basic-suite str-suite))
 

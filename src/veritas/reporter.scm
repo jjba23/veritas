@@ -55,6 +55,13 @@
                                                'red) msg
                                     (assoc-ref ansi-color-escapes
                                                'reset)))))
+    (log-error unquote
+               (lambda (msg)
+                 (log-stdout (format #f "\n~a❌ error - ~a~a\n"
+                                     (assoc-ref ansi-color-escapes
+                                                'red) msg
+                                     (assoc-ref ansi-color-escapes
+                                                'reset)))))
     (log-test unquote
               (lambda (msg)
                 (log-stdout (format #f
@@ -105,6 +112,11 @@
                 (log-stdout (format #f "    [fail] ~a"
 
                                     msg))))
+    (log-error unquote
+               (lambda (msg)
+                 (log-stdout (format #f "\n[error] ~a\n"
+
+                                     msg))))
     (log-test unquote
               (lambda (msg)
                 (log-stdout (format #f "  [test] ~a"

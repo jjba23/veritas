@@ -34,9 +34,8 @@
 (define* (test name
                #:key (debug? #f)
                (shuffle? #t)
-               (reporter colorful-stdout-reporter)
                #:rest cases)
-  (lambda ()
+  (lambda (reporter)
     (let* ((_ (apply (assoc-ref reporter
                                 'log-test)
                      (list name)))
@@ -66,15 +65,14 @@
                                  (assertion-documentation unquote proc-doc)
                                  (assertion-succesful unquote
                                                       (apply (car (cdr a))
-                                                             '())))))
+                                                             (list reporter))))))
                            asserts-i))))))
 
 (define* (suite name
                 #:key debug?
                 (shuffle? #t)
-                (reporter colorful-stdout-reporter)
                 #:rest tests)
-  (lambda ()
+  (lambda (reporter)
     (let* ((_ (apply (assoc-ref reporter
                                 'log-suite)
                      (list name)))
@@ -85,7 +83,7 @@
                                  (+ idx 1))
                            (list idx
                                  (apply t
-                                        '())))
+                                        (list reporter))))
                          (if shuffle?
                              (fisher-yates-shuffle ttt) ttt)))
            (s `((suite-name unquote name)
@@ -101,7 +99,7 @@
   (let* ((ss (filter procedure? suites))
          (suite-results (map (lambda (s)
                                (apply s
-                                      '())) ss))
+                                      (list reporter))) ss))
          (assertion-results (map (lambda (sr)
                                    (map (lambda (s)
                                           (assoc-ref s
@@ -116,7 +114,6 @@
 
     (when are-there-failures?
       (apply (assoc-ref reporter
-                        'log-fail)
-
+                        'log-error)
              (list "aborting due to error in test case...\n"))
       (exit 1)) suite-results))
