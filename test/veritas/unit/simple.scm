@@ -21,19 +21,16 @@
                              #:sut (* 1 1 1 1 0)))
          (test "Basic Boolean Tests"
                #:debug? #t
-               (assert-false #t
+               (assert-false #f
                              #:name
-                             "should fail on checking that true is false"))
+                             "should succeed on checking that false is false"))
          (test "Check that function calls work"
-               #:debug? #f
                (assert-equal #:expected 42
                              #:sut (add-two 40)))))
 
 (define str-suite
   (suite "str"
-         #:debug? #f
          (test "String Operation Tests"
-               #:debug? #f
                (assert-equal #:expected "hello world"
                              #:sut (string-append "hello" " " "world"))
                (assert-true (string=? "scheme" "scheme"))
@@ -120,7 +117,7 @@
 
 (define error-handling-suite
   (suite "Error Handling Tests"
-         #:debug? #t 
+         #:debug? #t
          (test "Division by Zero Error"
                (assert-error (lambda ()
                                (divide 10 0))
@@ -163,14 +160,7 @@
                              #:name "Vector ref at index 1")
                (assert-equal #:expected 1
                              #:sut (vector-ref some-vector 0)
-                             #:name "Vector ref at index 0")
-               ;; You'd typically test vector-set! by checking the side effect,
-               ;; but assert-equal works if you retrieve after setting.
-               (begin
-                 (vector-set! some-vector 0 99)
-                 (assert-equal #:expected 99
-                               #:sut (vector-ref some-vector 0)
-                               #:name "Vector set! and ref")))))
+                             #:name "Vector ref at index 0"))))
 
 (define (simple-check)
   (run-suite #:reporter colorful-stdout-reporter

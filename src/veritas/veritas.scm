@@ -33,7 +33,7 @@
                             assert-error
                             assert-no-error
                             fisher-yates-shuffle)
-  #:export (test run-suite suite))
+  #:export (test run-suite suite collect-assertion-succesful))
 
 (define* (test name
                #:key (debug? #f)
@@ -110,9 +110,8 @@
                                     suite-results))
          (test-results (map (lambda (ti)
                               (map cdr ti)) test-results-with-id))
-
-         ;; (are-there-failures? (if (member #f ass-res) #t #f)) ;
-         (are-there-failures? #f))
+         (assertion-results (collect-assertion-succesful test-results))
+         (are-there-failures? (member #f assertion-results)))
     
     (newline)
 
@@ -123,3 +122,19 @@
                (list "aborting due to error in test case...\n"))
         (exit 1))) suite-results))
 
+(define (collect-assertion-succesful xs)
+  (cond
+    ((null? xs)
+     '())
+    ((pair? xs)
+     (let ((head (car xs))
+           (tail (cdr xs)))
+       (cond
+         ((and (pair? head)
+               (eq? (car head)
+                    'assertion-succesful))
+          (cons (cdr head)
+                (collect-assertion-succesful tail)))
+         (else (append (collect-assertion-succesful head)
+                       (collect-assertion-succesful tail))))))
+    (else '())))
