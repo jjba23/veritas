@@ -38,7 +38,7 @@
                             evaluate-thunks-concurrently
                             collect-assertion-succesful
                             fisher-yates-shuffle)
-  #:export (test run-suite suite))
+  #:export (test run-suites suite))
 
 (define* (test name
                #:key (debug? #f)
@@ -60,9 +60,10 @@
                                  (lambda ()
                                    `((index unquote
                                             (car ai))
-                                     (result unquote
-                                             (apply (cadr ai)
-                                                    (list reporter))))))
+                                     (assertion-succesful unquote
+                                                          (apply (cadr ai)
+                                                                 (list
+                                                                  reporter))))))
                                asserts-with-index))
            (test-results (evaluate-thunks assert-thunks)))
       
@@ -103,9 +104,9 @@
         (write s)
         (newline)) s)))
 
-(define* (run-suite #:key (fail-fast? #t)
-                    (reporter colorful-stdout-reporter)
-                    #:rest suites)
+(define* (run-suites #:key (fail-fast? #t)
+                     (reporter colorful-stdout-reporter)
+                     #:rest suites)
   (let* ((ss (filter procedure? suites))
          (suite-thunks (map (lambda (s)
                               (lambda ()
@@ -121,8 +122,6 @@
          (assertion-results (collect-assertion-succesful test-results))
          (are-there-failures? (member #f assertion-results)))
     
-    (newline)
-
     (when are-there-failures?
       (begin
         (apply (assoc-ref reporter

@@ -58,8 +58,10 @@
          ((and (pair? head)
                (eq? (car head)
                     'assertion-succesful))
-          (cons (cdr head)
+          (cons (assoc-ref (cdr head)
+                           'assertion-succesful)
                 (collect-assertion-succesful tail)))
          (else (append (collect-assertion-succesful head)
                        (collect-assertion-succesful tail))))))
     (else '())))
+

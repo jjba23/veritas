@@ -132,7 +132,7 @@
                              #:name "Valid division result"))))
 
 (define some-alist
-  '((name . "Alice") (age . 31)
+  '((name . "Alice") (age . 30)
     (city . "New York")))
 
 (define some-vector
@@ -163,9 +163,10 @@
                              #:name "Vector ref at index 0"))))
 
 (define (simple-check)
-  (run-suite #:reporter colorful-reporter
-             predicate-suite
-             list-suite
-             error-handling-suite
-             complex-data-suite)
-  (run-suite #:reporter colorful-reporter basic-suite str-suite))
+  (run-suites #:reporter colorful-reporter
+              predicate-suite
+              list-suite
+              error-handling-suite
+              complex-data-suite
+              basic-suite
+              str-suite))
