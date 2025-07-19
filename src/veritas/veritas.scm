@@ -111,29 +111,26 @@
                      (concurrent? #t)
                      (reporter colorful-stdout-reporter)
                      #:rest suites)
-  (let* ((ss (filter procedure? suites))
+  (let* ((valid-suites (filter procedure? suites))
+         (ordered-suites (if shuffle?
+                             (fisher-yates-shuffle valid-suites) valid-suites))
          (suite-thunks (map (lambda (s)
                               (lambda ()
-                                (apply s
-                                       (list reporter))))
-                            (if shuffle?
-                                (fisher-yates-shuffle ss) ss)))
-         (suite-results (if concurrent?
-                            (evaluate-thunks-concurrently suite-thunks)
-                            (evaluate-thunks suite-thunks)))
-         (test-results-with-id (map (lambda (sr)
-                                      (assoc-ref sr
-                                                 'suite-results))
-                                    suite-results))
-         (test-results (map (lambda (ti)
-                              (map cdr ti)) test-results-with-id))
-         (assertion-results (collect-assertion-succesful test-results))
-         (are-there-failures? (member #f assertion-results)))
+                                (s reporter))) ordered-suites))
+         (all-suite-results (if concurrent?
+                                (evaluate-thunks-concurrently suite-thunks)
+                                (evaluate-thunks suite-thunks)))
+         (test-results (map (lambda (sr)
+                              (map cdr
+                                   (assoc-ref sr
+                                              'suite-results)))
+                            all-suite-results))
+         (assertion-results (collect-assertion-succesful test-results)))
     
-    (when are-there-failures?
-      (begin
-        (apply (assoc-ref reporter
-                          'log-error)
-               (list "aborting due to error in test case...\n"))
-        (exit 1))) suite-results))
+    (when (member #f assertion-results)
+      ((assoc-ref reporter
+                  'log-error)
+       "aborting due to error in test case...\n")
+      (exit 1))
 
+    all-suite-results))
