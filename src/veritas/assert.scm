@@ -33,21 +33,24 @@
                          assert-no-error))
 
 (define* (assert-equal* #:key expected sut compare name)
-  (lambda (reporter)
+  (lambda (veritas-context)
     (when name
-      (apply (assoc-ref reporter
+      (apply (assoc-ref (assoc-ref veritas-context
+                                   'reporter)
                         'log-assert)
              (list name)))
 
     (if (compare expected sut)
         (begin
-          (apply (assoc-ref reporter
+          (apply (assoc-ref (assoc-ref veritas-context
+                                       'reporter)
                             'log-pass)
                  (list (format #f "expected: ~a, sut: ~a" expected sut)))
           `((assertion-successful unquote #t)
             (assertion-name unquote name)))
         (begin
-          (apply (assoc-ref reporter
+          (apply (assoc-ref (assoc-ref veritas-context
+                                       'reporter)
                             'log-fail)
                  (list (format #f "error, expected: ~a, sut: ~a" expected sut)))
 
@@ -56,40 +59,46 @@
 
 (define* (assert-error thunk
                        #:key name)
-  (lambda (reporter)
+  (lambda (veritas-context)
     (when name
-      (apply (assoc-ref reporter
+      (apply (assoc-ref (assoc-ref veritas-context
+                                   'reporter)
                         'log-assert)
              (list name)))
     (catch #t
            (lambda ()
              (apply thunk
                     '())
-             (apply (assoc-ref reporter
+             (apply (assoc-ref (assoc-ref veritas-context
+                                          'reporter)
                                'log-fail)
                     (list "did not catch any error")) #f)
            (lambda (key . args)
-             (apply (assoc-ref reporter
+             (apply (assoc-ref (assoc-ref veritas-context
+                                          'reporter)
                                'log-pass)
                     (list (format #f "success catching error: ~a: ~a" key args)))
              #t))))
 
 (define* (assert-no-error thunk
                           #:key name)
-  (lambda (reporter)
+  (lambda (veritas-context)
     (when name
-      (apply (assoc-ref reporter
+      (apply (assoc-ref (assoc-ref veritas-context
+                                   'reporter)
                         'log-assert)
              (list name)))
     (catch #t
            (lambda ()
              (apply thunk
                     '())
-             (apply (assoc-ref reporter
+             (apply (assoc-ref (assoc-ref veritas-context
+                                          'reporter)
                                'log-pass)
                     (list "success running without errors")) #t)
            (lambda (key . args)
-             (apply (assoc-ref reporter
+             (apply (assoc-ref (assoc-ref veritas-context
+                                          'reporter)
                                'log-fail)
                     (list (format #f "caught error: ~a: ~a" key args))) #f))))
 

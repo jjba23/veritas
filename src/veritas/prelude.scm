@@ -50,10 +50,14 @@
 
 (define (alist-keys alist)
   (cond
+    ((null? alist)
+     '())
     ((list? alist)
      (fold (lambda (pair acc)
              (cons (car pair) acc))
            '() alist))
+    ((pair? (car alist))
+     (map car alist))
     (else '())))
 
 (define (flatten-list xs)

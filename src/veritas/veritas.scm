@@ -46,8 +46,9 @@
                (skip? #f)
                #:rest cases)
   (if skip? #f
-      (lambda (reporter)
-        ((assoc-ref reporter
+      (lambda (veritas-context)
+        ((assoc-ref (assoc-ref veritas-context
+                               'reporter)
                     'log-test)
          name)
 
@@ -60,10 +61,21 @@
                                    (iota (length procedure-cases))))
                (assertion-thunks (map (lambda (indexed-case)
                                         (let* ((idx (car indexed-case))
-                                               (case-proc (cadr indexed-case))
-                                               (result (case-proc reporter)))
+                                               (assertion-proc (cadr
+                                                                indexed-case))
+                                               (output-port (open-output-string))
+                                               (result (with-output-to-port
+                                                        output-port
+                                                        (lambda ()
+                                                          (assertion-proc
+                                                           veritas-context))))
+                                               (assertion-output (get-output-string
+                                                                  output-port))
+                                               (_ (close-port output-port)))
                                           (lambda ()
                                             `((assertion-index unquote idx)
+                                              (assertion-output unquote
+                                               assertion-output)
                                               (assertion-name unquote
                                                               (assoc-ref
                                                                result
@@ -83,6 +95,30 @@
           `((test-name unquote name)
             (test-results unquote test-results))))))
 
+
+(define (display-test-results-safely final-suite-data)
+  
+  (let ((suite-results (assoc-ref final-suite-data
+                                  'suite-results)))
+    (when (list? suite-results)
+      (for-each (lambda (s)
+                  (let* ((test-output (assoc-ref s
+                                                 'test-output))
+                         (test-results (map cdr
+                                            (assoc-ref s
+                                                       'test-results))))
+                    (when (string? test-output)
+                      (display test-output)
+                      (newline))
+                    (when (list? test-results)
+                      (for-each (lambda (tr)
+                                  (let ((assertion-output (assoc-ref tr
+                                                                     'assertion-output)))
+                                    (when (string? assertion-output)
+                                      (display assertion-output)
+                                      (newline)))) test-results))))
+                suite-results))))
+
 (define* (suite name
                 #:key (debug? #f)
                 (shuffle? #t)
@@ -90,8 +126,9 @@
                 (concurrent? #t)
                 #:rest tests)
   (if skip? #f
-      (lambda (reporter)
-        ((assoc-ref reporter
+      (lambda (veritas-context)
+        ((assoc-ref (assoc-ref veritas-context
+                               'reporter)
                     'log-suite)
          name)
 
@@ -103,21 +140,50 @@
                                        procedure-tests)
                                    (iota (length procedure-tests))))
                (test-thunks (map (lambda (indexed-test)
-                                   (let ((idx (car indexed-test))
-                                         (test-proc (cadr indexed-test)))
+                                   (let* ((idx (car indexed-test))
+                                          (test-proc (cadr indexed-test))
+                                          (output-port (open-output-string))
+                                          (result (with-output-to-port
+                                                   output-port
+                                                   (lambda ()
+                                                     (test-proc
+                                                      veritas-context))))
+                                          (test-output (get-output-string
+                                                        output-port))
+                                          (_ (close-port output-port)))
                                      (lambda ()
-                                       (list idx
-                                             (test-proc reporter)))))
+                                       `((test-index unquote idx)
+                                         (test-output unquote test-output)
+                                         (test-results unquote result)))))
                                  indexed-tests))
                (suite-results (if concurrent?
                                   (evaluate-thunks-concurrently test-thunks)
                                   (evaluate-thunks test-thunks)))
                (final-suite-data `((suite-name unquote name)
                                    (suite-results unquote suite-results))))
+          
+          (display-test-results-safely final-suite-data)
+          ;; (for-each (lambda (s)
+          ;; (display (assoc-ref s
+          ;; 'test-output))
+          ;; (for-each (lambda (tr)
+          
+          ;; (for-each (lambda (ttrr)
+          ;; (display (assoc-ref ttrr
+          ;; 'assertion-output)))
+          ;; (cdr tr))
+          ;; )
+          ;; (assoc-ref s
+          ;; 'test-results))
+          
+          ;; )
+          ;; (assoc-ref final-suite-data
+          ;; 'suite-results))
           (when debug?
             (newline)
             (write final-suite-data)
-            (newline)) final-suite-data))))
+            (newline))
+          final-suite-data))))
 
 (define* (run-suites #:key (shuffle? #t)
                      (concurrent? #t)
@@ -128,9 +194,10 @@
          (valid-suites (filter procedure? suites))
          (ordered-suites (if shuffle?
                              (fisher-yates-shuffle valid-suites) valid-suites))
+         (veritas-context (list (cons 'reporter reporter)))
          (suite-thunks (map (lambda (s)
                               (lambda ()
-                                (s reporter))) ordered-suites))
+                                (s veritas-context))) ordered-suites))
          (all-suite-results (if concurrent?
                                 (evaluate-thunks-concurrently suite-thunks)
                                 (evaluate-thunks suite-thunks)))
@@ -155,3 +222,10 @@
       (exit 1))
 
     all-suite-results))
+
+;; (define my-pp (open-output-string))
+;; (with-output-to-port my-pp (lambda()
+;;                           (display "TEST PORT")
+;;                                                     (display "ANOTHER TEST PORT")
+;;                           42))
+;; (get-output-string my-pp)
