@@ -57,13 +57,18 @@
                                    procedure-cases)
                                (iota (length procedure-cases))))
            (assertion-thunks (map (lambda (indexed-case)
-                                    (let ((idx (car indexed-case))
-                                          (case-proc (cadr indexed-case)))
+                                    (let* ((idx (car indexed-case))
+                                           (case-proc (cadr indexed-case))
+                                           (result (case-proc reporter)))
                                       (lambda ()
                                         `((assertion-index unquote idx)
+                                          (assertion-name unquote
+                                                          (assoc-ref result
+                                                                     'assertion-name))
                                           (assertion-successful unquote
-                                                                (case-proc
-                                                                 reporter))))))
+                                                                (assoc-ref
+                                                                 result
+                                                                 'assertion-successful))))))
                                   indexed-cases))
            (test-results (evaluate-thunks assertion-thunks)))
       
@@ -73,10 +78,7 @@
         (newline))
 
       `((test-name unquote name)
-        (test-results unquote
-                      (map (lambda (assertion-result)
-                             (list (car assertion-result)
-                                   (cadr assertion-result))) test-results))))))
+        (test-results unquote test-results)))))
 
 (define* (suite name
                 #:key (debug? #f)
@@ -114,6 +116,7 @@
 
 (define* (run-suites #:key (shuffle? #t)
                      (concurrent? #t)
+                     (debug? #f)
                      (reporter colorful-stdout-reporter)
                      #:rest suites)
   (let* ((valid-suites (filter procedure? suites))
@@ -132,6 +135,9 @@
                             all-suite-results))
          (assertion-results (collect-assertion-successful test-results)))
     
+    (when debug?
+      (display (format #f "\nassertion-results: ~a" assertion-results)))
+
     (when (member #f assertion-results)
       ((assoc-ref reporter
                   'log-error)

@@ -43,13 +43,16 @@
         (begin
           (apply (assoc-ref reporter
                             'log-pass)
-                 (list (format #f "expected: ~a, sut: ~a" expected sut))) #t)
+                 (list (format #f "expected: ~a, sut: ~a" expected sut)))
+          `((assertion-successful unquote #t)
+            (assertion-name unquote name)))
         (begin
           (apply (assoc-ref reporter
                             'log-fail)
                  (list (format #f "error, expected: ~a, sut: ~a" expected sut)))
 
-          #f))))
+          `((assertion-successful unquote #f)
+            (assertion-name unquote name))))))
 
 (define* (assert-error thunk
                        #:key name)
