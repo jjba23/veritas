@@ -167,27 +167,11 @@
                                    (suite-results unquote suite-results))))
           
           (display-test-results-safely final-suite-data)
-          ;; (for-each (lambda (s)
-          ;; (display (assoc-ref s
-          ;; 'test-output))
-          ;; (for-each (lambda (tr)
-          
-          ;; (for-each (lambda (ttrr)
-          ;; (display (assoc-ref ttrr
-          ;; 'assertion-output)))
-          ;; (cdr tr))
-          ;; )
-          ;; (assoc-ref s
-          ;; 'test-results))
-          
-          ;; )
-          ;; (assoc-ref final-suite-data
-          ;; 'suite-results))
+
           (when debug?
             (newline)
             (write final-suite-data)
-            (newline))
-          final-suite-data))))
+            (newline)) final-suite-data))))
 
 (define* (run-suites #:key (shuffle? #t)
                      (concurrent? #t)
@@ -226,10 +210,3 @@
       (exit 1))
 
     all-suite-results))
-
-;; (define my-pp (open-output-string))
-;; (with-output-to-port my-pp (lambda()
-;;                           (display "TEST PORT")
-;;                                                     (display "ANOTHER TEST PORT")
-;;                           42))
-;; (get-output-string my-pp)
