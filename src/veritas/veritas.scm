@@ -36,7 +36,7 @@
                             assert-error
                             assert-no-error
                             evaluate-thunks-concurrently
-                            collect-assertion-succesful
+                            collect-assertion-successful
                             fisher-yates-shuffle)
   #:export (test run-suites suite))
 
@@ -130,10 +130,7 @@
                                    (assoc-ref sr
                                               'suite-results)))
                             all-suite-results))
-
-         (_ (write "(collect-assertion-succesful test-results)"))
-         (_ (write (collect-assertion-succesful test-results)))
-         (assertion-results (collect-assertion-succesful test-results)))
+         (assertion-results (collect-assertion-successful test-results)))
     
     (when (member #f assertion-results)
       ((assoc-ref reporter

@@ -9,7 +9,6 @@
 (define basic-suite
   (suite "Basic Suite"
          (test "Basic Numeric Tests"
-               #:debug? #t
                (assert-equal #:expected 2
                              #:sut (+ 10
                                       (- 0 9)))
@@ -21,7 +20,6 @@
                (assert-equal #:expected 0
                              #:sut (* 1 1 1 1 0)))
          (test "Basic Boolean Tests"
-               #:debug? #t
                (assert-false #f
                              #:name
                              "should succeed on checking that false is false"))

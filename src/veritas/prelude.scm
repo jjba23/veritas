@@ -26,8 +26,9 @@
   #:use-module (ice-9 rdelim)
   #:use-module (fibers)
   #:use-module (fibers channels)
-  #:export (evaluate-thunks-concurrently evaluate-thunks
-                                         collect-assertion-succesful))
+  #:export (evaluate-thunks-concurrently evaluate-thunks flatten-list
+                                         collect-assertion-successful
+                                         collect-assertion-successful*))
 
 (define (evaluate-thunks-concurrently thunks)
   (let* ((channel
@@ -47,20 +48,37 @@
          (apply t
                 '())) thunks))
 
-(define (collect-assertion-succesful xs)
-  (newline)
-  (write "xs")
-  (newline)
-  (write xs)
-  (newline)
+(define (alist-keys alist)
+  (cond
+    ((list? alist)
+     (fold (lambda (pair acc)
+             (cons (car pair) acc))
+           '() alist))
+    (else '())))
+
+(define (flatten-list xs)
   (cond
     ((null? xs)
      '())
-    ((and (list? xs)
-          (assoc-ref xs
-                     'suite-results))
-     (error "GOOD TRACK"))
+    ((pair? xs)
+     (append (flatten-list (car xs))
+             (flatten-list (cdr xs))))
+    (else (list xs))))
+
+(define (collect-assertion-successful* xs)
+  (cond
+    ((and (pair? xs)
+          (eq? (car xs)
+               'test-results))
+     (map collect-assertion-successful xs))
+    ((and (pair? xs)
+          (member 'assertion-successful
+                  (alist-keys xs)))
+     (assoc-ref xs
+                'assertion-successful))
     ((list? xs)
-     (map collect-assertion-succesful xs))
+     (map collect-assertion-successful xs))
     (else '())))
 
+(define (collect-assertion-successful xs)
+  (flatten-list (collect-assertion-successful* xs)))
