@@ -95,7 +95,6 @@
           `((test-name unquote name)
             (test-results unquote test-results))))))
 
-
 (define (display-test-results-safely final-suite-data)
   
   (let ((suite-results (assoc-ref final-suite-data
@@ -106,17 +105,22 @@
                                                  'test-output))
                          (test-results (map cdr
                                             (assoc-ref s
-                                                       'test-results))))
+                                                       'test-results)))
+                         (assertion-outputs (apply append
+                                                   (map (lambda (tr)
+                                                          (if (list? tr)
+                                                              (map (lambda (ttrr)
+                                                                     (assoc-ref
+                                                                      ttrr
+                                                                      'assertion-output))
+                                                                   tr)
+                                                              '()))
+                                                        test-results))))
                     (when (string? test-output)
-                      (display test-output)
-                      (newline))
+                      (display test-output))
                     (when (list? test-results)
-                      (for-each (lambda (tr)
-                                  (let ((assertion-output (assoc-ref tr
-                                                                     'assertion-output)))
-                                    (when (string? assertion-output)
-                                      (display assertion-output)
-                                      (newline)))) test-results))))
+                      (for-each (lambda (ao)
+                                  (display ao)) assertion-outputs))))
                 suite-results))))
 
 (define* (suite name
