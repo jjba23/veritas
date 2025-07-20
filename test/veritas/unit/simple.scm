@@ -9,7 +9,7 @@
 (define basic-suite
   (suite "Basic Suite"
          (test "Basic Numeric Tests"
-               (assert-equal #:expected 2
+               (assert-equal #:expected 1
                              #:sut (+ 10
                                       (- 0 9)))
                (assert-equal #:expected 1
@@ -29,9 +29,7 @@
 
 (define str-suite
   (suite "str"
-         #:skip? #t
          (test "String Operation Tests"
-               #:skip? #t
                (assert-equal #:expected "hello world"
                              #:sut (string-append "hello" " " "world"))
                (assert-true (string=? "scheme" "scheme"))

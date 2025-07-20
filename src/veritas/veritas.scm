@@ -178,7 +178,9 @@
                      (debug? #f)
                      (reporter colorful-stdout-reporter)
                      #:rest suites)
-  (let* ((start-test-time (current-time))
+  (let* ((start-test-time (gettimeofday))
+         (start-seconds (car start-test-time))
+         (start-microseconds (cdr start-test-time))
          (valid-suites (filter procedure? suites))
          (ordered-suites (if shuffle?
                              (fisher-yates-shuffle valid-suites) valid-suites))
@@ -195,11 +197,16 @@
                                               'suite-results)))
                             all-suite-results))
          (assertion-results (collect-assertion-successful test-results))
-         (end-test-time (current-time))
-         (seconds-elapsed (- end-test-time start-test-time)))
+         (end-test-time (gettimeofday))
+         (end-seconds (car end-test-time))
+         (end-microseconds (cdr end-test-time))
+         (seconds-elapsed (- end-seconds start-seconds))
+         (microseconds-elapsed (- end-microseconds start-microseconds)))
     
-    (display (format #f "\nran ~a test suites in ~a seconds"
-                     (length valid-suites) seconds-elapsed))
+    (display (format #f "
+ran ~a test suites in: ~a seconds, ~a microseconds"
+                     (length valid-suites) seconds-elapsed
+                     microseconds-elapsed))
     (when debug?
       (display (format #f "\nassertion-results: ~a" assertion-results)))
 
