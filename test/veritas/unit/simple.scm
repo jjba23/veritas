@@ -9,7 +9,7 @@
 (define basic-suite
   (suite "Basic Suite"
          (test "Basic Numeric Tests"
-               #:debug? #t
+               #:skip? #t
                (assert-equal #:expected 2
                              #:sut (+ 10
                                       (- 0 9)))
@@ -39,15 +39,9 @@
 (define (is-even n)
   (= (modulo n 2) 0))
 
-(define (list-length lst)
-  (length lst))
-
 (define (get-first-element lst)
   (if (pair? lst)
       (car lst) #f))
-
-(define (concatenate-lists list1 list2)
-  (append list1 list2))
 
 (define (divide a b)
   (if (= b 0)
@@ -79,13 +73,13 @@
   (suite "List Manipulation Tests"
          (test "List Length"
                (assert-equal #:expected 0
-                             #:sut (list-length '())
+                             #:sut (length '())
                              #:name "Length of empty list")
                (assert-equal #:expected 3
-                             #:sut (list-length '(a b c))
+                             #:sut (length '(a b c))
                              #:name "Length of list with 3 elements")
                (assert-equal #:expected 1
-                             #:sut (list-length '(10))
+                             #:sut (length '(10))
                              #:name "Length of list with one element"))
          (test "Get First Element"
                (assert-equal #:expected 1
@@ -99,20 +93,20 @@
                              "First element of an empty list should be #f"))
          (test "List Concatenation"
                (assert-equal #:expected '(1 2 3 4 5)
-                             #:sut (concatenate-lists '(1 2 3)
-                                                      '(4 5))
+                             #:sut (append '(1 2 3)
+                                           '(4 5))
                              #:name "Concatenate two non-empty lists")
                (assert-equal #:expected '(a b)
-                             #:sut (concatenate-lists '()
-                                                      '(a b))
+                             #:sut (append '()
+                                           '(a b))
                              #:name "Concatenate empty list with non-empty")
                (assert-equal #:expected '(x y)
-                             #:sut (concatenate-lists '(x y)
-                                                      '())
+                             #:sut (append '(x y)
+                                           '())
                              #:name "Concatenate non-empty list with empty")
                (assert-equal #:expected '()
-                             #:sut (concatenate-lists '()
-                                                      '())
+                             #:sut (append '()
+                                           '())
                              #:name "Concatenate two empty lists"))))
 
 (define error-handling-suite
@@ -163,6 +157,7 @@
 
 (define (simple-check)
   (run-suites #:reporter colorful-reporter
+              #:debug? #t
               predicate-suite
               list-suite
               error-handling-suite

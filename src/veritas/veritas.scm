@@ -43,6 +43,7 @@
 (define* (test name
                #:key (debug? #f)
                (shuffle? #t)
+               (skip? #f)
                #:rest cases)
   (lambda (reporter)
     ((assoc-ref reporter
@@ -83,6 +84,7 @@
 (define* (suite name
                 #:key (debug? #f)
                 (shuffle? #t)
+                (skip? #f)
                 (concurrent? #t)
                 #:rest tests)
   (lambda (reporter)
