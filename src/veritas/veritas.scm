@@ -45,41 +45,43 @@
                (shuffle? #t)
                (skip? #f)
                #:rest cases)
-  (lambda (reporter)
-    ((assoc-ref reporter
-                'log-test)
-     name)
+  (if skip? #f
+      (lambda (reporter)
+        ((assoc-ref reporter
+                    'log-test)
+         name)
 
-    (let* ((procedure-cases (filter procedure? cases))
-           (indexed-cases (map (lambda (case-proc i)
-                                 (list i case-proc))
-                               (if shuffle?
-                                   (fisher-yates-shuffle procedure-cases)
-                                   procedure-cases)
-                               (iota (length procedure-cases))))
-           (assertion-thunks (map (lambda (indexed-case)
-                                    (let* ((idx (car indexed-case))
-                                           (case-proc (cadr indexed-case))
-                                           (result (case-proc reporter)))
-                                      (lambda ()
-                                        `((assertion-index unquote idx)
-                                          (assertion-name unquote
-                                                          (assoc-ref result
-                                                                     'assertion-name))
-                                          (assertion-successful unquote
-                                                                (assoc-ref
-                                                                 result
-                                                                 'assertion-successful))))))
-                                  indexed-cases))
-           (test-results (evaluate-thunks assertion-thunks)))
-      
-      (when debug?
-        (newline)
-        (write test-results)
-        (newline))
+        (let* ((procedure-cases (filter procedure? cases))
+               (indexed-cases (map (lambda (case-proc i)
+                                     (list i case-proc))
+                                   (if shuffle?
+                                       (fisher-yates-shuffle procedure-cases)
+                                       procedure-cases)
+                                   (iota (length procedure-cases))))
+               (assertion-thunks (map (lambda (indexed-case)
+                                        (let* ((idx (car indexed-case))
+                                               (case-proc (cadr indexed-case))
+                                               (result (case-proc reporter)))
+                                          (lambda ()
+                                            `((assertion-index unquote idx)
+                                              (assertion-name unquote
+                                                              (assoc-ref
+                                                               result
+                                                               'assertion-name))
+                                              (assertion-successful unquote
+                                                                    (assoc-ref
+                                                                     result
+                                                                     'assertion-successful))))))
+                                      indexed-cases))
+               (test-results (evaluate-thunks assertion-thunks)))
+          
+          (when debug?
+            (newline)
+            (write test-results)
+            (newline))
 
-      `((test-name unquote name)
-        (test-results unquote test-results)))))
+          `((test-name unquote name)
+            (test-results unquote test-results))))))
 
 (define* (suite name
                 #:key (debug? #f)
@@ -87,34 +89,35 @@
                 (skip? #f)
                 (concurrent? #t)
                 #:rest tests)
-  (lambda (reporter)
-    ((assoc-ref reporter
-                'log-suite)
-     name)
+  (if skip? #f
+      (lambda (reporter)
+        ((assoc-ref reporter
+                    'log-suite)
+         name)
 
-    (let* ((procedure-tests (filter procedure? tests))
-           (indexed-tests (map (lambda (test-proc i)
-                                 (list i test-proc))
-                               (if shuffle?
-                                   (fisher-yates-shuffle procedure-tests)
-                                   procedure-tests)
-                               (iota (length procedure-tests))))
-           (test-thunks (map (lambda (indexed-test)
-                               (let ((idx (car indexed-test))
-                                     (test-proc (cadr indexed-test)))
-                                 (lambda ()
-                                   (list idx
-                                         (test-proc reporter)))))
-                             indexed-tests))
-           (suite-results (if concurrent?
-                              (evaluate-thunks-concurrently test-thunks)
-                              (evaluate-thunks test-thunks)))
-           (final-suite-data `((suite-name unquote name)
-                               (suite-results unquote suite-results))))
-      (when debug?
-        (newline)
-        (write final-suite-data)
-        (newline)) final-suite-data)))
+        (let* ((procedure-tests (filter procedure? tests))
+               (indexed-tests (map (lambda (test-proc i)
+                                     (list i test-proc))
+                                   (if shuffle?
+                                       (fisher-yates-shuffle procedure-tests)
+                                       procedure-tests)
+                                   (iota (length procedure-tests))))
+               (test-thunks (map (lambda (indexed-test)
+                                   (let ((idx (car indexed-test))
+                                         (test-proc (cadr indexed-test)))
+                                     (lambda ()
+                                       (list idx
+                                             (test-proc reporter)))))
+                                 indexed-tests))
+               (suite-results (if concurrent?
+                                  (evaluate-thunks-concurrently test-thunks)
+                                  (evaluate-thunks test-thunks)))
+               (final-suite-data `((suite-name unquote name)
+                                   (suite-results unquote suite-results))))
+          (when debug?
+            (newline)
+            (write final-suite-data)
+            (newline)) final-suite-data))))
 
 (define* (run-suites #:key (shuffle? #t)
                      (concurrent? #t)
