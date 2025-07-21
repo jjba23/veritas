@@ -66,6 +66,17 @@ IMPORTANT! for now the test runner is quite primitive and  only supports a flat 
 
 Test files should contain a no-argument function called ~spec~ which is the entry-point, and the place to add your ~run-suites~ statements. In the future this will be improved.
 
+It's for now recommended to name your modules ~(veritas unit your-name)~ due to how Guile module loading works.
+
+Then you can run with for example:
+
+#+begin_src shell
+guix shell -m manifest.scm -- \
+		guile --fresh-auto-compile -L ./src \
+		-L ./test \
+		-c '((@ (veritas runner) run-unit-tests))'
+#+end_src
+
 
 ------------------------
 
