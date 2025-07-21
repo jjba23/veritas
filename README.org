@@ -20,23 +20,23 @@ If you like my work, please support me by [[https://bmc.link/jjbigorra][buying m
 #+begin_src scheme
 (define my-veritas-suite
   (suite "My First Veritas Test Suite"
-       (test "is-even"
-             (assert-true (is-even 4)
-                          #:name "4 should be even")
-             (assert-false (is-even 7)
-                           #:name "7 should not be even"))
-       (test "length"
-             (assert-equal #:expected 0
-                           #:sut (length '())
-                           #:name "length of empty list should be 0")
-             (assert-equal #:expected 3
-                           #:sut (length '(a b c))
-                           #:name "length of list with 3 elements should be 3"))))
+         (test "is-even"
+               (assert-true (is-even 4)
+                            #:name "4 should be even")
+               (assert-false (is-even 7)
+                             #:name "7 should not be even"))
+         (test "length"
+               (assert-equal #:expected 0
+                             #:sut (length '())
+                             #:name "length of empty list should be 0")
+               (assert-equal #:expected 3
+                             #:sut (length '(a b c))
+                             #:name "length of list with 3 elements should be 3"))))
 
 (define (spec)
   (run-suites #:reporter colorful-reporter
-            #:debug? #t
-            my-veritas-suite))
+              #:debug? #t
+              my-veritas-suite))
 
 #+end_src
 
