@@ -42,4 +42,4 @@ test: fmt
 	guix shell -m manifest.scm -- \
 		guile --fresh-auto-compile -L ./src \
 		-L ./test \
-		-c '((@ (veritas unit simple) simple-check))'
+		-c '((@ (veritas runner) run-unit-tests))'

@@ -18,7 +18,7 @@
 (define-module (veritas unit simple)
   #:use-module (veritas veritas)
   #:use-module (veritas reporter)
-  #:export (simple-check))
+  #:export (spec))
 
 (define (add-two x)
   (+ 2 x))
@@ -171,7 +171,7 @@
                              #:sut (vector-ref some-vector 0)
                              #:name "Vector ref at index 0"))))
 
-(define (simple-check)
+(define (spec)
   (run-suites #:reporter colorful-reporter
               #:debug? #t
               predicate-suite

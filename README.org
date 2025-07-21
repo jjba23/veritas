@@ -44,6 +44,7 @@ If you like my work, please support me by [[https://bmc.link/jjbigorra][buying m
 In summary, tests are defined in plain Guile Scheme code, allowing powerful abstractions, re-usability and customization.
 
 The hierarchy is defined as follows:
+- In your test file, define a no-argument function called ~spec~ which is the entry-point, and should contain your ~run-suites~ statements and ensure that it's exported/public. This is useful for when you use the built-in veritas test runner. Otherwise feel free to do this differently.
 - ~run-suites~ takes an arbitrary (variadic) amount of ~suite~ items.
 - ~suite~ takes a variadic amount of ~test~ items.
 - ~test~ takes a variadic amount of assertions (~assert-equal~, ~assert-error~,  ~assert-true~, etc.)    
@@ -56,7 +57,13 @@ This allows entire tests or suites (your choice) to be run in parallel, signific
 
 (WIP Guix packaging)
 
-Refer to the Makefile to understand how to run this project and more. 
+Refer to the Makefile to understand how to run this project and more.
+
+** About the runner
+
+IMPORTANT! for now the test runner is quite primitive and  only supports a flat file structure. If you use this runner, place your unit test files at: ~./test/veritas/unit/*.scm~
+
+Test files should contain a no-argument function called ~spec~ which is the entry-point, and the place to add your ~run-suites~ statements. In the future this will be improved.
 
 ------------------------
 
