@@ -110,18 +110,18 @@
                (test-thunks (map (lambda (indexed-test)
                                    (let* ((idx (car indexed-test))
                                           (test-proc (cadr indexed-test))
-                                          (output-port (open-output-string))
-                                          (result (with-output-to-port
-                                                   output-port
-                                                   (lambda ()
-                                                     (test-proc vc))))
-                                          (test-output (get-output-string
-                                                        output-port))
-                                          (_ (close-port output-port)))
+                                          (output-port (open-output-string)))
                                      (lambda ()
-                                       `((test-index unquote idx)
-                                         (test-output unquote test-output)
-                                         (test-results unquote result)))))
+                                       (let* ((result (with-output-to-port
+                                                       output-port
+                                                       (lambda ()
+                                                         (test-proc vc))))
+                                              (test-output (get-output-string
+                                                            output-port))
+                                              (_ (close-port output-port)))
+                                         `((test-index unquote idx)
+                                           (test-output unquote test-output)
+                                           (test-results unquote result))))))
                                  indexed-tests))
                (suite-results (if concurrent?
                                   (evaluate-thunks-concurrently test-thunks)
@@ -129,8 +129,6 @@
                (final-suite-data `((suite-name unquote name)
                                    (suite-results unquote suite-results))))
           
-          (display-test-results final-suite-data)
-
           (when debug?
             (newline)
             (write final-suite-data)
@@ -148,17 +146,27 @@
          (ordered-suites (if shuffle?
                              (fisher-yates-shuffle valid-suites) valid-suites))
          (vc (list (cons 'reporter reporter)))
-         (suite-thunks (map (lambda (s)
-                              (lambda ()
-                                (s vc))) ordered-suites))
+         (suite-thunks (map (lambda (suite-proc)
+                              (let* ((output-port (open-output-string)))
+                                (lambda ()
+                                  (let* ((result (with-output-to-port
+                                                  output-port
+                                                  (lambda ()
+                                                    (suite-proc vc))))
+                                         (suite-output (get-output-string
+                                                        output-port))
+                                         (_ (close-port output-port)))
+                                    `((run-suite-results unquote result)
+                                      (run-suite-output unquote suite-output))))))
+                            ordered-suites))
          (all-suite-results (if concurrent?
                                 (evaluate-thunks-concurrently suite-thunks)
                                 (evaluate-thunks suite-thunks)))
-         (test-results (map (lambda (sr)
-                              (map cdr
-                                   (assoc-ref sr
-                                              'suite-results)))
-                            all-suite-results))
+
+         (test-results (map (lambda (asr)
+                              (assoc-ref (assoc-ref asr
+                                                    'run-suite-results)
+                                         'suite-results)) all-suite-results))
          (assertion-results (collect-assertion-successful test-results))
          (end-test-time (gettimeofday))
          (end-seconds (car end-test-time))
@@ -166,6 +174,7 @@
          (seconds-elapsed (- end-seconds start-seconds))
          (microseconds-elapsed (- end-microseconds start-microseconds)))
     
+    (display-test-results all-suite-results)
     (display (format #f "
 ran ~a test suites in: ~a seconds, ~a microseconds"
                      (length valid-suites) seconds-elapsed
@@ -179,3 +188,4 @@ ran ~a test suites in: ~a seconds, ~a microseconds"
       (exit 1))
 
     all-suite-results))
+
