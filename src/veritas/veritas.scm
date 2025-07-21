@@ -103,7 +103,6 @@
                                        procedure-tests)
                                    (iota (length procedure-tests))))
                (test-thunks (map (lambda (indexed-test)
-                                   (write indexed-test)
                                    (let* ((idx (car indexed-test))
                                           (test-proc (cadr indexed-test))
                                           (output-port (open-output-string)))
