@@ -1,3 +1,20 @@
+;; veritas
+
+;; Copyright © Josep Bigorra <jjbigorra@gmail.com>
+
+;; veritas is free software: you can redistribute it and/or modify
+;; it under the terms of the Lesser GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+
+;; veritas is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; Lesser GNU General Public License for more details.
+
+;; You should have received a copy of the Lesser GNU General Public License
+;; along with veritas.  If not, see <https://www.gnu.org/licenses/>.
+
 (define-module (veritas unit simple)
   #:use-module (veritas veritas)
   #:use-module (veritas reporter)
@@ -46,6 +63,13 @@
   (if (= b 0)
       (error "Division by zero")
       (/ a b)))
+
+(define some-alist
+  '((name . "Alice") (age . 30)
+    (city . "New York")))
+
+(define some-vector
+  (vector 1 2 3))
 
 (define predicate-suite
   (suite "Predicate Tests"
@@ -122,13 +146,6 @@
                (assert-equal #:expected 5
                              #:sut (divide 10 2)
                              #:name "Valid division result"))))
-
-(define some-alist
-  '((name . "Alice") (age . 30)
-    (city . "New York")))
-
-(define some-vector
-  (vector 1 2 3))
 
 (define complex-data-suite
   (suite "Complex Data Structure Tests"
