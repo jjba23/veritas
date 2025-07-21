@@ -30,6 +30,7 @@
   #:use-module (veritas assert)
   #:use-module (veritas prelude)
   #:use-module (veritas shuffle)
+  #:use-module (veritas model)
   #:re-export (assert-equal assert-eqv
                             assert-true
                             assert-false
@@ -119,15 +120,13 @@
                                               (test-output (get-output-string
                                                             output-port))
                                               (_ (close-port output-port)))
-                                         `((test-index unquote idx)
-                                           (test-output unquote test-output)
-                                           (test-results unquote result))))))
+                                         (make-test-result idx test-output
+                                                           result)))))
                                  indexed-tests))
-               (suite-results (if concurrent?
-                                  (evaluate-thunks-concurrently test-thunks)
-                                  (evaluate-thunks test-thunks)))
-               (final-suite-data `((suite-name unquote name)
-                                   (suite-results unquote suite-results))))
+               (test-results (if concurrent?
+                                 (evaluate-thunks-concurrently test-thunks)
+                                 (evaluate-thunks test-thunks)))
+               (final-suite-data (make-suite-result name test-results "")))
           
           (when debug?
             (newline)
@@ -156,16 +155,15 @@
                                          (suite-output (get-output-string
                                                         output-port))
                                          (_ (close-port output-port)))
-                                    (append result
-                                            (list (cons 'suite-output
-                                                        suite-output)))))))
-                            ordered-suites))
+                                    (set-suite-result-output! result
+                                                              suite-output)
+                                    result)))) ordered-suites))
          (all-suite-results (if concurrent?
                                 (evaluate-thunks-concurrently suite-thunks)
                                 (evaluate-thunks suite-thunks)))
          (test-results (map (lambda (asr)
-                              (assoc-ref asr
-                                         'suite-results)) all-suite-results))
+                              (suite-result-test-results asr))
+                            all-suite-results))
          (assertion-results (collect-assertion-successful test-results))
          (end-test-time (gettimeofday))
          (end-seconds (car end-test-time))

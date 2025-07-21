@@ -26,6 +26,7 @@
   #:use-module (ice-9 rdelim)
   #:use-module (fibers)
   #:use-module (fibers channels)
+  #:use-module (veritas model)
   #:export (evaluate-thunks-concurrently evaluate-thunks
                                          flatten-list
                                          display-suite-results
@@ -74,15 +75,12 @@
 
 (define (collect-assertion-successful* xs)
   (cond
+    ((test-result? xs)
+     (collect-assertion-successful* (test-result-test-results xs)))
     ((and (pair? xs)
           (eq? (car xs)
                'test-results))
      (map collect-assertion-successful xs))
-    ((and (pair? xs)
-          (member 'assertion-successful
-                  (alist-keys xs)))
-     (assoc-ref xs
-                'assertion-successful))
     ((list? xs)
      (map collect-assertion-successful xs))
     (else '())))
@@ -90,20 +88,17 @@
 (define (collect-assertion-successful xs)
   (flatten-list (collect-assertion-successful* xs)))
 
-(define-syntax-rule (display-assertion-results assertion-results)
+(define (display-assertion-results assertion-results)
   (for-each (lambda (ar)
               (display (assoc-ref ar
                                   'assertion-output))) assertion-results))
 
-(define-syntax-rule (display-suite-results all-suite-results)
+(define (display-suite-results all-suite-results)
   (for-each (lambda (asr)
-              (display (assoc-ref asr
-                                  'suite-output))
+              (display (suite-result-output asr))
               (for-each (lambda (sr)
-                          (display (assoc-ref sr
-                                              'test-output))
-                          (display-assertion-results (assoc-ref (assoc-ref sr
-                                                                           'test-results)
+                          (display (test-result-output sr))
+                          (display-assertion-results (assoc-ref (test-result-test-results
+                                                                 sr)
                                                                 'test-results)))
-                        (assoc-ref asr
-                                   'suite-results))) all-suite-results))
+                        (suite-result-test-results asr))) all-suite-results))
