@@ -13,40 +13,48 @@
 
 The framework is built around the concepts of "suites," which group related "tests," and "assertions," which perform the actual checks. I'd encourage you to peruse the ~test/~ folder of this project to see real examples of how to use ~veritas~.
 
+The power of ~veritas~ lies in its simplicity, expressive embedded domain-specific language (EDSL), and some clever features that promote robust testing practices and correctness, like order randomization and concurrent testing.
+
 If you like my work, please support me by [[https://bmc.link/jjbigorra][buying me a cup of coffee ☕]] so I can continue with a lot of motivation.
 
+#+begin_src scheme
+(define my-veritas-suite
+  (suite "My First Veritas Test Suite"
+       (test "is-even"
+             (assert-true (is-even 4)
+                          #:name "4 should be even")
+             (assert-false (is-even 7)
+                           #:name "7 should not be even"))
+       (test "length"
+             (assert-equal #:expected 0
+                           #:sut (length '())
+                           #:name "length of empty list should be 0")
+             (assert-equal #:expected 3
+                           #:sut (length '(a b c))
+                           #:name "length of list with 3 elements should be 3"))))
 
-[[https://jointhefreeworld.org/static-assets/veritas/2025-07-18.png]]
+(run-suites #:reporter colorful-reporter
+            #:debug? #t
+            my-veritas-suite)
+
+#+end_src
 
 -----------------------------
 
-** API and Structure
+In summary, tests are defined in plain Guile Scheme code, allowing powerful abstractions, re-usability and customization.
 
-The ~veritas~ API is organized hierarchically, making tests easy to write and manage. The primary functions a developer uses are:
-- *suite*: The top-level container. It takes a name and a list of ~test~ procedures. It's responsible for running all the tests within it.
-- *test*: Defines a single test case. It takes a name and a list of ~cases~, where each case is a thunk (zero-argument procedure or ~lambda~) one assertion.
-- *Assertion Functions*: These are the core checks. The main ones are:
-  - *assert-equal*: Checks if an actual value (the ~sut~, or System Under Test) is structurally equal (~equal?~) to an ~expected~ value. Variants like ~assert-eqv~ and ~assert-eq~ are also provided for different types of equality checking.
-  - *assert-true* and *assert-false*: Shorthand functions to check if a result is boolean true (~#t~) or false (~#f~).
-- *run-suite*: The entry point that executes a defined suite of tests.
+The hierarchy is defined as follows:
+- ~run-suites~ takes an arbitrary (variadic) amount of ~suite~ items.
+- ~suite~ takes a variadic amount of ~test~ items.
+- ~test~ takes a variadic amount of assertions (~assert-equal~, ~assert-error~,  ~assert-true~, etc.)    
 
-A typical workflow involves defining a suite that contains several tests, with each test making one or more assertions. The framework then executes everything and reports a summary on-the-go.
+Instead of executing tests immediately, test and suite functions return anonymous functions (lambdas), and thunks (no argument lambdas). This helps "close over" environments and scopes, capturing all necessary information (like test name, input cases, debug flags) from where they were defined.
 
-** The Key Ideas
+This design enables delayed, "on-demand" execution, allowing Veritas to control the concurrency, parallelism, order (e.g., shuffling) and timing of test runs, as well as capturing their output efficiently using output ports.
 
-The power of ~veritas~ lies in its simplicity and a few clever features that promote robust testing practices.
-
-A significant feature is the *randomization of execution order*, which is important for correctness, and by default, ~veritas~ shuffles both the tests within a suite and the assertion cases within a test using a Fisher-Yates algorithm.
-
-This is a powerful technique for detecting hidden dependencies between tests, where one test might only pass because another test ran before it and modified some state.
-
-Another powerful aspect is its focus on *developer experience and clarity*, and an encouragement to write expressive and self documenting tests.
-
-This, combined with the useful output, makes debugging failures quick and intuitive. The entire library is self-contained and has minimal dependencies, making it easy to integrate into any project.
+This allows entire tests or suites (your choice) to be run in parallel, significantly speeding up the overall testing process by leveraging cooperative concurrency, as well as ensuring correctness of your tests. Overall, the veritas testing framework leverages core Lisp features to provide a flexible and efficient testing solution.
 
 (WIP Guix packaging)
-
-------------------------
 
 Refer to the Makefile to understand how to run this project and more. 
 
