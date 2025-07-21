@@ -135,6 +135,12 @@ The power of ~veritas~ lies in its simplicity, expressive embedded domain-specif
 
 -------------
 
+* Projects using Veritas
+
+- SSS ([[https://codeberg.org/jjba23/sss][Supreme Sexp System]]) -   SSS is a Lisp machine adventure, where the hacking culture is celebrated. Let me help you achieve GNUrvana. This custom GNU + Linux (Guix) setup enhances customization to infinity, encourages the hacking spirit, and offers a superior user experience thanks in part too to REPL (Read Eval Print Loop) and Lisps.
+
+---------------
+
 * Code of conduct
 
 This project adheres to the jointhefreeworld code of conduct. Find it here:
