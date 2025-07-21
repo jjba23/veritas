@@ -56,8 +56,6 @@ This design enables delayed, "on-demand" execution, allowing Veritas to control 
 
 This allows entire tests or suites (your choice) to be run in parallel, significantly speeding up the overall testing process by leveraging cooperative concurrency, as well as ensuring correctness of your tests. Overall, the veritas testing framework leverages core Lisp features to provide a flexible and efficient testing solution.
 
-(WIP Guix packaging)
-
 Refer to the Makefile to understand how to run this project and more.
 
 ** About the runner
