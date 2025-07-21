@@ -68,10 +68,14 @@ scanning present working directory for unit tests...")
   (let* ((dir "./")
          (files (remove-stat (file-system-tree dir)))
          (interesting-files (flatten-list (discover-unit-tests files))))
-    (display (format #f "\nfound unit tests: ~a\n\n" interesting-files))
-    (for-each (lambda (file)
-                (run-test-file file
-                               'unit)) interesting-files)))
+    (if (null? interesting-files)
+        (begin
+          (display (format #f "\nfound unit tests: ~a\n\n" interesting-files))
+          (for-each (lambda (file)
+                      (run-test-file file
+                                     'unit)) interesting-files))
+        (begin
+          (display (format #f "\ncould not find any unit tests!"))))))
 
 (define (discover-unit-tests d)
   (cond
