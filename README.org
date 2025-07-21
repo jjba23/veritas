@@ -62,6 +62,8 @@ Refer to the Makefile to understand how to run this project and more.
 
 ** About the runner
 
+You can feel free to use ~veritas~ as you prefer, and dynamically run tests at your will. For ease-of-use, a (still pretty basic)  runner with test auto-discovery is provided.
+
 IMPORTANT! for now the test runner is quite primitive and  only supports a flat file structure. If you use this runner, place your unit test files at: ~./test/veritas/unit/*.scm~
 
 Test files should contain a no-argument function called ~spec~ which is the entry-point, and the place to add your ~run-suites~ statements. In the future this will be improved.
