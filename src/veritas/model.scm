@@ -36,7 +36,19 @@
                          make-test-result
                          test-result-index
                          test-result-output
-                         test-result-results))
+                         test-result-results
+                         pre-test-result
+                         pre-test-result?
+                         make-pre-test-result
+                         pre-test-result-name
+                         pre-test-result-results
+                         make-assertion-result
+                         assertion-result
+                         assertion-result?
+                         assertion-result-index
+                         assertion-result-output
+                         assertion-result-name
+                         assertion-result-successful))
 
 (define-record-type suite-result
   (make-suite-result name test-results output) suite-result?
@@ -49,3 +61,16 @@
   (index test-result-index)
   (output test-result-output)
   (results test-result-results))
+
+(define-record-type pre-test-result
+  (make-pre-test-result name results) pre-test-result?
+  (name pre-test-result-name)
+  (results pre-test-result-results))
+
+(define-record-type assertion-result
+  (make-assertion-result index output name successful)
+  assertion-result?
+  (index assertion-result-index)
+  (output assertion-result-output)
+  (name assertion-result-name)
+  (successful assertion-result-successful))

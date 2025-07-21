@@ -90,15 +90,17 @@
 
 (define (display-assertion-results assertion-results)
   (for-each (lambda (ar)
-              (display (assoc-ref ar
-                                  'assertion-output))) assertion-results))
+              (if (assertion-result? ar)
+                  (display (assertion-result-output ar))
+                  (error (format #f "not an assertion-result: ~a" ar))))
+            assertion-results))
 
 (define (display-suite-results all-suite-results)
   (for-each (lambda (asr)
               (display (suite-result-output asr))
               (for-each (lambda (sr)
                           (display (test-result-output sr))
-                          (display-assertion-results (assoc-ref (test-result-results
-                                                                 sr)
-                                                                'test-results)))
+                          (display-assertion-results (pre-test-result-results (test-result-results
+                                                                               sr))))
                         (suite-result-test-results asr))) all-suite-results))
+

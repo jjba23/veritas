@@ -69,17 +69,12 @@
                                                                   output-port))
                                                (_ (close-port output-port)))
                                           (lambda ()
-                                            `((assertion-index unquote idx)
-                                              (assertion-output unquote
-                                               assertion-output)
-                                              (assertion-name unquote
-                                                              (assoc-ref
-                                                               result
-                                                               'assertion-name))
-                                              (assertion-successful unquote
-                                                                    (assoc-ref
-                                                                     result
-                                                                     'assertion-successful))))))
+                                            (make-assertion-result idx
+                                             assertion-output
+                                             (assoc-ref result
+                                                        'assertion-name)
+                                             (assoc-ref result
+                                                        'assertion-successful)))))
                                       indexed-cases))
                (test-results (evaluate-thunks assertion-thunks)))
           
@@ -88,8 +83,7 @@
             (write test-results)
             (newline))
 
-          `((test-name unquote name)
-            (test-results unquote test-results))))))
+          (make-pre-test-result name test-results)))))
 
 (define* (suite name
                 #:key (debug? #f)
@@ -109,6 +103,7 @@
                                        procedure-tests)
                                    (iota (length procedure-tests))))
                (test-thunks (map (lambda (indexed-test)
+                                   (write indexed-test)
                                    (let* ((idx (car indexed-test))
                                           (test-proc (cadr indexed-test))
                                           (output-port (open-output-string)))
