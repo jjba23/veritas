@@ -68,7 +68,7 @@ scanning present working directory for unit tests...")
   (let* ((dir "./")
          (files (remove-stat (file-system-tree dir)))
          (interesting-files (flatten-list (discover-unit-tests files))))
-    (if (null? interesting-files)
+    (if (not (null? interesting-files))
         (begin
           (display (format #f "\nfound unit tests: ~a\n\n" interesting-files))
           (for-each (lambda (file)
