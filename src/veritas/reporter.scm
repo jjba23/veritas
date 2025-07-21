@@ -34,7 +34,8 @@
                               log-test
                               log-suite
                               log-info
-                              log-error))
+                              log-error
+                              dispatch-log))
 
 (define ansi-color-escapes
   `((yellow . "\x1b[0;33m") (magenta . "\x1b[0;35m")
@@ -46,56 +47,45 @@
     (cyan . "\x1b[0;36m")
     (reset . "\x1b[0m")))
 
-(define (log msg)
+(define-syntax-rule (log msg)
   (format #t "\n~a" msg))
 
-(define (log-pass vc msg)
+(define-syntax-rule (dispatch-log vc log-type msg)
   ((assoc-ref (assoc-ref vc
-                         'reporter)
-              'log-pass)
+                         'reporter) log-type)
    msg))
 
-(define (log-fail vc msg)
-  ((assoc-ref (assoc-ref vc
-                         'reporter)
-              'log-fail)
-   msg))
+(define-syntax-rule (log-pass vc msg)
+  (dispatch-log vc
+                'log-pass msg))
 
-(define (log-error vc msg)
-  ((assoc-ref (assoc-ref vc
-                         'reporter)
-              'log-error)
-   msg))
+(define-syntax-rule (log-fail vc msg)
+  (dispatch-log vc
+                'log-fail msg))
 
-(define (log-assert vc msg)
-  ((assoc-ref (assoc-ref vc
-                         'reporter)
-              'log-assert)
-   msg))
+(define-syntax-rule (log-error vc msg)
+  (dispatch-log vc
+                'log-error msg))
 
-(define (log-test vc msg)
-  ((assoc-ref (assoc-ref vc
-                         'reporter)
-              'log-test)
-   msg))
+(define-syntax-rule (log-assert vc msg)
+  (dispatch-log vc
+                'log-assert msg))
 
-(define (log-suite vc msg)
-  ((assoc-ref (assoc-ref vc
-                         'reporter)
-              'log-suite)
-   msg))
+(define-syntax-rule (log-test vc msg)
+  (dispatch-log vc
+                'log-test msg))
 
-(define (log-debug vc msg)
-  ((assoc-ref (assoc-ref vc
-                         'reporter)
-              'log-debug)
-   msg))
+(define-syntax-rule (log-suite vc msg)
+  (dispatch-log vc
+                'log-suite msg))
 
-(define (log-info vc msg)
-  ((assoc-ref (assoc-ref vc
-                         'reporter)
-              'log-info)
-   msg))
+(define-syntax-rule (log-debug vc msg)
+  (dispatch-log vc
+                'log-debug msg))
+
+(define-syntax-rule (log-info vc msg)
+  (dispatch-log vc
+                'log-info msg))
 
 (define colorful-reporter
   `((log-pass unquote
