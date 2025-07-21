@@ -173,7 +173,7 @@
          (seconds-elapsed (- end-seconds start-seconds))
          (microseconds-elapsed (- end-microseconds start-microseconds)))
     
-    (display-test-results all-suite-results)
+    (display-suite-results all-suite-results)
     (log-info vc
               (format #f "ran ~a test suites in: ~a seconds, ~a microseconds"
                       (length valid-suites) seconds-elapsed

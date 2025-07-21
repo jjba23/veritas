@@ -26,8 +26,10 @@
   #:use-module (ice-9 rdelim)
   #:use-module (fibers)
   #:use-module (fibers channels)
-  #:export (evaluate-thunks-concurrently evaluate-thunks flatten-list
-                                         display-test-results
+  #:export (evaluate-thunks-concurrently evaluate-thunks
+                                         flatten-list
+                                         display-suite-results
+                                         display-assertion-results
                                          collect-assertion-successful
                                          collect-assertion-successful*))
 
@@ -89,11 +91,11 @@
   (flatten-list (collect-assertion-successful* xs)))
 
 (define-syntax-rule (display-assertion-results assertion-results)
-  (for-each (lambda (tr)
-              (display (assoc-ref tr
+  (for-each (lambda (ar)
+              (display (assoc-ref ar
                                   'assertion-output))) assertion-results))
 
-(define-syntax-rule (display-test-results all-suite-results)
+(define-syntax-rule (display-suite-results all-suite-results)
   (for-each (lambda (asr)
               (display (assoc-ref asr
                                   'suite-output))
