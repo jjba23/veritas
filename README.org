@@ -33,9 +33,10 @@ If you like my work, please support me by [[https://bmc.link/jjbigorra][buying m
                            #:sut (length '(a b c))
                            #:name "length of list with 3 elements should be 3"))))
 
-(run-suites #:reporter colorful-reporter
+(define (spec)
+  (run-suites #:reporter colorful-reporter
             #:debug? #t
-            my-veritas-suite)
+            my-veritas-suite))
 
 #+end_src
 
