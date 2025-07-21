@@ -36,7 +36,7 @@
                          make-test-result
                          test-result-index
                          test-result-output
-                         test-result-test-results))
+                         test-result-results))
 
 (define-record-type suite-result
   (make-suite-result name test-results output) suite-result?
@@ -45,7 +45,7 @@
   (output suite-result-output set-suite-result-output!))
 
 (define-record-type test-result
-  (make-test-result index output test-results) test-result?
+  (make-test-result index output results) test-result?
   (index test-result-index)
   (output test-result-output)
-  (test-results test-result-test-results))
+  (results test-result-results))

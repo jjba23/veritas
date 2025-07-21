@@ -76,7 +76,7 @@
 (define (collect-assertion-successful* xs)
   (cond
     ((test-result? xs)
-     (collect-assertion-successful* (test-result-test-results xs)))
+     (collect-assertion-successful* (test-result-results xs)))
     ((and (pair? xs)
           (eq? (car xs)
                'test-results))
@@ -98,7 +98,7 @@
               (display (suite-result-output asr))
               (for-each (lambda (sr)
                           (display (test-result-output sr))
-                          (display-assertion-results (assoc-ref (test-result-test-results
+                          (display-assertion-results (assoc-ref (test-result-results
                                                                  sr)
                                                                 'test-results)))
                         (suite-result-test-results asr))) all-suite-results))
