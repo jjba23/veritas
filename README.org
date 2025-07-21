@@ -7,7 +7,7 @@
 [[https://jointhefreeworld.org/ggg/dist/gnu-make.svg]] 
 [[https://jointhefreeworld.org/ggg/dist/license-lgpl3+.svg]]    [[https://jointhefreeworld.org/ggg/dist/license-fdl13+.svg]]
 
-[Work in progress] Unit, Integration and Black Box testing framework powered by Guile Scheme, a dialect of Lisp.
+[Work in progress] Unit, Integration and Black Box testing framework powered by Lisp (Guile Scheme)
 
 ~veritas~ aims to be a simple and lightweight testing framework written in Scheme. Its main purpose is to help developers verify that their code behaves as expected. It achieves this by providing a clear structure for writing tests and producing easy-to-read feedback in various formats.
 
@@ -66,6 +66,7 @@ IMPORTANT! for now the test runner is quite primitive and  only supports a flat 
 
 Test files should contain a no-argument function called ~spec~ which is the entry-point, and the place to add your ~run-suites~ statements. In the future this will be improved.
 
+
 ------------------------
 
 
@@ -78,6 +79,47 @@ https://www.gnu.org/licenses/lgpl-3.0.html
 The documentation and examples, including this document, which are provided with veritas, are all licensed under the GNU Free Documentation License v1.3 (or newer at your convenience).
 
 https://www.gnu.org/licenses/fdl-1.3.html
+
+------------------
+
+* Installing and using
+
+🚧 I'm working to stabilize veritas and to package it via the Guix package manager officially, as ~guile-veritas~.
+
+It is recommended you use Guix to work on your Guile Scheme projects, and install veritas with it (in your manifest.scm for example).
+
+Alternatively, you can install it by downloading the source code files and adding them directly to your ~GUILE_LOAD_PATH~ or even better, use a Guix shell ~manifest.scm~ and add the package with something like this:
+
+#+begin_src scheme
+(define-public guile-veritas
+  (package
+    (name "guile-veritas")
+    (version "x.x.x")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://codeberg.org/jjba23/veritas.git")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "<dependent on version>"))))
+    (build-system guile-build-system)
+    (native-inputs (list guile-3.0))
+    (arguments
+     (list
+      #:source-directory "src"))
+    (home-page "https://codeberg.org/jjba23/veritas")
+    (synopsis
+     "Unit, Integration and Black Box testing framework powered by Lisp (Guile Scheme)")
+    (description
+     "veritas aims to be a simple and lightweight testing framework written in Scheme. Its main purpose is to help developers verify that their code behaves as expected. It achieves this by providing a clear structure for writing tests and producing easy-to-read feedback in various formats.
+
+The framework is built around the concepts of \"suites\" which group related \"tests\" and \"assertions\" which perform the actual checks. I'd encourage you to peruse the ~test/~ folder of this project to see real examples of how to use veritas.
+
+The power of ~veritas~ lies in its simplicity, expressive embedded domain-specific language (EDSL), and some clever features that promote robust testing practices and correctness, like order randomization and concurrent testing.")
+    (license license:lgpl3+)))
+#+end_src
 
 
 -------------
