@@ -31,7 +31,7 @@
                                          collect-assertion-successful
                                          collect-assertion-successful*))
 
-(define (evaluate-thunks-concurrently thunks)
+(define-syntax-rule (evaluate-thunks-concurrently thunks)
   (let* ((channel
            (make-channel)))
     (run-fibers (lambda ()
@@ -44,7 +44,7 @@
     (map (lambda (_)
            (get-message channel)) thunks)))
 
-(define (evaluate-thunks thunks)
+(define-syntax-rule (evaluate-thunks thunks)
   (map (lambda (t)
          (apply t
                 '())) thunks))
@@ -88,7 +88,7 @@
 (define (collect-assertion-successful xs)
   (flatten-list (collect-assertion-successful* xs)))
 
-(define (display-test-results all-suite-results)
+(define-syntax-rule (display-test-results all-suite-results)
   (for-each (lambda (asr)
               (display (assoc-ref asr
                                   'suite-output))
