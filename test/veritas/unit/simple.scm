@@ -181,6 +181,6 @@
                complex-data-suite
                basic-suite
                (test "test-test-test"
-                     (assert-equal #:expected 1
+                     (assert-equal #:expected 2
                                    #:sut (* 1 1 1 1)))
                str-suite))

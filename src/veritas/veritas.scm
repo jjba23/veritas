@@ -176,9 +176,10 @@
               (format #f "ran ~a test suites in: ~a seconds, ~a microseconds"
                       (length valid-suites) seconds-elapsed
                       microseconds-elapsed))
-    (when debug?
-      (log-debug vc
-                 (format #f "assertion-results: ~a" assertion-results)))
+    ;; (when debug?
+    ;; )
+    (log-debug vc
+               (format #f "assertion-results: ~a" assertion-results))
 
     (when (member #f assertion-results)
       (log-error vc "\naborting due to error in test case...\n")
