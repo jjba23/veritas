@@ -33,6 +33,7 @@
                               log-assert
                               log-test
                               log-suite
+                              log-info
                               log-error))
 
 (define ansi-color-escapes
@@ -90,6 +91,12 @@
               'log-debug)
    msg))
 
+(define (log-info vc msg)
+  ((assoc-ref (assoc-ref vc
+                         'reporter)
+              'log-info)
+   msg))
+
 (define colorful-reporter
   `((log-pass unquote
               (lambda (msg)
@@ -112,6 +119,13 @@
                                          'bold)
                               (assoc-ref ansi-color-escapes
                                          'reset) msg))))
+    (log-info unquote
+              (lambda (msg)
+                (log (format #f "~aℹ️ info - ~a~a"
+                             (assoc-ref ansi-color-escapes
+                                        'bold) msg
+                             (assoc-ref ansi-color-escapes
+                                        'reset)))))
     (log-error unquote
                (lambda (msg)
                  (log (format #f "\n~a❌ error - ~a~a\n"
@@ -184,6 +198,11 @@
                  (log (format #f "[debug] ~a"
 
                               msg))))
+    (log-info unquote
+              (lambda (msg)
+                (log (format #f "[info] ~a"
+
+                             msg))))
     (log-suite unquote
                (lambda (msg)
                  (log "------------------------------------------")

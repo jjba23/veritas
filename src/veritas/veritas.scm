@@ -137,7 +137,7 @@
 (define* (run-suites #:key (shuffle? #t)
                      (concurrent? #t)
                      (debug? #f)
-                     (reporter colorful-stdout-reporter)
+                     (reporter colorful-reporter)
                      #:rest suites)
   (let* ((start-test-time (gettimeofday))
          (start-seconds (car start-test-time))
@@ -156,16 +156,15 @@
                                          (suite-output (get-output-string
                                                         output-port))
                                          (_ (close-port output-port)))
-                                    `((run-suite-results unquote result)
-                                      (run-suite-output unquote suite-output))))))
+                                    (append result
+                                            (list (cons 'suite-output
+                                                        suite-output)))))))
                             ordered-suites))
          (all-suite-results (if concurrent?
                                 (evaluate-thunks-concurrently suite-thunks)
                                 (evaluate-thunks suite-thunks)))
-
          (test-results (map (lambda (asr)
-                              (assoc-ref (assoc-ref asr
-                                                    'run-suite-results)
+                              (assoc-ref asr
                                          'suite-results)) all-suite-results))
          (assertion-results (collect-assertion-successful test-results))
          (end-test-time (gettimeofday))
@@ -175,10 +174,10 @@
          (microseconds-elapsed (- end-microseconds start-microseconds)))
     
     (display-test-results all-suite-results)
-    (display (format #f "
-ran ~a test suites in: ~a seconds, ~a microseconds"
-                     (length valid-suites) seconds-elapsed
-                     microseconds-elapsed))
+    (log-info vc
+              (format #f "ran ~a test suites in: ~a seconds, ~a microseconds"
+                      (length valid-suites) seconds-elapsed
+                      microseconds-elapsed))
     (when debug?
       (log-debug vc
                  (format #f "assertion-results: ~a" assertion-results)))
