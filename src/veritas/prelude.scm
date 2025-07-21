@@ -27,9 +27,10 @@
   #:use-module (fibers)
   #:use-module (fibers channels)
   #:use-module (veritas model)
+  #:use-module (veritas reporter)
   #:export (evaluate-thunks-concurrently evaluate-thunks
                                          flatten-list
-                                         display-suite-results
+                                         display-all-results
                                          display-assertion-results
                                          collect-assertion-successful
                                          collect-assertion-successful*))
@@ -93,12 +94,16 @@
                   (error (format #f "not a test-result: ~a" tr))))
             test-results))
 
-(define-syntax-rule (display-suite-results all-suite-results)
+(define (display-all-results vc all-results)
   (for-each (lambda (asr)
-              (if (suite-result? asr)
-                  (begin
-                    (display (suite-result-output asr))
-                    (display-test-results (suite-result-test-results asr)))
-                  (error (format #f "not a suite-result: ~a" asr))))
-            all-suite-results))
+              (cond
+                ((suite-result? asr)
+                 (begin
+                   (display (suite-result-output asr))
+                   (display-test-results (suite-result-test-results asr))))
+                (else (begin
+                        (log-test vc
+                                  (pre-test-result-name asr))
+                        (display-assertion-results (pre-test-result-results
+                                                    asr)))))) all-results))
 

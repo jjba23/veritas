@@ -39,7 +39,7 @@
                             evaluate-thunks-concurrently
                             collect-assertion-successful
                             fisher-yates-shuffle)
-  #:export (test run-suites suite))
+  #:export (test veritas-run suite))
 
 (define* (test name
                #:key (debug? #f)
@@ -127,11 +127,11 @@
             (write final-suite-data)
             (newline)) final-suite-data))))
 
-(define* (run-suites #:key (shuffle? #t)
-                     (concurrent? #t)
-                     (debug? #f)
-                     (reporter colorful-reporter)
-                     #:rest suites)
+(define* (veritas-run #:key (shuffle? #t)
+                      (concurrent? #t)
+                      (debug? #f)
+                      (reporter colorful-reporter)
+                      #:rest suites)
   (let* ((start-test-time (gettimeofday))
          (start-seconds (car start-test-time))
          (start-microseconds (cdr start-test-time))
@@ -146,18 +146,24 @@
                                                   output-port
                                                   (lambda ()
                                                     (suite-proc vc))))
-                                         (suite-output (get-output-string
-                                                        output-port))
+                                         (task-output (get-output-string
+                                                       output-port))
                                          (_ (close-port output-port)))
-                                    (set-suite-result-output! result
-                                                              suite-output)
+                                    (cond
+                                      ((suite-result? task-output)
+                                       (set-suite-result-output! result
+                                                                 task-output))
+                                      (else '()))
+
                                     result)))) ordered-suites))
-         (all-suite-results (if concurrent?
-                                (evaluate-thunks-concurrently suite-thunks)
-                                (evaluate-thunks suite-thunks)))
-         (test-results (map (lambda (asr)
-                              (suite-result-test-results asr))
-                            all-suite-results))
+         (all-results (if concurrent?
+                          (evaluate-thunks-concurrently suite-thunks)
+                          (evaluate-thunks suite-thunks)))
+         (test-results (map (lambda (sr)
+                              (cond
+                                ((suite-result? sr)
+                                 (suite-result-test-results sr))
+                                (else #f))) all-results))
          (assertion-results (collect-assertion-successful test-results))
          (end-test-time (gettimeofday))
          (end-seconds (car end-test-time))
@@ -165,7 +171,7 @@
          (seconds-elapsed (- end-seconds start-seconds))
          (microseconds-elapsed (- end-microseconds start-microseconds)))
     
-    (display-suite-results all-suite-results)
+    (display-all-results vc all-results)
     (log-info vc
               (format #f "ran ~a test suites in: ~a seconds, ~a microseconds"
                       (length valid-suites) seconds-elapsed
@@ -178,5 +184,5 @@
       (log-error vc "\naborting due to error in test case...\n")
       (exit 1))
 
-    all-suite-results))
+    all-results))
 
