@@ -1,0 +1,57 @@
+# kracht
+
+# Copyright © Josep Bigorra <jjbigorra@gmail.com>
+
+# kracht is free software: you can redistribute it and/or modify
+# it under the terms of the Lesser GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# kracht is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# Lesser GNU General Public License for more details.
+
+# You should have received a copy of the Lesser GNU General Public License
+# along with kracht.  If not, see <https://www.gnu.org/licenses/>.
+
+variables:
+  - &byggsteg_url 'https://byggsteg.jointhefreeworld.org'
+  - &byggsteg_submit_job_image 'docker.io/jjba23/byggsteg-woodpecker-submit-job:v0.1.26'
+  - &byggsteg_poll_job_image 'docker.io/jjba23/byggsteg-woodpecker-poll-job:v0.1.26'
+  - &byggsteg_get_token_image 'docker.io/jjba23/byggsteg-woodpecker-get-token:v0.1.26'
+  
+steps:
+  get-byggsteg-token-jointhefreeworld:
+    image: *byggsteg_get_token_image
+    when:
+      - event: [ "push" ]
+        branch: [ "trunk" ]
+    settings:
+      BYGGSTEG_EMAIL:
+        from_secret: "BYGGSTEG_EMAIL"
+      BYGGSTEG_PASSWORD:
+        from_secret: "BYGGSTEG_PASSWORD"
+      BYGGSTEG_URL: *byggsteg_url
+    
+  submit-byggsteg-job-jointhefreeworld:
+    image: *byggsteg_submit_job_image
+    when:
+      - event: [ "push" ]
+        branch: [ "trunk" ]
+    settings:
+      BYGGSTEG_URL: *byggsteg_url
+      BYGGSTEG_JOB_CODE: |
+        (lambda()
+          `((task . "make-test")
+            (project . "%%CI_REPO_NAME%%")
+            (branch-name . "%%CI_COMMIT_BRANCH%%")            
+            (clone-url . "%%CI_REPO_CLONE_URL%%")))
+            
+  poll-byggsteg-job-jointhefreeworld:
+    image: *byggsteg_poll_job_image
+    when:
+      - event: [ "push" ]
+        branch: [ "trunk" ]
+    settings:
+      BYGGSTEG_URL: *byggsteg_url
