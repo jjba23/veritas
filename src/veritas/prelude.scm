@@ -88,6 +88,11 @@
 (define (collect-assertion-successful xs)
   (flatten-list (collect-assertion-successful* xs)))
 
+(define-syntax-rule (display-assertion-results assertion-results)
+  (for-each (lambda (tr)
+              (display (assoc-ref tr
+                                  'assertion-output))) assertion-results))
+
 (define-syntax-rule (display-test-results all-suite-results)
   (for-each (lambda (asr)
               (display (assoc-ref asr
@@ -95,11 +100,8 @@
               (for-each (lambda (sr)
                           (display (assoc-ref sr
                                               'test-output))
-                          (for-each (lambda (tr)
-                                      (display (assoc-ref tr
-                                                          'assertion-output)))
-                                    (assoc-ref (assoc-ref sr
-                                                          'test-results)
-                                               'test-results)))
+                          (display-assertion-results (assoc-ref (assoc-ref sr
+                                                                           'test-results)
+                                                                'test-results)))
                         (assoc-ref asr
                                    'suite-results))) all-suite-results))
