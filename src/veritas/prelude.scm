@@ -27,6 +27,7 @@
   #:use-module (fibers)
   #:use-module (fibers channels)
   #:export (evaluate-thunks-concurrently evaluate-thunks flatten-list
+                                         display-test-results
                                          collect-assertion-successful
                                          collect-assertion-successful*))
 
@@ -86,3 +87,31 @@
 
 (define (collect-assertion-successful xs)
   (flatten-list (collect-assertion-successful* xs)))
+
+(define (display-test-results final-suite-data)
+  
+  (let ((suite-results (assoc-ref final-suite-data
+                                  'suite-results)))
+    (when (list? suite-results)
+      (for-each (lambda (s)
+                  (let* ((test-output (assoc-ref s
+                                                 'test-output))
+                         (test-results (map cdr
+                                            (assoc-ref s
+                                                       'test-results)))
+                         (assertion-outputs (apply append
+                                                   (map (lambda (tr)
+                                                          (if (list? tr)
+                                                              (map (lambda (ttrr)
+                                                                     (assoc-ref
+                                                                      ttrr
+                                                                      'assertion-output))
+                                                                   tr)
+                                                              '()))
+                                                        test-results))))
+                    (when (string? test-output)
+                      (display test-output))
+                    (when (list? test-results)
+                      (for-each (lambda (ao)
+                                  (display ao)) assertion-outputs))))
+                suite-results))))

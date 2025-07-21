@@ -24,7 +24,16 @@
   #:use-module (ice-9 popen)
   #:use-module (ice-9 textual-ports)
   #:use-module (ice-9 rdelim)
-  #:export (colorful-reporter log ansi-color-escapes monotone-reporter))
+  #:export (colorful-reporter log
+                              ansi-color-escapes
+                              monotone-reporter
+                              log-debug
+                              log-pass
+                              log-fail
+                              log-assert
+                              log-test
+                              log-suite
+                              log-error))
 
 (define ansi-color-escapes
   `((yellow . "\x1b[0;33m") (magenta . "\x1b[0;35m")
@@ -38,6 +47,48 @@
 
 (define (log msg)
   (format #t "\n~a" msg))
+
+(define (log-pass vc msg)
+  ((assoc-ref (assoc-ref vc
+                         'reporter)
+              'log-pass)
+   msg))
+
+(define (log-fail vc msg)
+  ((assoc-ref (assoc-ref vc
+                         'reporter)
+              'log-fail)
+   msg))
+
+(define (log-error vc msg)
+  ((assoc-ref (assoc-ref vc
+                         'reporter)
+              'log-error)
+   msg))
+
+(define (log-assert vc msg)
+  ((assoc-ref (assoc-ref vc
+                         'reporter)
+              'log-assert)
+   msg))
+
+(define (log-test vc msg)
+  ((assoc-ref (assoc-ref vc
+                         'reporter)
+              'log-test)
+   msg))
+
+(define (log-suite vc msg)
+  ((assoc-ref (assoc-ref vc
+                         'reporter)
+              'log-suite)
+   msg))
+
+(define (log-debug vc msg)
+  ((assoc-ref (assoc-ref vc
+                         'reporter)
+              'log-debug)
+   msg))
 
 (define colorful-reporter
   `((log-pass unquote
@@ -54,6 +105,13 @@
                                         'red) msg
                              (assoc-ref ansi-color-escapes
                                         'reset)))))
+    (log-debug unquote
+               (lambda (msg)
+                 (log (format #f "~a🔬 debug -~a ~a"
+                              (assoc-ref ansi-color-escapes
+                                         'bold)
+                              (assoc-ref ansi-color-escapes
+                                         'reset) msg))))
     (log-error unquote
                (lambda (msg)
                  (log (format #f "\n~a❌ error - ~a~a\n"
@@ -76,7 +134,7 @@
                                         'reset)))))
     (log-suite unquote
                (lambda (msg)
-                 (log "------------------------------------------")
+                 (log "+----------------------------------------------+")
                  (log (format #f
                               "[~a📑 suite~a] ~a~a~a"
                               (assoc-ref ansi-color-escapes
@@ -121,6 +179,11 @@
                 (log (format #f "  [test] ~a"
 
                              msg))))
+    (log-debug unquote
+               (lambda (msg)
+                 (log (format #f "[debug] ~a"
+
+                              msg))))
     (log-suite unquote
                (lambda (msg)
                  (log "------------------------------------------")

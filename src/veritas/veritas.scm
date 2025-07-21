@@ -46,12 +46,8 @@
                (skip? #f)
                #:rest cases)
   (if skip? #f
-      (lambda (veritas-context)
-        ((assoc-ref (assoc-ref veritas-context
-                               'reporter)
-                    'log-test)
-         name)
-
+      (lambda (vc)
+        (log-test vc name)
         (let* ((procedure-cases (filter procedure? cases))
                (indexed-cases (map (lambda (case-proc i)
                                      (list i case-proc))
@@ -67,8 +63,7 @@
                                                (result (with-output-to-port
                                                         output-port
                                                         (lambda ()
-                                                          (assertion-proc
-                                                           veritas-context))))
+                                                          (assertion-proc vc))))
                                                (assertion-output (get-output-string
                                                                   output-port))
                                                (_ (close-port output-port)))
@@ -95,34 +90,6 @@
           `((test-name unquote name)
             (test-results unquote test-results))))))
 
-(define (display-test-results-safely final-suite-data)
-  
-  (let ((suite-results (assoc-ref final-suite-data
-                                  'suite-results)))
-    (when (list? suite-results)
-      (for-each (lambda (s)
-                  (let* ((test-output (assoc-ref s
-                                                 'test-output))
-                         (test-results (map cdr
-                                            (assoc-ref s
-                                                       'test-results)))
-                         (assertion-outputs (apply append
-                                                   (map (lambda (tr)
-                                                          (if (list? tr)
-                                                              (map (lambda (ttrr)
-                                                                     (assoc-ref
-                                                                      ttrr
-                                                                      'assertion-output))
-                                                                   tr)
-                                                              '()))
-                                                        test-results))))
-                    (when (string? test-output)
-                      (display test-output))
-                    (when (list? test-results)
-                      (for-each (lambda (ao)
-                                  (display ao)) assertion-outputs))))
-                suite-results))))
-
 (define* (suite name
                 #:key (debug? #f)
                 (shuffle? #t)
@@ -130,11 +97,8 @@
                 (concurrent? #t)
                 #:rest tests)
   (if skip? #f
-      (lambda (veritas-context)
-        ((assoc-ref (assoc-ref veritas-context
-                               'reporter)
-                    'log-suite)
-         name)
+      (lambda (vc)
+        (log-suite vc name)
 
         (let* ((procedure-tests (filter procedure? tests))
                (indexed-tests (map (lambda (test-proc i)
@@ -150,8 +114,7 @@
                                           (result (with-output-to-port
                                                    output-port
                                                    (lambda ()
-                                                     (test-proc
-                                                      veritas-context))))
+                                                     (test-proc vc))))
                                           (test-output (get-output-string
                                                         output-port))
                                           (_ (close-port output-port)))
@@ -166,7 +129,7 @@
                (final-suite-data `((suite-name unquote name)
                                    (suite-results unquote suite-results))))
           
-          (display-test-results-safely final-suite-data)
+          (display-test-results final-suite-data)
 
           (when debug?
             (newline)
@@ -184,10 +147,10 @@
          (valid-suites (filter procedure? suites))
          (ordered-suites (if shuffle?
                              (fisher-yates-shuffle valid-suites) valid-suites))
-         (veritas-context (list (cons 'reporter reporter)))
+         (vc (list (cons 'reporter reporter)))
          (suite-thunks (map (lambda (s)
                               (lambda ()
-                                (s veritas-context))) ordered-suites))
+                                (s vc))) ordered-suites))
          (all-suite-results (if concurrent?
                                 (evaluate-thunks-concurrently suite-thunks)
                                 (evaluate-thunks suite-thunks)))
@@ -208,12 +171,11 @@ ran ~a test suites in: ~a seconds, ~a microseconds"
                      (length valid-suites) seconds-elapsed
                      microseconds-elapsed))
     (when debug?
-      (display (format #f "\nassertion-results: ~a" assertion-results)))
+      (log-debug vc
+                 (format #f "assertion-results: ~a" assertion-results)))
 
     (when (member #f assertion-results)
-      ((assoc-ref reporter
-                  'log-error)
-       "aborting due to error in test case...\n")
+      (log-error vc "\naborting due to error in test case...\n")
       (exit 1))
 
     all-suite-results))
