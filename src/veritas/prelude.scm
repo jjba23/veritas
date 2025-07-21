@@ -88,19 +88,29 @@
 (define (collect-assertion-successful xs)
   (flatten-list (collect-assertion-successful* xs)))
 
-(define (display-assertion-results assertion-results)
+(define-syntax-rule (display-assertion-results assertion-results)
   (for-each (lambda (ar)
               (if (assertion-result? ar)
                   (display (assertion-result-output ar))
                   (error (format #f "not an assertion-result: ~a" ar))))
             assertion-results))
 
-(define (display-suite-results all-suite-results)
+(define-syntax-rule (display-test-results test-results)
+  (for-each (lambda (tr)
+              (if (test-result? tr)
+                  (begin
+                    (display (test-result-output tr))
+                    (display-assertion-results (pre-test-result-results (test-result-results
+                                                                         tr))))
+                  (error (format #f "not a test-result: ~a" tr))))
+            test-results))
+
+(define-syntax-rule (display-suite-results all-suite-results)
   (for-each (lambda (asr)
-              (display (suite-result-output asr))
-              (for-each (lambda (sr)
-                          (display (test-result-output sr))
-                          (display-assertion-results (pre-test-result-results (test-result-results
-                                                                               sr))))
-                        (suite-result-test-results asr))) all-suite-results))
+              (if (suite-result? asr)
+                  (begin
+                    (display (suite-result-output asr))
+                    (display-test-results (suite-result-test-results asr)))
+                  (error (format #f "not a suite-result: ~a" asr))))
+            all-suite-results))
 
