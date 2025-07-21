@@ -86,4 +86,4 @@ Find here the Backlog and Kanban boards for veritas: https://lucidplan.jointhefr
 
 -----
 
-[[https://jointhefreeworld.org/static-assets/veritas/image-small-negative.png]]
+[[https://jointhefreeworld.org/static-assets/veritas/image-small.png]]
