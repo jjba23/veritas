@@ -110,9 +110,9 @@ https://www.gnu.org/licenses/fdl-1.3.html
 
 * Installing and using
 
-🚧 I'm working to stabilize veritas and to package it via the Guix package manager officially, as ~guile-veritas~.
+I'm working to stabilize veritas so expect changes until we reach v1.0.0
 
-It is recommended you use Guix to work on your Guile Scheme projects, and install veritas with it (in your manifest.scm for example).
+Veritas is packaged with the Guix package manager officially, as ~guile-veritas~. It is recommended you use Guix to work on your Guile Scheme projects, and install veritas with it (in your manifest.scm for example).
 
 Alternatively, you can install it by downloading the source code files and adding them directly to your ~GUILE_LOAD_PATH~ or even better, use a Guix shell ~manifest.scm~ and add the package with something like this:
 
