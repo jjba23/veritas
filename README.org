@@ -17,11 +17,26 @@ The power of ~veritas~ lies in its simplicity, expressive embedded domain-specif
 
 If you like my work, please support me by [[https://bmc.link/jjbigorra][buying me a cup of coffee ☕]] so I can continue with a lot of motivation.
 
+* /AD REM - /to the matter/
+
 #+begin_src scheme
 (use-modules (veritas veritas))
+#+end_src
 
+We can define some simple Scheme functions to test with:
+#+begin_src scheme
 (define (is-even n)
   (= (modulo n 2) 0))
+
+(define (factorial n)
+  (if (= n 0) 1
+      (* n
+         (factorial (- n 1)))))
+
+#+end_src
+
+We can then write a test suite:
+#+begin_src scheme
 
 (define my-veritas-suite
   (suite "My First Veritas Test Suite"
@@ -38,17 +53,21 @@ If you like my work, please support me by [[https://bmc.link/jjbigorra][buying m
                              #:sut (length '(a b c))
                              #:name "length of list with 3 elements should be 3"))))
 
-(define (factorial n)
-  (if (= n 0) 1
-      (* n
-         (factorial (- n 1)))))
 
+#+end_src
+
+We can also write some benchmarks:
+#+begin_src scheme
 (define simple-factorial-benchmark
   (benchmark #:name "recursive computation of the factorial"
              #:runs 3
              #:thunk (lambda ()
                        (factorial 10000))))
 
+#+end_src
+
+And then we wire it all up:
+#+begin_src scheme
 (define (spec)
   (veritas-run #:reporter colorful-reporter
                #:debug? #t
@@ -64,6 +83,7 @@ If you like my work, please support me by [[https://bmc.link/jjbigorra][buying m
 
 -----------------------------
 
+* /EX LABORE VENUSTAS/ - /from hard work, beauty/
 In summary, tests are defined in plain Guile Scheme code, allowing powerful abstractions, re-usability and customization.
 
 The hierarchy is defined as follows:
@@ -85,7 +105,7 @@ Refer to the Makefile to understand how to run this project and more.
 ----------------
 
 
-/IN VINO VERITAS/ - /IN AQUA SANITAS/
+* /IN VINO VERITAS/ - /IN AQUA SANITAS/
 
 [[https://jointhefreeworld.org/static-assets/veritas/vino-veritas-small.png]]
 
