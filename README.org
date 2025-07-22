@@ -33,6 +33,12 @@ If you like my work, please support me by [[https://bmc.link/jjbigorra][buying m
                              #:sut (length '(a b c))
                              #:name "length of list with 3 elements should be 3"))))
 
+(define simple-factorial-benchmark
+  (benchmark #:name "recursive computation of the factorial"
+             #:runs 3
+             #:thunk (lambda ()
+                       (factorial 10000))))
+
 (define (spec)
   (veritas-run #:reporter colorful-reporter
                #:debug? #t
@@ -40,7 +46,9 @@ If you like my work, please support me by [[https://bmc.link/jjbigorra][buying m
                ;; you can directly pass tests or suites too
                (test "some test without suite"
                      (assert-equal #:expected 1
-                                   #:sut (* 1 1 1 1)))))
+                                   #:sut (* 1 1 1 1)))
+               ;; you can also pass benchmarks
+               simple-factorial-benchmark))
 
 #+end_src
 
