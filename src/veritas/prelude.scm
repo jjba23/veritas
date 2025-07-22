@@ -26,14 +26,19 @@
   #:use-module (ice-9 rdelim)
   #:use-module (fibers)
   #:use-module (fibers channels)
+  #:use-module (veritas model)
+  #:use-module (veritas reporter)
   #:export (evaluate-thunks-concurrently evaluate-thunks
                                          flatten-list
-                                         display-suite-results
+                                         display-all-results
                                          display-assertion-results
                                          collect-assertion-successful
                                          collect-assertion-successful*))
 
 (define-syntax-rule (evaluate-thunks-concurrently thunks)
+  "Given a list of functions that don't take any inputs, run each one of
+those functions concurrently, and then return a list of what each function
+returned once they're all finished."
   (let* ((channel
            (make-channel)))
     (run-fibers (lambda ()
@@ -47,21 +52,11 @@
            (get-message channel)) thunks)))
 
 (define-syntax-rule (evaluate-thunks thunks)
+  "Given a list of functions that don't take any inputs, run each one of
+those functions and return a list of what each function returned."
   (map (lambda (t)
          (apply t
                 '())) thunks))
-
-(define (alist-keys alist)
-  (cond
-    ((null? alist)
-     '())
-    ((list? alist)
-     (fold (lambda (pair acc)
-             (cons (car pair) acc))
-           '() alist))
-    ((pair? (car alist))
-     (map car alist))
-    (else '())))
 
 (define (flatten-list xs)
   (cond
@@ -74,36 +69,48 @@
 
 (define (collect-assertion-successful* xs)
   (cond
-    ((and (pair? xs)
-          (eq? (car xs)
-               'test-results))
-     (map collect-assertion-successful xs))
-    ((and (pair? xs)
-          (member 'assertion-successful
-                  (alist-keys xs)))
-     (assoc-ref xs
-                'assertion-successful))
+    ((assertion-result? xs)
+     (assertion-result-successful xs))
+    ((pre-test-result? xs)
+     (map collect-assertion-successful*
+          (pre-test-result-results xs)))
+    ((test-result? xs)
+     (collect-assertion-successful* (test-result-results xs)))
     ((list? xs)
      (map collect-assertion-successful xs))
-    (else '())))
+    (else (error (format #f
+                  "could not read assertion success from unknown type: ~a" xs)))))
 
 (define (collect-assertion-successful xs)
   (flatten-list (collect-assertion-successful* xs)))
 
 (define-syntax-rule (display-assertion-results assertion-results)
   (for-each (lambda (ar)
-              (display (assoc-ref ar
-                                  'assertion-output))) assertion-results))
+              (if (assertion-result? ar)
+                  (display (assertion-result-output ar))
+                  (error (format #f "not an assertion-result: ~a" ar))))
+            assertion-results))
 
-(define-syntax-rule (display-suite-results all-suite-results)
+(define-syntax-rule (display-test-results test-results)
+  (for-each (lambda (tr)
+              (if (test-result? tr)
+                  (begin
+                    (display (test-result-output tr))
+                    (display-assertion-results (pre-test-result-results (test-result-results
+                                                                         tr))))
+                  (error (format #f "not a test-result: ~a" tr))))
+            test-results))
+
+(define-syntax-rule (display-all-results vc all-results)
   (for-each (lambda (asr)
-              (display (assoc-ref asr
-                                  'suite-output))
-              (for-each (lambda (sr)
-                          (display (assoc-ref sr
-                                              'test-output))
-                          (display-assertion-results (assoc-ref (assoc-ref sr
-                                                                           'test-results)
-                                                                'test-results)))
-                        (assoc-ref asr
-                                   'suite-results))) all-suite-results))
+              (cond
+                ((suite-result? asr)
+                 (begin
+                   (display (suite-result-output asr))
+                   (display-test-results (suite-result-test-results asr))))
+                (else (begin
+                        (log-test vc
+                                  (pre-test-result-name asr))
+                        (display-assertion-results (pre-test-result-results
+                                                    asr)))))) all-results))
+

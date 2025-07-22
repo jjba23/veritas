@@ -7,7 +7,7 @@
 [[https://jointhefreeworld.org/ggg/dist/gnu-make.svg]] 
 [[https://jointhefreeworld.org/ggg/dist/license-lgpl3+.svg]]    [[https://jointhefreeworld.org/ggg/dist/license-fdl13+.svg]]
 
-[Work in progress] Unit, Integration and Black Box testing framework powered by Lisp (Guile Scheme)
+Unit, Integration and Black Box testing framework powered by Lisp (Guile Scheme)
 
 ~veritas~ aims to be a simple and lightweight testing framework written in Scheme. Its main purpose is to help developers verify that their code behaves as expected. It achieves this by providing a clear structure for writing tests and producing easy-to-read feedback in various formats.
 
@@ -34,9 +34,13 @@ If you like my work, please support me by [[https://bmc.link/jjbigorra][buying m
                              #:name "length of list with 3 elements should be 3"))))
 
 (define (spec)
-  (run-suites #:reporter colorful-reporter
-              #:debug? #t
-              my-veritas-suite))
+  (veritas-run #:reporter colorful-reporter
+               #:debug? #t
+               my-veritas-suite
+               ;; you can directly pass tests or suites too
+               (test "some test without suite"
+                     (assert-equal #:expected 1
+                                   #:sut (* 1 1 1 1)))))
 
 #+end_src
 
@@ -45,8 +49,8 @@ If you like my work, please support me by [[https://bmc.link/jjbigorra][buying m
 In summary, tests are defined in plain Guile Scheme code, allowing powerful abstractions, re-usability and customization.
 
 The hierarchy is defined as follows:
-- In your test file, define a no-argument function called ~spec~ which is the entry-point, and should contain your ~run-suites~ statements and ensure that it's exported/public. This is useful for when you use the built-in veritas test runner. Otherwise feel free to do this differently.
-- ~run-suites~ takes an arbitrary (variadic) amount of ~suite~ items.
+- In your test file, define a no-argument function called ~spec~ which is the entry-point, and should contain your veritas-run and test statements and ensure that  ~spec~ it's exported/public. This is useful for when you use the built-in veritas test runner. Otherwise feel free to do this differently.
+- ~veritas-run~ takes an arbitrary (variadic) amount of ~suite~ items or ~test~ items.
 - ~suite~ takes a variadic amount of ~test~ items.
 - ~test~ takes a variadic amount of assertions (~assert-equal~, ~assert-error~,  ~assert-true~, etc.)    
 

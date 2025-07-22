@@ -37,6 +37,7 @@
                (assert-equal #:expected 0
                              #:sut (* 1 1 1 1 0)))
          (test "Basic Boolean Tests"
+               #:skip? #t
                (assert-false #f
                              #:name
                              "should succeed on checking that false is false"))
@@ -172,11 +173,14 @@
                              #:name "Vector ref at index 0"))))
 
 (define (spec)
-  (run-suites #:reporter colorful-reporter
-              #:debug? #t
-              predicate-suite
-              list-suite
-              error-handling-suite
-              complex-data-suite
-              basic-suite
-              str-suite))
+  (veritas-run #:reporter colorful-reporter
+               #:debug? #f
+               predicate-suite
+               list-suite
+               error-handling-suite
+               complex-data-suite
+               basic-suite
+               (test "some test without suite"
+                     (assert-equal #:expected 1
+                                   #:sut (* 1 1 1 1)))
+               str-suite))
