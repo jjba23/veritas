@@ -49,6 +49,8 @@
            (get-message channel)) thunks)))
 
 (define-syntax-rule (evaluate-thunks thunks)
+  "Given a list of functions that don't take any inputs, run each one of
+those functions and return a list of what each function returned."
   (map (lambda (t)
          (apply t
                 '())) thunks))
