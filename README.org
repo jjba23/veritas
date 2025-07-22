@@ -83,7 +83,7 @@ Refer to the Makefile to understand how to run this project and more.
 ----------------
 
 
-/IN VINO VERITAS/
+/IN VINO VERITAS/ - /IN AQUA SANITAS/
 
 [[https://jointhefreeworld.org/static-assets/veritas/vino-veritas-small.png]]
 
