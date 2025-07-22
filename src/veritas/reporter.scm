@@ -35,6 +35,7 @@
                               log-suite
                               log-info
                               log-error
+                              log-benchmark
                               dispatch-log))
 
 (define ansi-color-escapes
@@ -87,6 +88,10 @@
   (dispatch-log vc
                 'log-info msg))
 
+(define-syntax-rule (log-benchmark vc msg)
+  (dispatch-log vc
+                'log-benchmark msg))
+
 (define colorful-reporter
   `((log-pass unquote
               (lambda (msg)
@@ -136,6 +141,32 @@
                              msg
                              (assoc-ref ansi-color-escapes
                                         'reset)))))
+    (log-benchmark unquote
+                   (lambda (msg)
+                     (log "+----------------------------------------------+")
+                     (log (format #f "[~a🚄 benchmark~a]\n ~a"
+                                  (assoc-ref ansi-color-escapes
+                                             'bold)
+                                  (assoc-ref ansi-color-escapes
+                                             'reset)
+                                  (with-output-to-string (lambda ()
+                                                           (for-each (lambda (run)
+                                                                       (log (format
+                                                                             #f
+                                                                             "[🏃🏼 ~arun #~a~a]"
+                                                                             (assoc-ref
+                                                                              ansi-color-escapes
+                                                                              'bold)
+                                                                             (assoc-ref
+                                                                              run
+                                                                              'run-index)
+                                                                             (assoc-ref
+                                                                              ansi-color-escapes
+                                                                              'reset)))
+                                                                       (log (assoc-ref
+                                                                             run
+                                                                             'run-details)))
+                                                                     msg)))))))
     (log-suite unquote
                (lambda (msg)
                  (log "+----------------------------------------------+")
@@ -183,6 +214,23 @@
                 (log (format #f "  [test] ~a"
 
                              msg))))
+    (log-benchmark unquote
+                   (lambda (msg)
+                     (log "+----------------------------------------------+")
+                     (log (format #f "[benchmark]\n ~a"
+
+                                  (with-output-to-string (lambda ()
+                                                           (for-each (lambda (run)
+                                                                       (log (format
+                                                                             #f
+                                                                             "[run #~a]"
+                                                                             (assoc-ref
+                                                                              run
+                                                                              'run-index)))
+                                                                       (log (assoc-ref
+                                                                             run
+                                                                             'run-details)))
+                                                                     msg)))))))
     (log-debug unquote
                (lambda (msg)
                  (log (format #f "[debug] ~a"

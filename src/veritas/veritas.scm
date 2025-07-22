@@ -31,6 +31,7 @@
   #:use-module (veritas prelude)
   #:use-module (veritas shuffle)
   #:use-module (veritas model)
+  #:use-module (statprof)
   #:re-export (assert-equal assert-eqv
                             assert-true
                             assert-false
@@ -39,7 +40,7 @@
                             evaluate-thunks-concurrently
                             collect-assertion-successful
                             fisher-yates-shuffle)
-  #:export (test veritas-run suite))
+  #:export (test veritas-run suite benchmark))
 
 (define* (test name
                #:key (debug? #f)
@@ -127,45 +128,63 @@
             (write final-suite-data)
             (newline)) final-suite-data))))
 
+(define* (benchmark #:key (skip? #f) name runs thunk)
+  (if skip? #f
+      (lambda (vc)
+        (make-benchmark-result (map (lambda (i)
+                                      (let* ((sp (with-output-to-string (lambda ()
+                                                                          (statprof (lambda ()
+                                                                                      
+                                                                                      
+                                                                                      (thunk)
+                                                                                      #f))))))
+                                        `((run-index unquote i)
+                                          (run-details unquote sp))))
+                                    (iota runs))))))
+
 (define* (veritas-run #:key (shuffle? #t)
                       (concurrent? #t)
                       (debug? #f)
                       (reporter colorful-reporter)
-                      #:rest suites)
+                      #:rest tasks)
   (let* ((start-test-time (gettimeofday))
          (start-seconds (car start-test-time))
          (start-microseconds (cdr start-test-time))
-         (valid-suites (filter procedure? suites))
-         (ordered-suites (if shuffle?
-                             (fisher-yates-shuffle valid-suites) valid-suites))
+         (valid-tasks (filter procedure? tasks))
+         (ordered-tasks (if shuffle?
+                            (fisher-yates-shuffle valid-tasks) valid-tasks))
          (vc (list (cons 'reporter reporter)))
-         (suite-thunks (map (lambda (suite-proc)
-                              (let* ((output-port (open-output-string)))
-                                (lambda ()
-                                  (let* ((result (with-output-to-port
-                                                  output-port
-                                                  (lambda ()
-                                                    (suite-proc vc))))
-                                         (task-output (get-output-string
-                                                       output-port))
-                                         (_ (close-port output-port)))
-                                    (cond
-                                      ((suite-result? task-output)
-                                       (set-suite-result-output! result
-                                                                 task-output))
-                                      (else '()))
+         (task-thunks (map (lambda (suite-proc)
+                             (let* ((output-port (open-output-string)))
+                               (lambda ()
+                                 (let* ((result (with-output-to-port
+                                                 output-port
+                                                 (lambda ()
+                                                   (suite-proc vc))))
+                                        (task-output (get-output-string
+                                                      output-port))
+                                        (_ (close-port output-port)))
+                                   (cond
+                                     ((suite-result? result)
+                                      (set-suite-result-output! result
+                                                                task-output))
+                                     (else '()))
 
-                                    result)))) ordered-suites))
+                                   result)))) ordered-tasks))
          (all-results (if concurrent?
-                          (evaluate-thunks-concurrently suite-thunks)
-                          (evaluate-thunks suite-thunks)))
+                          (evaluate-thunks-concurrently task-thunks)
+                          (evaluate-thunks task-thunks)))
          (test-results (map (lambda (sr)
                               (cond
                                 ((suite-result? sr)
                                  (suite-result-test-results sr))
                                 ((pre-test-result? sr)
                                  sr)
-                                (else #f))) all-results))
+                                ((benchmark-result? sr)
+                                 '())
+                                (else (error (format #f
+                                              "could not read test results from unknown type: ~a"
+                                              sr))))) all-results))
          (assertion-results (collect-assertion-successful test-results))
          (end-test-time (gettimeofday))
          (end-seconds (car end-test-time))
@@ -175,8 +194,8 @@
     
     (display-all-results vc all-results)
     (log-info vc
-              (format #f "ran ~a test suites in: ~a seconds, ~a microseconds"
-                      (length valid-suites) seconds-elapsed
+              (format #f "ran ~a tasks in: ~a seconds, ~a microseconds"
+                      (length valid-tasks) seconds-elapsed
                       microseconds-elapsed))
     (when debug?
       (log-debug vc

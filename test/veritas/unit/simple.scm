@@ -172,6 +172,17 @@
                              #:sut (vector-ref some-vector 0)
                              #:name "Vector ref at index 0"))))
 
+(define (factorial n)
+  (if (= n 0) 1
+      (* n
+         (factorial (- n 1)))))
+
+(define simple-factorial-benchmark
+  (benchmark #:name "recursive computation of the factorial"
+             #:runs 3
+             #:thunk (lambda ()
+                       (factorial 10000))))
+
 (define (spec)
   (veritas-run #:reporter colorful-reporter
                #:debug? #f
@@ -180,6 +191,7 @@
                error-handling-suite
                complex-data-suite
                basic-suite
+               simple-factorial-benchmark
                (test "some test without suite"
                      (assert-equal #:expected 1
                                    #:sut (* 1 1 1 1)))

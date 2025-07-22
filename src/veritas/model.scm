@@ -48,7 +48,11 @@
                          assertion-result-index
                          assertion-result-output
                          assertion-result-name
-                         assertion-result-successful))
+                         assertion-result-successful
+                         benchmark-result
+                         make-benchmark-result
+                         benchmark-result?
+                         benchmark-result-results))
 
 (define-record-type suite-result
   (make-suite-result name test-results output) suite-result?
@@ -74,3 +78,7 @@
   (output assertion-result-output)
   (name assertion-result-name)
   (successful assertion-result-successful))
+
+(define-record-type benchmark-result
+  (make-benchmark-result results) benchmark-result?
+  (results benchmark-result-results))

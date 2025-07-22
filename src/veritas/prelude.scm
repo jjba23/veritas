@@ -76,6 +76,8 @@ those functions and return a list of what each function returned."
           (pre-test-result-results xs)))
     ((test-result? xs)
      (collect-assertion-successful* (test-result-results xs)))
+    ((benchmark-result? xs)
+     '())
     ((list? xs)
      (map collect-assertion-successful xs))
     (else (error (format #f
@@ -85,32 +87,37 @@ those functions and return a list of what each function returned."
   (flatten-list (collect-assertion-successful* xs)))
 
 (define-syntax-rule (display-assertion-results assertion-results)
-  (for-each (lambda (ar)
-              (if (assertion-result? ar)
-                  (display (assertion-result-output ar))
-                  (error (format #f "not an assertion-result: ~a" ar))))
+  (for-each (lambda (x)
+              (if (assertion-result? x)
+                  (display (assertion-result-output x))
+                  (error (format #f "not an assertion-result: ~a" x))))
             assertion-results))
 
 (define-syntax-rule (display-test-results test-results)
-  (for-each (lambda (tr)
-              (if (test-result? tr)
+  (for-each (lambda (x)
+              (if (test-result? x)
                   (begin
-                    (display (test-result-output tr))
+                    (display (test-result-output x))
                     (display-assertion-results (pre-test-result-results (test-result-results
-                                                                         tr))))
-                  (error (format #f "not a test-result: ~a" tr))))
-            test-results))
+                                                                         x))))
+                  (error (format #f "not a test-result: ~a" x)))) test-results))
 
 (define-syntax-rule (display-all-results vc all-results)
-  (for-each (lambda (asr)
+  (for-each (lambda (x)
               (cond
-                ((suite-result? asr)
+                ((suite-result? x)
                  (begin
-                   (display (suite-result-output asr))
-                   (display-test-results (suite-result-test-results asr))))
-                (else (begin
-                        (log-test vc
-                                  (pre-test-result-name asr))
-                        (display-assertion-results (pre-test-result-results
-                                                    asr)))))) all-results))
+                   (display (suite-result-output x))
+                   (display-test-results (suite-result-test-results x))))
+                ((pre-test-result? x)
+                 (begin
+                   (log-test vc
+                             (pre-test-result-name x))
+                   (display-assertion-results (pre-test-result-results x))))
+                ((benchmark-result? x)
+                 (log-benchmark vc
+                                (benchmark-result-results x)))
+                (else (error (format #f
+                              "could not display result of unknown type: ~a" x)))))
+            all-results))
 

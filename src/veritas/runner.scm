@@ -54,9 +54,6 @@
                                                            test-file ".scm" ""))))))
          (spec (module-ref m
                            'spec)))
-    (write m)
-    (newline)
-    (write spec)
     (apply spec
            '())))
 
