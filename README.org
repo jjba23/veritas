@@ -5,7 +5,7 @@
 
 [[https://jointhefreeworld.org/ggg/dist/scheme-guile.svg]] [[https://jointhefreeworld.org/ggg/dist/gnu-guix.svg]]  
 [[https://jointhefreeworld.org/ggg/dist/gnu-make.svg]] 
-[[https://jointhefreeworld.org/ggg/dist/license-lgpl3+.svg]]    [[https://jointhefreeworld.org/ggg/dist/license-fdl13+.svg]]
+[[https://jointhefreeworld.org/ggg/dist/license-lgpl3+.svg]]    [[https://jointhefreeworld.org/ggg/dist/license-fdl13+.svg]] [[https://jointhefreeworld.org/ggg/dist/jointhefreeworld-org.svg]] 
 
 Unit, Integration and Black Box testing framework powered by Lisp (Guile Scheme)
 
