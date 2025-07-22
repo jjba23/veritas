@@ -17,7 +17,7 @@ The power of ~veritas~ lies in its simplicity, expressive embedded domain-specif
 
 If you like my work, please support me by [[https://bmc.link/jjbigorra][buying me a cup of coffee ☕]] so I can continue with a lot of motivation.
 
-* /AD REM - /to the matter/
+* /AD REM - to the matter/
 
 We can import Veritas very easily:
 #+begin_src scheme
