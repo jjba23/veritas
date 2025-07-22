@@ -18,6 +18,8 @@ The power of ~veritas~ lies in its simplicity, expressive embedded domain-specif
 If you like my work, please support me by [[https://bmc.link/jjbigorra][buying me a cup of coffee ☕]] so I can continue with a lot of motivation.
 
 #+begin_src scheme
+(use-modules (veritas veritas))
+
 (define (is-even n)
   (= (modulo n 2) 0))
 
