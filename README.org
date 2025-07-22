@@ -19,6 +19,7 @@ If you like my work, please support me by [[https://bmc.link/jjbigorra][buying m
 
 * /AD REM - /to the matter/
 
+We can import Veritas very easily:
 #+begin_src scheme
 (use-modules (veritas veritas))
 #+end_src
