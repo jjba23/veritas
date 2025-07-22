@@ -50,9 +50,10 @@ In summary, tests are defined in plain Guile Scheme code, allowing powerful abst
 
 The hierarchy is defined as follows:
 - In your test file, define a no-argument function called ~spec~ which is the entry-point, and should contain your veritas-run and test statements and ensure that  ~spec~ it's exported/public. This is useful for when you use the built-in veritas test runner. Otherwise feel free to do this differently.
-- ~veritas-run~ takes an arbitrary (variadic) amount of ~suite~ items or ~test~ items.
+- ~veritas-run~ takes an arbitrary (variadic) amount of ~suite~ items, ~test~ items or ~benchmark~ items.
 - ~suite~ takes a variadic amount of ~test~ items.
-- ~test~ takes a variadic amount of assertions (~assert-equal~, ~assert-error~,  ~assert-true~, etc.)    
+- ~test~ takes a variadic amount of assertions (~assert-equal~, ~assert-error~,  ~assert-true~, etc.)
+- ~benchmark~ takes a ~name~, a number of ~runs~ and a ~thunk~ to be measured. This is currently done by using ~statprof~.  
 
 Instead of executing tests immediately, test and suite functions return anonymous functions (lambdas), and thunks (no argument lambdas). This helps "close over" environments and scopes, capturing all necessary information (like test name, input cases, debug flags) from where they were defined.
 
