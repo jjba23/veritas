@@ -18,6 +18,9 @@ The power of ~veritas~ lies in its simplicity, expressive embedded domain-specif
 If you like my work, please support me by [[https://bmc.link/jjbigorra][buying me a cup of coffee ☕]] so I can continue with a lot of motivation.
 
 #+begin_src scheme
+(define (is-even n)
+  (= (modulo n 2) 0))
+
 (define my-veritas-suite
   (suite "My First Veritas Test Suite"
          (test "is-even"
@@ -32,6 +35,11 @@ If you like my work, please support me by [[https://bmc.link/jjbigorra][buying m
                (assert-equal #:expected 3
                              #:sut (length '(a b c))
                              #:name "length of list with 3 elements should be 3"))))
+
+(define (factorial n)
+  (if (= n 0) 1
+      (* n
+         (factorial (- n 1)))))
 
 (define simple-factorial-benchmark
   (benchmark #:name "recursive computation of the factorial"
