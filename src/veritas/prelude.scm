@@ -36,6 +36,9 @@
                                          collect-assertion-successful*))
 
 (define-syntax-rule (evaluate-thunks-concurrently thunks)
+  "Given a list of functions that don't take any inputs, run each one of
+those functions concurrently, and then return a list of what each function
+returned once they're all finished."
   (let* ((channel
            (make-channel)))
     (run-fibers (lambda ()
@@ -98,7 +101,7 @@ those functions and return a list of what each function returned."
                   (error (format #f "not a test-result: ~a" tr))))
             test-results))
 
-(define (display-all-results vc all-results)
+(define-syntax-rule (display-all-results vc all-results)
   (for-each (lambda (asr)
               (cond
                 ((suite-result? asr)
