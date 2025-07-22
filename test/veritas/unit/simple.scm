@@ -174,13 +174,13 @@
 
 (define (spec)
   (veritas-run #:reporter colorful-reporter
-               #:debug? #t
+               #:debug? #f
                predicate-suite
                list-suite
                error-handling-suite
                complex-data-suite
                basic-suite
-               (test "test-test-test"
-                     (assert-equal #:expected 2
+               (test "some test without suite"
+                     (assert-equal #:expected 1
                                    #:sut (* 1 1 1 1)))
                str-suite))

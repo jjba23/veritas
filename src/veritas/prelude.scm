@@ -64,15 +64,17 @@
 
 (define (collect-assertion-successful* xs)
   (cond
+    ((assertion-result? xs)
+     (assertion-result-successful xs))
+    ((pre-test-result? xs)
+     (map collect-assertion-successful*
+          (pre-test-result-results xs)))
     ((test-result? xs)
      (collect-assertion-successful* (test-result-results xs)))
-    ((and (pair? xs)
-          (eq? (car xs)
-               'test-results))
-     (map collect-assertion-successful xs))
     ((list? xs)
      (map collect-assertion-successful xs))
-    (else '())))
+    (else (error (format #f
+                  "could not read assertion success from unknown type: ~a" xs)))))
 
 (define (collect-assertion-successful xs)
   (flatten-list (collect-assertion-successful* xs)))

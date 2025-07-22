@@ -38,7 +38,7 @@ If you like my work, please support me by [[https://bmc.link/jjbigorra][buying m
                #:debug? #t
                my-veritas-suite
                ;; you can directly pass tests or suites too
-               (test "test-test-test"
+               (test "some test without suite"
                      (assert-equal #:expected 1
                                    #:sut (* 1 1 1 1)))))
 
