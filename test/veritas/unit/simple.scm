@@ -184,7 +184,8 @@
                        (factorial 10000))))
 
 (define (spec)
-  (veritas-run #:reporter monotone-reporter
+  (veritas-run #:reporter colorful-reporter
+               ;; ⤴ or monotone-reporter, or your own implementation
                #:debug? #f
                predicate-suite
                list-suite
