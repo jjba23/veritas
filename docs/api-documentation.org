@@ -1,0 +1,154 @@
+#+title: API documentation for veritas
+#+author: Josep Bigorra
+#+email: jjbigorra@gmail.com
+#+language: en
+
+[[https://jointhefreeworld.org/ggg/dist/scheme-guile.svg]] [[https://jointhefreeworld.org/ggg/dist/gnu-guix.svg]]  
+[[https://jointhefreeworld.org/ggg/dist/gnu-make.svg]] 
+[[https://jointhefreeworld.org/ggg/dist/license-lgpl3+.svg]]    [[https://jointhefreeworld.org/ggg/dist/license-fdl13+.svg]] [[https://jointhefreeworld.org/ggg/dist/jointhefreeworld-org.svg]] 
+
+Unit, Integration and Black Box testing framework powered by Lisp (Guile Scheme)
+
+/Veritas helps you verify the correctness of software and explore its functioning and robustness. It achieves this by providing a clear structure for writing tests and producing easy-to-read feedback in various formats./
+
+----------------------
+
+* API Documentation for ~veritas~
+
+** Core
+Overview of the core functions in the ~veritas~ testing framework.
+
+----------------------
+
+*** ~test~
+
+This function defines a collection of assertions that make up a single test case.
+
+- *Parameters*:
+    - ~name~ (string): A descriptive name for the test.
+    - ~:key~ (keyword arguments):
+        - ~debug?~ (boolean, optional): If ~#t~, prints a debug representation of the test results. Defaults to ~#f~.
+        - ~shuffle?~ (boolean, optional): If ~#t~, shuffles the order of the test cases. Defaults to ~#t~.
+        - ~skip?~ (boolean, optional): If ~#t~, the test is skipped. Defaults to ~#f~.
+    - ~:rest~ (list): A list of assertion procedures to be executed as part of this test.
+
+----------------------
+
+*** ~suite~
+
+This function groups a series of tests into a logical suite.
+
+- *Parameters*:
+    - ~name~ (string): A descriptive name for the test suite.
+    - ~:key~ (keyword arguments):
+        - ~debug?~ (boolean, optional): If ~#t~, prints a debug representation of the suite's results. Defaults to ~#f~.
+        - ~shuffle?~ (boolean, optional): If ~#t~, shuffles the order of the tests within the suite. Defaults to ~#t~.
+        - ~skip?~ (boolean, optional): If ~#t~, the entire suite is skipped. Defaults to ~#f~.
+        - ~concurrent?~ (boolean, optional): If ~#t~, runs the tests concurrently using fibers. Defaults to ~#t~.
+    - ~:rest~ (list): A list of test procedures to be executed within this suite.
+
+----------------------
+
+*** ~benchmark~
+
+This function runs a procedure multiple times and reports performance statistics using ~statprof~.
+
+- *Parameters*:
+    - ~name~ (string): A descriptive name for the benchmark.
+    - ~runs~ (number): The number of times to run the provided procedure.
+    - ~thunk~ (function): The procedure to be measured and sampled.
+    - ~:key~ (keyword arguments):
+        - ~skip?~ (boolean, optional): If ~#t~, the benchmark is skipped. Defaults to ~#f~.
+
+----------------------          
+
+*** ~veritas-run~
+
+This is the main entry point for executing test suites and benchmarks. It orchestrates the entire test run, collects results, and provides a final report.
+
+- *Parameters*:
+    - ~:key~ (keyword arguments):
+        - ~shuffle?~ (boolean, optional): If ~#t~, shuffles the order of the tasks (suites and benchmarks) to be run. Defaults to ~#t~.
+        - ~concurrent?~ (boolean, optional): If ~#t~, runs the tasks concurrently using fibers. Defaults to ~#t~.
+        - ~debug?~ (boolean, optional): If ~#t~, prints debug information about the test results. Defaults to ~#f~.
+        - ~reporter~ (procedure, optional): The reporter to use for outputting results. Defaults to ~colorful-reporter~.
+    - ~:rest~ (list): A list of test or benchmark procedures to be executed.
+
+----------------------
+
+** Assertions
+Overview of the API of ~veritas~ assertion functions. 
+
+----------------------
+*** ~assert-equal~
+
+Asserts that two values are equal based on the ~equal?~ comparison function.
+
+- *Parameters*:
+    - ~#:expect~ (any): The expected value.
+    - ~#:got~ (any): The value to test.
+    - ~#:name~ (string, optional): A descriptive name for the assertion.
+
+----------------------
+
+*** ~assert-eqv~
+
+Asserts that two values are equivalent based on the ~eqv?~ comparison function. This is typically used for comparing objects that are "the same" in a more fundamental way than ~equal?~ would suggest (e.g., numbers and characters).
+
+- *Parameters*:
+    - ~#:expect~ (any): The expected value.
+    - ~#:got~ (any): The value to test.
+    - ~#:name~ (string, optional): A descriptive name for the assertion.
+
+      
+----------------------
+
+*** ~assert-eq~
+
+Asserts that two values are the exact same object based on the ~eq?~ comparison function. This is the strictest comparison.
+
+- *Parameters*:
+    - ~#:expect~ (any): The expected value.
+    - ~#:got~ (any): The value to test.
+    - ~#:name~ (string, optional): A descriptive name for the assertion.
+
+----------------------
+
+*** ~assert-true~
+
+Asserts that a given value is ~#t~.
+
+- *Parameters*:
+    - ~x~ (any): The value to test.
+    - ~#:name~ (string, optional): A descriptive name for the assertion.
+
+----------------------      
+
+*** ~assert-false~
+
+Asserts that a given value is ~#f~.
+
+- *Parameters*:
+    - ~x~ (any): The value to test.
+    - ~#:name~ (string, optional): A descriptive name for the assertion.
+
+----------------------      
+
+*** ~assert-error~
+
+Asserts that a function call will result in an error.
+
+- *Parameters*:
+    - ~thunk~ (function): The function to be executed.
+    - ~#:name~ (string, optional): A descriptive name for the assertion.
+
+----------------------      
+
+*** ~assert-no-error~
+
+Asserts that a function call will not result in an error.
+
+- *Parameters*:
+    - ~thunk~ (function): The function to be executed.
+    - ~#:name~ (string, optional): A descriptive name for the assertion.
+

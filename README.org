@@ -9,13 +9,15 @@
 
 Unit, Integration and Black Box testing framework powered by Lisp (Guile Scheme)
 
-~veritas~ aims to be a simple and lightweight testing framework written in Scheme. Its main purpose is to help developers verify that their code behaves as expected. It achieves this by providing a clear structure for writing tests and producing easy-to-read feedback in various formats.
+/Veritas helps you verify the correctness of software and explore its functioning and robustness. It achieves this by providing a clear structure for writing tests and producing easy-to-read feedback in various formats./
 
 The framework is built around the concepts of "suites," which group related "tests," and "assertions," which perform the actual checks. I'd encourage you to peruse the ~test/~ folder of this project to see real examples of how to use ~veritas~.
 
 The power of ~veritas~ lies in its simplicity, expressive embedded domain-specific language (EDSL), and some clever features that promote robust testing practices and correctness, like order randomization and concurrent testing.
 
 If you like my work, please support me by [[https://bmc.link/jjbigorra][buying me a cup of coffee ☕]] so I can continue with a lot of motivation.
+
+/An expressive, free (as in freedom), and extensible test framework is crucial for modern software engineering and is a great instrument to explore systems and algorithms/
 
 * /AD REM - to the matter/
 
@@ -85,7 +87,10 @@ And then we wire it all up:
 -----------------------------
 
 * /EX LABORE VENUSTAS/ - /from hard work, beauty/
-In summary, tests are defined in plain Guile Scheme code, allowing powerful abstractions, re-usability and customization.
+
+Due to its elegance, succinctness, and opinionated design, veritas has a really *low learning curve*, for beginners and seasoned hackers alike, great for onboarding too.
+
+Tests are defined in plain Scheme code (Guile), allowing powerful abstractions, re-usability and customization to the user's neeed.
 
 The hierarchy is defined as follows:
 - In your test file, define a no-argument function called ~spec~ which is the entry-point, and should contain your veritas-run and test statements and ensure that  ~spec~ it's exported/public. This is useful for when you use the built-in veritas test runner. Otherwise feel free to do this differently.
