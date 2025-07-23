@@ -27,15 +27,15 @@
   (suite "Basic Suite"
          (test "Basic Numeric Tests"
                (assert-equal #:expected 1
-                             #:sut (+ 10
+                             #:got (+ 10
                                       (- 0 9)))
                (assert-equal #:expected 1
-                             #:sut (* 1 1 1 1 1))
+                             #:got (* 1 1 1 1 1))
                (assert-equal #:name "checks if addition works"
                              #:expected 4
-                             #:sut (+ 2 2))
+                             #:got (+ 2 2))
                (assert-equal #:expected 0
-                             #:sut (* 1 1 1 1 0)))
+                             #:got (* 1 1 1 1 0)))
          (test "Basic Boolean Tests"
                #:skip? #t
                (assert-false #f
@@ -43,13 +43,13 @@
                              "should succeed on checking that false is false"))
          (test "Check that function calls work"
                (assert-equal #:expected 42
-                             #:sut (add-two 40)))))
+                             #:got (add-two 40)))))
 
 (define str-suite
   (suite "str"
          (test "String Operation Tests"
                (assert-equal #:expected "hello world"
-                             #:sut (string-append "hello" " " "world"))
+                             #:got (string-append "hello" " " "world"))
                (assert-true (string=? "scheme" "scheme"))
                (assert-false (string=? "guile" "Scheme")))))
 
@@ -97,39 +97,39 @@
   (suite "List Manipulation Tests"
          (test "List Length"
                (assert-equal #:expected 0
-                             #:sut (length '())
+                             #:got (length '())
                              #:name "Length of empty list")
                (assert-equal #:expected 3
-                             #:sut (length '(a b c))
+                             #:got (length '(a b c))
                              #:name "Length of list with 3 elements")
                (assert-equal #:expected 1
-                             #:sut (length '(10))
+                             #:got (length '(10))
                              #:name "Length of list with one element"))
          (test "Get First Element"
                (assert-equal #:expected 1
-                             #:sut (get-first-element '(1 2 3))
+                             #:got (get-first-element '(1 2 3))
                              #:name "First element of a number list")
                (assert-equal #:expected 'a
-                             #:sut (get-first-element '(a b c))
+                             #:got (get-first-element '(a b c))
                              #:name "First element of a symbol list")
                (assert-false (get-first-element '())
                              #:name
                              "First element of an empty list should be #f"))
          (test "List Concatenation"
                (assert-equal #:expected '(1 2 3 4 5)
-                             #:sut (append '(1 2 3)
+                             #:got (append '(1 2 3)
                                            '(4 5))
                              #:name "Concatenate two non-empty lists")
                (assert-equal #:expected '(a b)
-                             #:sut (append '()
+                             #:got (append '()
                                            '(a b))
                              #:name "Concatenate empty list with non-empty")
                (assert-equal #:expected '(x y)
-                             #:sut (append '(x y)
+                             #:got (append '(x y)
                                            '())
                              #:name "Concatenate non-empty list with empty")
                (assert-equal #:expected '()
-                             #:sut (append '()
+                             #:got (append '()
                                            '())
                              #:name "Concatenate two empty lists"))))
 
@@ -145,7 +145,7 @@
                                 #:name
                                 "Should not signal error on valid division")
                (assert-equal #:expected 5
-                             #:sut (divide 10 2)
+                             #:got (divide 10 2)
                              #:name "Valid division result"))))
 
 (define complex-data-suite
@@ -153,23 +153,23 @@
          (test "Association List Lookups"
 
                (assert-equal #:expected "Alice"
-                             #:sut (cdr (assoc 'name some-alist))
+                             #:got (cdr (assoc 'name some-alist))
                              #:name "Lookup 'name' in alist")
                (assert-equal #:expected 30
-                             #:sut (cdr (assoc 'age some-alist))
+                             #:got (cdr (assoc 'age some-alist))
                              #:name "Lookup 'age' in alist")
                (assert-false (assoc 'country some-alist)
                              #:name "Lookup non-existent key should be #f"))
          (test "Vector Operations"
 
                (assert-equal #:expected 3
-                             #:sut (vector-length some-vector)
+                             #:got (vector-length some-vector)
                              #:name "Vector length")
                (assert-equal #:expected 2
-                             #:sut (vector-ref some-vector 1)
+                             #:got (vector-ref some-vector 1)
                              #:name "Vector ref at index 1")
                (assert-equal #:expected 1
-                             #:sut (vector-ref some-vector 0)
+                             #:got (vector-ref some-vector 0)
                              #:name "Vector ref at index 0"))))
 
 (define (factorial n)
@@ -194,5 +194,5 @@
                simple-factorial-benchmark
                (test "some test without suite"
                      (assert-equal #:expected 1
-                                   #:sut (* 1 1 1 1)))
+                                   #:got (* 1 1 1 1)))
                str-suite))

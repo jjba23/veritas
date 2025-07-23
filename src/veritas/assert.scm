@@ -32,20 +32,20 @@
                          assert-error
                          assert-no-error))
 
-(define* (assert-equal* #:key expected sut compare name)
+(define* (assert-equal* #:key expected got compare name)
   (lambda (vc)
     (when name
       (log-assert vc name))
 
-    (if (compare expected sut)
+    (if (compare expected got)
         (begin
           (log-pass vc
-                    (format #f "expected: ~a, sut: ~a" expected sut))
+                    (format #f "expected: ~a, got: ~a" expected got))
           `((assertion-successful unquote #t)
             (assertion-name unquote name)))
         (begin
           (log-fail vc
-                    (format #f "error, expected: ~a, sut: ~a" expected sut))
+                    (format #f "error, expected: ~a, got: ~a" expected got))
           `((assertion-successful unquote #f)
             (assertion-name unquote name))))))
 
@@ -91,34 +91,34 @@
              `((assertion-successful unquote #f)
                (assertion-name unquote name))))))
 
-(define* (assert-equal #:key expected sut name)
+(define* (assert-equal #:key expected got name)
   (assert-equal* #:expected expected
-                 #:sut sut
+                 #:got got
                  #:compare equal?
                  #:name name))
 
-(define* (assert-eqv #:key expected sut name)
+(define* (assert-eqv #:key expected got name)
   (assert-equal* #:expected expected
-                 #:sut sut
+                 #:got got
                  #:compare eqv?
                  #:name name))
 
-(define* (assert-eq #:key expected sut name)
+(define* (assert-eq #:key expected got name)
   (assert-equal* #:expected expected
-                 #:sut sut
+                 #:got got
                  #:compare eq?
                  #:name name))
 
 (define* (assert-true x
                       #:key name)
-  (assert-equal* #:sut x
+  (assert-equal* #:got x
                  #:expected #t
                  #:compare eq?
                  #:name name))
 
 (define* (assert-false x
                        #:key name)
-  (assert-equal* #:sut x
+  (assert-equal* #:got x
                  #:expected #f
                  #:compare eq?
                  #:name name))

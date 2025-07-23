@@ -48,10 +48,10 @@ We can then write a test suite:
                              #:name "7 should not be even"))
          (test "length"
                (assert-equal #:expected 0
-                             #:sut (length '())
+                             #:got (length '())
                              #:name "length of empty list should be 0")
                (assert-equal #:expected 3
-                             #:sut (length '(a b c))
+                             #:got (length '(a b c))
                              #:name "length of list with 3 elements should be 3"))))
 
 
@@ -76,7 +76,7 @@ And then we wire it all up:
                ;; you can directly pass tests or suites too
                (test "some test without suite"
                      (assert-equal #:expected 1
-                                   #:sut (* 1 1 1 1)))
+                                   #:got (* 1 1 1 1)))
                ;; you can also pass benchmarks
                simple-factorial-benchmark))
 
