@@ -26,15 +26,15 @@
 (define basic-suite
   (suite "Basic Suite"
          (test "Basic Numeric Tests"
-               (assert-equal #:expected 1
+               (assert-equal #:expect 1
                              #:got (+ 10
                                       (- 0 9)))
-               (assert-equal #:expected 1
+               (assert-equal #:expect 1
                              #:got (* 1 1 1 1 1))
                (assert-equal #:name "checks if addition works"
-                             #:expected 4
+                             #:expect 4
                              #:got (+ 2 2))
-               (assert-equal #:expected 0
+               (assert-equal #:expect 0
                              #:got (* 1 1 1 1 0)))
          (test "Basic Boolean Tests"
                #:skip? #t
@@ -42,13 +42,13 @@
                              #:name
                              "should succeed on checking that false is false"))
          (test "Check that function calls work"
-               (assert-equal #:expected 42
+               (assert-equal #:expect 42
                              #:got (add-two 40)))))
 
 (define str-suite
   (suite "str"
          (test "String Operation Tests"
-               (assert-equal #:expected "hello world"
+               (assert-equal #:expect "hello world"
                              #:got (string-append "hello" " " "world"))
                (assert-true (string=? "scheme" "scheme"))
                (assert-false (string=? "guile" "Scheme")))))
@@ -96,39 +96,39 @@
 (define list-suite
   (suite "List Manipulation Tests"
          (test "List Length"
-               (assert-equal #:expected 0
+               (assert-equal #:expect 0
                              #:got (length '())
                              #:name "Length of empty list")
-               (assert-equal #:expected 3
+               (assert-equal #:expect 3
                              #:got (length '(a b c))
                              #:name "Length of list with 3 elements")
-               (assert-equal #:expected 1
+               (assert-equal #:expect 1
                              #:got (length '(10))
                              #:name "Length of list with one element"))
          (test "Get First Element"
-               (assert-equal #:expected 1
+               (assert-equal #:expect 1
                              #:got (get-first-element '(1 2 3))
                              #:name "First element of a number list")
-               (assert-equal #:expected 'a
+               (assert-equal #:expect 'a
                              #:got (get-first-element '(a b c))
                              #:name "First element of a symbol list")
                (assert-false (get-first-element '())
                              #:name
                              "First element of an empty list should be #f"))
          (test "List Concatenation"
-               (assert-equal #:expected '(1 2 3 4 5)
+               (assert-equal #:expect '(1 2 3 4 5)
                              #:got (append '(1 2 3)
                                            '(4 5))
                              #:name "Concatenate two non-empty lists")
-               (assert-equal #:expected '(a b)
+               (assert-equal #:expect '(a b)
                              #:got (append '()
                                            '(a b))
                              #:name "Concatenate empty list with non-empty")
-               (assert-equal #:expected '(x y)
+               (assert-equal #:expect '(x y)
                              #:got (append '(x y)
                                            '())
                              #:name "Concatenate non-empty list with empty")
-               (assert-equal #:expected '()
+               (assert-equal #:expect '()
                              #:got (append '()
                                            '())
                              #:name "Concatenate two empty lists"))))
@@ -144,7 +144,7 @@
                                   (divide 10 2))
                                 #:name
                                 "Should not signal error on valid division")
-               (assert-equal #:expected 5
+               (assert-equal #:expect 5
                              #:got (divide 10 2)
                              #:name "Valid division result"))))
 
@@ -152,23 +152,23 @@
   (suite "Complex Data Structure Tests"
          (test "Association List Lookups"
 
-               (assert-equal #:expected "Alice"
+               (assert-equal #:expect "Alice"
                              #:got (cdr (assoc 'name some-alist))
                              #:name "Lookup 'name' in alist")
-               (assert-equal #:expected 30
+               (assert-equal #:expect 30
                              #:got (cdr (assoc 'age some-alist))
                              #:name "Lookup 'age' in alist")
                (assert-false (assoc 'country some-alist)
                              #:name "Lookup non-existent key should be #f"))
          (test "Vector Operations"
 
-               (assert-equal #:expected 3
+               (assert-equal #:expect 3
                              #:got (vector-length some-vector)
                              #:name "Vector length")
-               (assert-equal #:expected 2
+               (assert-equal #:expect 2
                              #:got (vector-ref some-vector 1)
                              #:name "Vector ref at index 1")
-               (assert-equal #:expected 1
+               (assert-equal #:expect 1
                              #:got (vector-ref some-vector 0)
                              #:name "Vector ref at index 0"))))
 
@@ -193,6 +193,6 @@
                basic-suite
                simple-factorial-benchmark
                (test "some test without suite"
-                     (assert-equal #:expected 1
+                     (assert-equal #:expect 1
                                    #:got (* 1 1 1 1)))
                str-suite))

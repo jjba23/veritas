@@ -47,10 +47,10 @@ We can then write a test suite:
                (assert-false (is-even 7)
                              #:name "7 should not be even"))
          (test "length"
-               (assert-equal #:expected 0
+               (assert-equal #:expect 0
                              #:got (length '())
                              #:name "length of empty list should be 0")
-               (assert-equal #:expected 3
+               (assert-equal #:expect 3
                              #:got (length '(a b c))
                              #:name "length of list with 3 elements should be 3"))))
 
@@ -75,7 +75,7 @@ And then we wire it all up:
                my-veritas-suite
                ;; you can directly pass tests or suites too
                (test "some test without suite"
-                     (assert-equal #:expected 1
+                     (assert-equal #:expect 1
                                    #:got (* 1 1 1 1)))
                ;; you can also pass benchmarks
                simple-factorial-benchmark))
