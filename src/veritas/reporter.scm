@@ -146,7 +146,7 @@
                    (lambda (msg)
                      (log "+----------------------------------------------+")
                      (log (format #f
-                                  "[~a🚄 benchmark~a]\n~a\n\n~a~a~a"
+                                  "[~a🚄 benchmark~a]\n~a~a\n\n~a~a"
                                   (assoc-ref ansi-color-escapes
                                              'bold)
                                   (assoc-ref ansi-color-escapes
@@ -161,7 +161,7 @@
                                                            (for-each (lambda (run)
                                                                        (log (format
                                                                              #f
-                                                                             "[🏃🏼 ~arun #~a~a]"
+                                                                             "[🏃 ~arun #~a~a]"
                                                                              (assoc-ref
                                                                               ansi-color-escapes
                                                                               'bold)

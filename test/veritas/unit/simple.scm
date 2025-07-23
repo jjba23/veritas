@@ -178,13 +178,13 @@
          (factorial (- n 1)))))
 
 (define simple-factorial-benchmark
-  (benchmark #:name "recursive computation of the factorial"
+  (benchmark #:name "Recursive computation of the factorial of 10000"
              #:runs 3
              #:thunk (lambda ()
                        (factorial 10000))))
 
 (define (spec)
-  (veritas-run #:reporter colorful-reporter
+  (veritas-run #:reporter monotone-reporter
                #:debug? #f
                predicate-suite
                list-suite
