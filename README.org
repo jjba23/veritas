@@ -139,6 +139,13 @@ guix shell -m manifest.scm -- \
 
 ------------------------
 
+* /PACTA SUNT SERVANDA/ - /agreements must be kept/ - API Documentation
+
+
+
+
+----------------------
+
 
 * Licensing
 

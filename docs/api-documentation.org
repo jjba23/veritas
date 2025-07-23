@@ -13,7 +13,7 @@ Unit, Integration and Black Box testing framework powered by Lisp (Guile Scheme)
 
 ----------------------
 
-* API Documentation for ~veritas~
+* /PACTA SUNT SERVANDA/ - /agreements must be kept/ - API Documentation
 
 ** Core
 Overview of the core functions in the ~veritas~ testing framework.
