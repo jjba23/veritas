@@ -19,8 +19,9 @@ Unit, Integration and Black Box testing framework powered by Lisp (Guile Scheme)
 
 * /PACTA SUNT SERVANDA/ - /agreements must be kept/ - API Documentation
 
-** Core
-Overview of the core functions in the ~veritas~ testing framework.
+** Core functions
+
+~veritas.scm~ : Core functions
 
 ----------------------
 
@@ -75,13 +76,14 @@ This is the main entry point for executing test suites and benchmarks. It orches
         - ~shuffle?~ (boolean, optional): If ~#t~, shuffles the order of the tasks (suites and benchmarks) to be run. Defaults to ~#t~.
         - ~concurrent?~ (boolean, optional): If ~#t~, runs the tasks concurrently using fibers. Defaults to ~#t~.
         - ~debug?~ (boolean, optional): If ~#t~, prints debug information about the test results. Defaults to ~#f~.
-        - ~reporter~ (procedure, optional): The reporter to use for outputting results. Defaults to ~colorful-reporter~.
+        - ~reporter~ (alist of symbol to procedures, optional): The reporter to use for outputting results. Defaults to ~colorful-reporter~. You can easily write your own too.
     - ~:rest~ (list): A list of test or benchmark procedures to be executed.
 
 ----------------------
 
 ** Assertions
-Overview of the API of ~veritas~ assertion functions. 
+
+~assert.scm~: Assertion functions
 
 ----------------------
 *** ~assert-equal~
@@ -156,3 +158,30 @@ Asserts that a function call will not result in an error.
     - ~thunk~ (function): The function to be executed.
     - ~#:name~ (string, optional): A descriptive name for the assertion.
 
+-------------------
+
+** Prelude
+
+~prelude.scm~: Shared grammar, language constructs and utilities
+
+*** ~evaluate-thunks-concurrently~
+
+This macro, takes a list of functions that take no arguments (known as "thunks"),  runs each one concurrently and returns a list of their results once all have completed. This is useful for speeding up tasks that can be performed in parallel.
+
+- *Parameters*:
+    - ~thunks~ (list of functions): A list of procedures to execute.
+
+- *Returns*:
+    - A list containing the return value of each thunk.
+
+---------------
+
+*** ~evaluate-thunks~
+
+This macro takes a list of functions (thunks) that don't take any arguments, runs each one sequentially, and returns a list of their results. It's the non-concurrent alternative to ~evaluate-thunks-concurrently~.
+
+- *Parameters*:
+    - ~thunks~ (list of functions): A list of procedures to execute.
+
+- *Returns*:
+    - A list containing the return value of each thunk.
