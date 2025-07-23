@@ -43,3 +43,12 @@ test: fmt
 		guile --fresh-auto-compile -L ./src \
 		-L ./test \
 		-c '((@ (veritas runner) run-unit-tests))'
+
+# deploy: Deploys the manual HTML to a web server directory.
+deploy:
+	guix shell -m manifest.scm -- emacs -Q --batch \
+		--eval '(progn (find-file "$(shell realpath ./docs/api-documentation.org)")(org-html-export-to-html)(message "finished publishing Veritas API documentation"))'
+	mkdir -pv $(DEPLOY_WWW)/manuals/veritas-api-documentation
+	rm -rfv $(DEPLOY_WWW)/manuals/veritas-api-documentation/index.html
+	mv -v docs/api-documentation.html $(DEPLOY_WWW)/manuals/veritas-api-documentation/index.html
+
