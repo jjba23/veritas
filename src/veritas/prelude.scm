@@ -115,8 +115,7 @@ those functions and return a list of what each function returned."
                              (pre-test-result-name x))
                    (display-assertion-results (pre-test-result-results x))))
                 ((benchmark-result? x)
-                 (log-benchmark vc
-                                (benchmark-result-results x)))
+                 (log-benchmark vc x))
                 (else (error (format #f
                               "could not display result of unknown type: ~a" x)))))
             all-results))

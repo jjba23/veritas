@@ -24,6 +24,7 @@
   #:use-module (ice-9 popen)
   #:use-module (ice-9 textual-ports)
   #:use-module (ice-9 rdelim)
+  #:use-module (veritas model)
   #:export (colorful-reporter log
                               ansi-color-escapes
                               monotone-reporter
@@ -144,11 +145,18 @@
     (log-benchmark unquote
                    (lambda (msg)
                      (log "+----------------------------------------------+")
-                     (log (format #f "[~a🚄 benchmark~a]\n ~a"
+                     (log (format #f
+                                  "[~a🚄 benchmark~a]\n~a\n\n~a~a~a"
                                   (assoc-ref ansi-color-escapes
                                              'bold)
                                   (assoc-ref ansi-color-escapes
                                              'reset)
+                                  (assoc-ref ansi-color-escapes
+                                             'bold)
+                                  (benchmark-result-name msg)
+                                  (assoc-ref ansi-color-escapes
+                                             'reset)
+
                                   (with-output-to-string (lambda ()
                                                            (for-each (lambda (run)
                                                                        (log (format
@@ -166,7 +174,8 @@
                                                                        (log (assoc-ref
                                                                              run
                                                                              'run-details)))
-                                                                     msg)))))))
+                                                                     (benchmark-result-results
+                                                                      msg))))))))
     (log-suite unquote
                (lambda (msg)
                  (log "+----------------------------------------------+")
@@ -217,7 +226,9 @@
     (log-benchmark unquote
                    (lambda (msg)
                      (log "+----------------------------------------------+")
-                     (log (format #f "[benchmark]\n ~a"
+
+                     (log (format #f "[benchmark]\n~a\n\n~a"
+                                  (benchmark-result-name msg)
 
                                   (with-output-to-string (lambda ()
                                                            (for-each (lambda (run)
@@ -230,7 +241,8 @@
                                                                        (log (assoc-ref
                                                                              run
                                                                              'run-details)))
-                                                                     msg)))))))
+                                                                     (benchmark-result-results
+                                                                      msg))))))))
     (log-debug unquote
                (lambda (msg)
                  (log (format #f "[debug] ~a"

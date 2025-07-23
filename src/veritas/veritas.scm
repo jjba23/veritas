@@ -131,7 +131,8 @@
 (define* (benchmark #:key (skip? #f) name runs thunk)
   (if skip? #f
       (lambda (vc)
-        (make-benchmark-result (map (lambda (i)
+        (make-benchmark-result name
+                               (map (lambda (i)
                                       (let* ((sp (with-output-to-string (lambda ()
                                                                           (statprof (lambda ()
                                                                                       

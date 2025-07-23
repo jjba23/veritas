@@ -51,6 +51,7 @@
                          assertion-result-successful
                          benchmark-result
                          make-benchmark-result
+                         benchmark-result-name
                          benchmark-result?
                          benchmark-result-results))
 
@@ -80,5 +81,6 @@
   (successful assertion-result-successful))
 
 (define-record-type benchmark-result
-  (make-benchmark-result results) benchmark-result?
+  (make-benchmark-result name results) benchmark-result?
+  (name benchmark-result-name)
   (results benchmark-result-results))
