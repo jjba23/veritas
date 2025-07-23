@@ -17,6 +17,8 @@
 
 .PHONY: test
 
+DEPLOY_WWW="/srv/http/jointhefreeworld.org"
+
 # Logging helpers
 
 define veritas-log-info

@@ -117,7 +117,19 @@ Refer to the Makefile to understand how to run this project and more.
 
 --------------------
 
-** About the runner
+* /PACTA SUNT SERVANDA/ - /agreements must be kept/ 
+
+** API Documentation
+You can find a detailed documentation on Veritas here:
+
+- in [[https://codeberg.org/jjba23/veritas/src/branch/trunk/docs/api-documentation.org][Org format]]
+- in   [[https://jointhefreeworld.org/manuals/veritas-api-documentation/index.html][HTML format]]
+
+
+----------------------
+
+
+* The Runner
 
 You can feel free to use ~veritas~ as you prefer, and dynamically run tests at your will. For ease-of-use, a (still pretty basic)  runner with test auto-discovery is provided.
 
@@ -138,14 +150,6 @@ guix shell -m manifest.scm -- \
 
 
 ------------------------
-
-* /PACTA SUNT SERVANDA/ - /agreements must be kept/ - API Documentation
-
-
-
-
-----------------------
-
 
 * Licensing
 
