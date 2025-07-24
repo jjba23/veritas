@@ -29,7 +29,7 @@
   #:use-module (fibers channels)
   #:use-module (ice-9 ftw)
   #:use-module (veritas prelude)
-  #:export (run-tests))
+  #:export (run-tests run-test-file discover-tests))
 
 (define remove-stat
   (match-lambda
@@ -39,14 +39,19 @@
      (list name
            (map remove-stat children)))))
 
-(define (run-test-file test-file test-type)
-  (let* ((m (resolve-module (append '(veritas)
-                                    (list test-type
+(define* (run-test-file #:key test-file test-type entrypoint-function)
+  (let* ((_ (display (format #f "
+running ~a tests from file: ~a, entrypoint: ~a
+
+"
+                             test-type test-file entrypoint-function)))
+         (m (resolve-module (append '(veritas)
+                                    (list (string->symbol test-type)
                                           (string->symbol (string-replace-substring
                                                            test-file ".scm" ""))))))
-         (spec (module-ref m
-                           'spec)))
-    (apply spec
+         (entrypoint (module-ref m
+                                 (string->symbol entrypoint-function))))
+    (apply entrypoint
            '())))
 
 (define* (getenv-or var
@@ -59,6 +64,8 @@
                               #:default "./"))
          (test-top-dir (getenv-or 'VERITAS_RUNNER_TEST_TOP_DIR
                                   #:default "test"))
+         (entrypoint-function (getenv-or 'VERITAS_RUNNER_ENTRYPOINT_FUNCTION
+                                         #:default "spec"))
          (test-module (getenv-or 'VERITAS_RUNNER_TEST_MODULE
                                  #:default "veritas"))
          (test-type (getenv-or 'VERITAS_RUNNER_TEST_TYPE
@@ -83,11 +90,13 @@ scanning present working directory for ~a tests..."
     
     (if (not (null? interesting-files))
         (begin
-          (display (format #f "\nfound ~a tests: ~a\n\n" test-type
+          (display (format #f "\nfound ~a tests: ~a\n" test-type
                            interesting-files))
           (for-each (lambda (file)
-                      (run-test-file file
-                                     'unit)) interesting-files))
+                      (run-test-file #:test-file file
+                                     #:test-type test-type
+                                     #:entrypoint-function entrypoint-function))
+                    interesting-files))
         (begin
           (display (format #f "\ncould not find any ~a tests!" test-type))))))
 
