@@ -29,6 +29,7 @@
   #:use-module (fibers channels)
   #:use-module (ice-9 ftw)
   #:use-module (veritas prelude)
+  #:use-module (veritas shuffle)
   #:export (run-tests run-test-file discover-tests))
 
 (define remove-stat
@@ -45,10 +46,13 @@ running ~a tests from file: ~a, entrypoint: ~a
 
 "
                              test-type test-file entrypoint-function)))
+         (module-parts (map string->symbol
+                            (string-split (string-replace-substring test-file
+                                                                    ".scm" "")
+                                          #\/)))
          (m (resolve-module (append '(veritas)
-                                    (list (string->symbol test-type)
-                                          (string->symbol (string-replace-substring
-                                                           test-file ".scm" ""))))))
+                                    (list (string->symbol test-type))
+                                    module-parts)))
          (entrypoint (module-ref m
                                  (string->symbol entrypoint-function))))
     (apply entrypoint
@@ -70,6 +74,8 @@ running ~a tests from file: ~a, entrypoint: ~a
                                  #:default "veritas"))
          (test-type (getenv-or 'VERITAS_RUNNER_TEST_TYPE
                                #:default "unit"))
+         (shuffle-files (getenv-or 'VERITAS_RUNNER_SHUFFLE_FILES
+                                   #:default "true"))
          (_ (begin
               (display (format #f "\nscanning directories for ~a tests..."
                                test-type))
@@ -79,14 +85,17 @@ scanning present working directory for ~a tests..."
                         test-type))
               (newline)))
          (files (remove-stat (file-system-tree scan-dir)))
-         (interesting-files (flatten-list (discover-tests #:test-type
-                                                          test-type
-                                                          #:scan-dir scan-dir
-                                                          #:test-top-dir
-                                                          test-top-dir
-                                                          #:test-module
-                                                          test-module
-                                                          #:dir files))))
+         (interesting-files* (flatten-list (discover-tests #:test-type
+                                                           test-type
+                                                           #:scan-dir scan-dir
+                                                           #:test-top-dir
+                                                           test-top-dir
+                                                           #:test-module
+                                                           test-module
+                                                           #:dir files)))
+         (interesting-files (if (equal? "true" shuffle-files)
+                                (fisher-yates-shuffle interesting-files*)
+                                interesting-files*)))
     
     (if (not (null? interesting-files))
         (begin
@@ -117,7 +126,7 @@ scanning present working directory for ~a tests..."
       ((and (list? dir)
             (equal? test-type
                     (car dir)))
-       (flatten-list (cdr dir)))
+       (flatten-test-files (cdr dir)))
       ((list? dir)
        (map (lambda (x)
               (discover-tests #:test-type test-type
@@ -126,4 +135,22 @@ scanning present working directory for ~a tests..."
                               #:test-module test-module
                               #:dir x)) dir))
       (else '()))))
+
+(define (flatten-test-files xs)
+  (cond
+    ((and (pair? xs)
+          (string? (car xs))
+          (not (null? (cdr xs))))
+     (map (lambda (pp)
+            (format #f "~a/~a"
+                    (car xs) pp))
+          (flatten-list (cdr xs))))
+    ((and (pair? xs)
+          (not (null? (cdr xs))))
+     (map flatten-test-files xs))
+    ((list? xs)
+     (flatten-list (map flatten-test-files xs)))
+    ((string? xs)
+     xs)
+    (else '())))
 

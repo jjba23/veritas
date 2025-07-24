@@ -41,7 +41,8 @@ repl:
 
 # Unit tests
 test: fmt
-	guix shell -m manifest.scm -- \
+	VERITAS_RUNNER_TEST_TYPE=unit \
+		guix shell -m manifest.scm -- \
 		guile --fresh-auto-compile -L ./src \
 		-L ./test \
 		-c '((@ (veritas runner) run-tests))'

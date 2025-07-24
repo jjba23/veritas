@@ -132,9 +132,7 @@ You can find a detailed documentation on Veritas here:
 
 You can feel free to use ~veritas~ as you prefer, and dynamically run tests at your will. For ease-of-use, a runner with test auto-discovery is provided.
 
-IMPORTANT! for now the test runner is quite primitive and  only supports a flat file structure. 
-
-If you use this runner, without changing the defaults, place your unit test files at: ~./test/veritas/unit/*.scm~  and name your modules ~(veritas unit your-name)~ due to how Guile module loading works. This is configurable via environment variables.
+If you use this runner, without changing the defaults, place your unit test files at: ~./test/veritas/unit/*.scm~  and name your modules ~(veritas unit your-name)~ due to how Guile module loading works. This is configurable via environment variables. One-directory depth is supported, but no more than that. So ~./test/veritas/unit/*.scm~  is valid, and ~./test/veritas/unit/some-dir/*.scm~  is also valid, but ~./test/veritas/unit/some-dir/other-dir/*.scm~  is not.
 
 Test files should contain a no-argument function ( called ~spec~  by default) which is the entry-point, and the place to add your ~veritas-run~ statements.
 
@@ -152,11 +150,13 @@ The runner is configured via environment variables for ease of use and integrati
 
 ~VERITAS_RUNNER_TEST_MODULE~ defaults to ~veritas~ and determines the test module to load, and also should be equal to the Guile Scheme modules name you use. For example if you have a unit test file a ~./test/my-program/unit/my-test.scm~ then you should change this variable to the value ~my-program~ and your module declaration should be ~(define-module (my-program unit my-test))~. If you don't change the defaults, place your tests at for example ~./test/veritas/unit/my-test.scm~ and name them ~(define-module (veritas unit my-test))~.
 
+~VERITAS_RUNNER_SHUFFLE_FILES~ defaults to ~true~ and determines whether to shuffle test file order or not.
+
 Then you can run with for example:
 
 #+begin_src shell
-guix shell -m manifest.scm -- \
-		VERITAS_RUNNER_TEST_TYPE=unit \
+VERITAS_RUNNER_TEST_TYPE=unit \
+    guix shell -m manifest.scm -- \
     guile --fresh-auto-compile -L ./src \
 		-L ./test \
 		-c '((@ (veritas runner) run-tests))'
