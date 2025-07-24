@@ -30,6 +30,7 @@
   #:use-module (veritas reporter)
   #:export (evaluate-thunks-concurrently evaluate-thunks
                                          flatten-list
+                                         capture-result-and-output
                                          getenv-or
                                          display-all-results
                                          display-assertion-results
@@ -125,3 +126,10 @@ those functions and return a list of what each function returned."
                     #:key (default #f))
   (let* ((v (getenv (symbol->string var))))
     (if (not v) default v)))
+
+(define* (capture-result-and-output thunk)
+  (let* ((output-port (open-output-string))
+         (result (with-output-to-port output-port thunk))
+         (the-output (get-output-string output-port))
+         (_ (close-port output-port)))
+    (make-result-and-output result the-output)))

@@ -79,22 +79,21 @@
                                                  (let* ((idx (car indexed-case))
                                                         (assertion-proc (cadr
                                                                          indexed-case))
-                                                        (output-port (open-output-string))
-                                                        (result (with-output-to-port
-                                                                 output-port
-                                                                 (lambda ()
-                                                                   (assertion-proc
-                                                                    vc))))
-                                                        (assertion-output (get-output-string
-                                                                           output-port))
-                                                        (_ (close-port
-                                                            output-port)))
+                                                        (result-and-output (capture-result-and-output (lambda ()
+                                                                                                        
+                                                                                                        
+                                                                                                        (assertion-proc
+                                                                                                         vc)))))
                                                    (lambda ()
                                                      (make-assertion-result
-                                                      idx assertion-output
-                                                      (assoc-ref result
+                                                      idx
+                                                      (result-and-output-output
+                                                       result-and-output)
+                                                      (assoc-ref (result-and-output-result
+                                                                  result-and-output)
                                                                  'assertion-name)
-                                                      (assoc-ref result
+                                                      (assoc-ref (result-and-output-result
+                                                                  result-and-output)
                                                                  'assertion-successful)))))
                                                indexed-cases))
                         (test-results (evaluate-thunks assertion-thunks)))
