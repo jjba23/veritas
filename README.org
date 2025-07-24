@@ -1,4 +1,4 @@
-#+title: veritas
+#+title: VERITAS
 #+author: Josep Bigorra
 #+email: jjbigorra@gmail.com
 #+language: en
@@ -19,9 +19,9 @@ If you like my work, please support me by [[https://bmc.link/jjbigorra][buying m
 
 /An expressive, free (as in freedom), and extensible test framework is crucial for modern software engineering and is a great instrument to explore systems and algorithms/
 
-* /AD REM - to the matter/
+* Introduction: /AD REM/ - to the matter
 
-We can import Veritas very easily:
+It's very easy to import Veritas and start using it:
 #+begin_src scheme
 (use-modules (veritas veritas))
 #+end_src
@@ -86,7 +86,9 @@ And then we wire it all up:
 
 -----------------------------
 
-* /EX LABORE VENUSTAS/ - /from hard work, beauty/
+* Design: /EX LABORE VENUSTAS/
+
+/from hard work, beauty/
 
 Due to its elegance, succinctness, and opinionated design, veritas has a really *low learning curve*, for beginners and seasoned hackers alike, great for onboarding too.
 
@@ -117,9 +119,10 @@ Refer to the Makefile to understand how to run this project and more.
 
 --------------------
 
-* /PACTA SUNT SERVANDA/ - /agreements must be kept/ 
+* Documentation: /PACTA SUNT SERVANDA/
 
-** Documentation
+/agreements must be kept/
+
 You can find a detailed documentation on Veritas, its functions and the runner here:
 
 - in [[https://codeberg.org/jjba23/veritas/src/branch/trunk/docs/api-documentation.org][Org format]]
@@ -128,7 +131,9 @@ You can find a detailed documentation on Veritas, its functions and the runner h
 
 ----------------------
 
-* The Runner
+* Runner: /ARTIFEX EXPERIMENTI/ 
+
+/the master of the experiment/
 
 You can feel free to use ~veritas~ as you prefer, and dynamically run tests at your will. For ease-of-use, a runner with test auto-discovery is provided.
 
@@ -150,9 +155,9 @@ VERITAS_TEST_TYPE=unit \
 
 ------------------------
 
-* Licensing
+* Licensing: /DE LICENTIIS/
 
-veritas and all of its source code are free software, licensed under the GNU Lesser General Public License v3 (or newer at your convenience).
+Veritas and all of its source code are free software, licensed under the GNU Lesser General Public License v3 (or newer at your convenience).
 
 https://www.gnu.org/licenses/lgpl-3.0.html
 
@@ -162,7 +167,7 @@ https://www.gnu.org/licenses/fdl-1.3.html
 
 ------------------
 
-* Installing and using
+* Installing: /COLLOCATIO ET USUS/
 
 I'm working to stabilize veritas so expect changes until we reach v1.0.0
 
@@ -203,13 +208,13 @@ runs them concurrently by default to ensure robust testing practices.")
 
 -------------
 
-* Projects using Veritas
+* Projects using this: /OPERA UTENS VERITAS/
 
 - SSS ([[https://codeberg.org/jjba23/sss][Supreme Sexp System]]) -   SSS is a Lisp machine adventure, where the hacking culture is celebrated. Let me help you achieve GNUrvana. This custom GNU + Linux (Guix) setup enhances customization to infinity, encourages the hacking spirit, and offers a superior user experience thanks in part too to REPL (Read Eval Print Loop) and Lisps.
 
 ---------------
 
-* Code of conduct
+* Code of conduct: /CODEX MORUM/
 
 This project adheres to the jointhefreeworld code of conduct. Find it here:
 
@@ -219,7 +224,7 @@ In summary, we foster an inclusive, respectful, and cooperative environment for 
 
 -------
 
-* Veritas Project
+* Project: /OPERA VERITAS/
 
 Contributing to free software is a uniquely beautiful act because it embodies principles of generosity, collaboration, and empowerment.
 
