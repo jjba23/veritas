@@ -124,8 +124,18 @@ those functions and return a list of what each function returned."
 
 (define* (getenv-or var
                     #:key (default #f))
-  (let* ((v (getenv (symbol->string var))))
-    (if (not v) default v)))
+  (catch #t
+         (lambda ()
+           (let* ((v (getenv (symbol->string var))))
+             (if (not v) default v)))
+         (lambda (key . args)
+           (display (format #f
+                     "could not read environment variable ~a, return default: ~a
+error: ~a: ~a"
+                     var
+                     default
+                     key
+                     args)) default)))
 
 (define* (capture-result-and-output thunk)
   (let* ((output-port (open-output-string))
