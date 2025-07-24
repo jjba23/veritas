@@ -131,7 +131,7 @@ You can find a detailed documentation on Veritas here:
 
 * The Runner
 
-You can feel free to use ~veritas~ as you prefer, and dynamically run tests at your will. For ease-of-use, a (still pretty basic)  runner with test auto-discovery is provided.
+You can feel free to use ~veritas~ as you prefer, and dynamically run tests at your will. For ease-of-use, a runner with test auto-discovery is provided.
 
 IMPORTANT! for now the test runner is quite primitive and  only supports a flat file structure. If you use this runner, place your unit test files at: ~./test/veritas/unit/*.scm~
 
@@ -139,13 +139,18 @@ Test files should contain a no-argument function called ~spec~ which is the entr
 
 It's for now recommended to name your modules ~(veritas unit your-name)~ due to how Guile module loading works.
 
+The runner is configured via environment variables for ease of use and integration in CI environments.
+
+~VERITAS_RUNNER_SCAN_DIR~ defaults to ~./~ and determines which directory should be used to look for test directories and files.
+
 Then you can run with for example:
 
 #+begin_src shell
 guix shell -m manifest.scm -- \
-		guile --fresh-auto-compile -L ./src \
+		VERITAS_RUNNER_TEST_TYPE=unit \
+    guile --fresh-auto-compile -L ./src \
 		-L ./test \
-		-c '((@ (veritas runner) run-unit-tests))'
+		-c '((@ (veritas runner) run-tests))'
 #+end_src
 
 

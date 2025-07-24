@@ -28,7 +28,7 @@
   #:use-module (fibers)
   #:use-module (fibers channels)
   #:use-module (ice-9 ftw)
-  #:export (run-unit-tests))
+  #:export (run-tests))
 
 (define remove-stat
   (match-lambda
@@ -57,24 +57,38 @@
     (apply spec
            '())))
 
-(define* (run-unit-tests)
-  (display "\nscanning directories for unit tests...")
-  (display "
-scanning present working directory for unit tests...")
-  (newline)
-  (let* ((dir "./")
+(define* (getenv-or var
+                    #:key (default #f))
+  (let* ((v (getenv var)))
+    (if (not v) default v)))
+
+(define* (run-tests)
+  (let* ((dir (getenv-or "VERITAS_RUNNER_SCAN_DIR"
+                         #:default "./"))
+         (test-type (getenv-or "VERITAS_RUNNER_TEST_TYPE"
+                               #:default "unit"))
+         (_ (begin
+              (display (format #f "\nscanning directories for ~a tests..."
+                               test-type))
+              (display (format #f
+                        "
+scanning present working directory for ~a tests..."
+                        test-type))
+              (newline)))
          (files (remove-stat (file-system-tree dir)))
-         (interesting-files (flatten-list (discover-unit-tests files))))
+         (interesting-files (flatten-list (discover-tests test-type files))))
+    
     (if (not (null? interesting-files))
         (begin
-          (display (format #f "\nfound unit tests: ~a\n\n" interesting-files))
+          (display (format #f "\nfound ~a tests: ~a\n\n" test-type
+                           interesting-files))
           (for-each (lambda (file)
                       (run-test-file file
                                      'unit)) interesting-files))
         (begin
-          (display (format #f "\ncould not find any unit tests!"))))))
+          (display (format #f "\ncould not find any ~a tests!" test-type))))))
 
-(define (discover-unit-tests d)
+(define (discover-tests test-type d)
   (cond
     ((and (list? d)
           (or (equal? "./"
@@ -83,14 +97,16 @@ scanning present working directory for unit tests...")
                       (car d))
               (equal? "veritas"
                       (car d))))
-     (discover-unit-tests (cdr d)))
+     (discover-tests test-type
+                     (cdr d)))
     ((and (list? d)
-          (equal? "unit"
+          (equal? test-type
                   (car d)))
      (map (lambda (dir)
             (format #f "~a" dir))
           (flatten-list (cdr d))))
     ((list? d)
-     (map discover-unit-tests d))
+     (map (lambda (x)
+            (discover-tests test-type x)) d))
     (else '())))
 

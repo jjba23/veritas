@@ -44,7 +44,7 @@ test: fmt
 	guix shell -m manifest.scm -- \
 		guile --fresh-auto-compile -L ./src \
 		-L ./test \
-		-c '((@ (veritas runner) run-unit-tests))'
+		-c '((@ (veritas runner) run-tests))'
 
 # deploy: Deploys the manual HTML to a web server directory.
 deploy:
