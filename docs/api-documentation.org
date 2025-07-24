@@ -186,7 +186,7 @@ This macro takes a list of functions (thunks) that don't take any arguments, run
 - *Returns*:
     - A list containing the return value of each thunk.
 
-------------------------      
+---------------------      
       
 ** Runner - Env Variables
 
@@ -203,3 +203,9 @@ The runner is configured via environment variables for ease of use and integrati
 ~VERITAS_TEST_MODULE~ defaults to ~veritas~ and determines the test module to load, and also should be equal to the Guile Scheme modules name you use. For example if you have a unit test file a ~./test/my-program/unit/my-test.scm~ then you should change this variable to the value ~my-program~ and your module declaration should be ~(define-module (my-program unit my-test))~. If you don't change the defaults, place your tests at for example ~./test/veritas/unit/my-test.scm~ and name them ~(define-module (veritas unit my-test))~.
 
 ~VERITAS_SHUFFLE_FILES~ defaults to ~true~ and determines whether to shuffle test file order or not.      
+
+~VERITAS_RUN_BENCHMARKS~ defaults to ~true~ and determines whether benchmarks should be run.
+
+~VERITAS_ONLY_TEST~ is an optional variable you can pass to limit the execution to test cases whose name partially matches this variable.
+
+~VERITAS_ONLY_SUITE~ is an optional variable you can pass to limit the execution to suites whose name partially matches this variable.

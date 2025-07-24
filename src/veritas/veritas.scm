@@ -40,51 +40,75 @@
                             evaluate-thunks-concurrently
                             collect-assertion-successful
                             fisher-yates-shuffle)
-  #:export (test veritas-run suite benchmark))
+  #:export (test veritas-run suite benchmark veritas-test-only))
+
+(define veritas-only-test
+  (make-parameter (getenv-or 'VERITAS_ONLY_TEST
+                             #:default #f)))
+
+(define veritas-only-suite
+  (make-parameter (getenv-or 'VERITAS_ONLY_SUITE
+                             #:default #f)))
+
+(define veritas-run-benchmarks
+  (make-parameter (equal? "true"
+                          (getenv-or 'VERITAS_RUN_BENCHMARKS
+                                     #:default "true"))))
+
+(define* (if-matches-restriction #:key name restriction result)
+  (if (not restriction) result
+      (if (string-contains (string-downcase name)
+                           (string-downcase restriction)) result #f)))
 
 (define* (test name
                #:key (debug? #f)
                (shuffle? #t)
                (skip? #f)
                #:rest cases)
-  (if skip? #f
-      (lambda (vc)
-        (log-test vc name)
-        (let* ((procedure-cases (filter procedure? cases))
-               (indexed-cases (map (lambda (case-proc i)
-                                     (list i case-proc))
-                                   (if shuffle?
-                                       (fisher-yates-shuffle procedure-cases)
-                                       procedure-cases)
-                                   (iota (length procedure-cases))))
-               (assertion-thunks (map (lambda (indexed-case)
-                                        (let* ((idx (car indexed-case))
-                                               (assertion-proc (cadr
-                                                                indexed-case))
-                                               (output-port (open-output-string))
-                                               (result (with-output-to-port
-                                                        output-port
-                                                        (lambda ()
-                                                          (assertion-proc vc))))
-                                               (assertion-output (get-output-string
-                                                                  output-port))
-                                               (_ (close-port output-port)))
-                                          (lambda ()
-                                            (make-assertion-result idx
-                                             assertion-output
-                                             (assoc-ref result
-                                                        'assertion-name)
-                                             (assoc-ref result
-                                                        'assertion-successful)))))
-                                      indexed-cases))
-               (test-results (evaluate-thunks assertion-thunks)))
-          
-          (when debug?
-            (newline)
-            (write test-results)
-            (newline))
+  (let* ((func (lambda (vc)
+                 (log-test vc name)
+                 (let* ((procedure-cases (filter procedure? cases))
+                        (indexed-cases (map (lambda (case-proc i)
+                                              (list i case-proc))
+                                            (if shuffle?
+                                                (fisher-yates-shuffle
+                                                 procedure-cases)
+                                                procedure-cases)
+                                            (iota (length procedure-cases))))
+                        (assertion-thunks (map (lambda (indexed-case)
+                                                 (let* ((idx (car indexed-case))
+                                                        (assertion-proc (cadr
+                                                                         indexed-case))
+                                                        (output-port (open-output-string))
+                                                        (result (with-output-to-port
+                                                                 output-port
+                                                                 (lambda ()
+                                                                   (assertion-proc
+                                                                    vc))))
+                                                        (assertion-output (get-output-string
+                                                                           output-port))
+                                                        (_ (close-port
+                                                            output-port)))
+                                                   (lambda ()
+                                                     (make-assertion-result
+                                                      idx assertion-output
+                                                      (assoc-ref result
+                                                                 'assertion-name)
+                                                      (assoc-ref result
+                                                                 'assertion-successful)))))
+                                               indexed-cases))
+                        (test-results (evaluate-thunks assertion-thunks)))
+                   
+                   (when debug?
+                     (newline)
+                     (write test-results)
+                     (newline))
 
-          (make-pre-test-result name test-results)))))
+                   (make-pre-test-result name test-results)))))
+    (if skip? #f
+        (if-matches-restriction #:name name
+                                #:restriction (veritas-only-test)
+                                #:result func))))
 
 (define* (suite name
                 #:key (debug? #f)
@@ -92,56 +116,68 @@
                 (skip? #f)
                 (concurrent? #t)
                 #:rest tests)
-  (if skip? #f
-      (lambda (vc)
-        (log-suite vc name)
-
-        (let* ((procedure-tests (filter procedure? tests))
-               (indexed-tests (map (lambda (test-proc i)
-                                     (list i test-proc))
-                                   (if shuffle?
-                                       (fisher-yates-shuffle procedure-tests)
-                                       procedure-tests)
-                                   (iota (length procedure-tests))))
-               (test-thunks (map (lambda (indexed-test)
-                                   (let* ((idx (car indexed-test))
-                                          (test-proc (cadr indexed-test))
-                                          (output-port (open-output-string)))
-                                     (lambda ()
-                                       (let* ((result (with-output-to-port
-                                                       output-port
-                                                       (lambda ()
-                                                         (test-proc vc))))
-                                              (test-output (get-output-string
-                                                            output-port))
-                                              (_ (close-port output-port)))
-                                         (make-test-result idx test-output
-                                                           result)))))
-                                 indexed-tests))
-               (test-results (if concurrent?
-                                 (evaluate-thunks-concurrently test-thunks)
-                                 (evaluate-thunks test-thunks)))
-               (final-suite-data (make-suite-result name test-results "")))
-          
-          (when debug?
-            (newline)
-            (write final-suite-data)
-            (newline)) final-suite-data))))
+  (let* ((func (lambda (vc)
+                 (let* ((procedure-tests (filter procedure? tests))
+                        (indexed-tests (map (lambda (test-proc i)
+                                              (list i test-proc))
+                                            (if shuffle?
+                                                (fisher-yates-shuffle
+                                                 procedure-tests)
+                                                procedure-tests)
+                                            (iota (length procedure-tests))))
+                        (test-thunks (map (lambda (indexed-test)
+                                            (let* ((idx (car indexed-test))
+                                                   (test-proc (cadr
+                                                               indexed-test))
+                                                   (output-port (open-output-string)))
+                                              (lambda ()
+                                                (let* ((result (with-output-to-port
+                                                                output-port
+                                                                (lambda ()
+                                                                  (test-proc
+                                                                   vc))))
+                                                       (test-output (get-output-string
+                                                                     output-port))
+                                                       (_ (close-port
+                                                           output-port)))
+                                                  (make-test-result idx
+                                                   test-output result)))))
+                                          indexed-tests))
+                        (_ (unless (null? test-thunks)
+                             (log-suite vc name)))
+                        (test-results (if concurrent?
+                                          (evaluate-thunks-concurrently
+                                           test-thunks)
+                                          (evaluate-thunks test-thunks)))
+                        (final-suite-data (make-suite-result name test-results
+                                                             "")))
+                   
+                   (when debug?
+                     (newline)
+                     (write final-suite-data)
+                     (newline)) final-suite-data))))
+    (if skip? #f
+        (if-matches-restriction #:name name
+                                #:restriction (veritas-only-suite)
+                                #:result func))))
 
 (define* (benchmark #:key (skip? #f) name runs thunk)
-  (if skip? #f
-      (lambda (vc)
-        (make-benchmark-result name
-                               (map (lambda (i)
-                                      (let* ((sp (with-output-to-string (lambda ()
-                                                                          (statprof (lambda ()
-                                                                                      
-                                                                                      
-                                                                                      (thunk)
-                                                                                      #f))))))
-                                        `((run-index unquote i)
-                                          (run-details unquote sp))))
-                                    (iota runs))))))
+  (let* ((func (lambda (vc)
+                 (make-benchmark-result name
+                                        (map (lambda (i)
+                                               (let* ((sp (with-output-to-string (lambda ()
+                                                                                   
+                                                                                   
+                                                                                   (statprof (lambda ()
+                                                                                               
+                                                                                               
+                                                                                               (thunk)
+                                                                                               #f))))))
+                                                 `((run-index unquote i)
+                                                   (run-details unquote sp))))
+                                             (iota runs))))))
+    (if skip? #f
+        (if (veritas-run-benchmarks) func #f))))
 
 (define* (veritas-run #:key (shuffle? #t)
                       (concurrent? #t)

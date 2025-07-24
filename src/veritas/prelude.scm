@@ -30,6 +30,7 @@
   #:use-module (veritas reporter)
   #:export (evaluate-thunks-concurrently evaluate-thunks
                                          flatten-list
+                                         getenv-or
                                          display-all-results
                                          display-assertion-results
                                          collect-assertion-successful
@@ -120,3 +121,7 @@ those functions and return a list of what each function returned."
                               "could not display result of unknown type: ~a" x)))))
             all-results))
 
+(define* (getenv-or var
+                    #:key (default #f))
+  (let* ((v (getenv (symbol->string var))))
+    (if (not v) default v)))

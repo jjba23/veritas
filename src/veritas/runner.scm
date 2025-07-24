@@ -29,6 +29,7 @@
   #:use-module (fibers channels)
   #:use-module (ice-9 ftw)
   #:use-module (veritas prelude)
+  #:use-module (veritas veritas)
   #:use-module (veritas shuffle)
   #:export (run-tests run-test-file discover-tests))
 
@@ -58,11 +59,6 @@ running ~a tests from file: ~a, entrypoint: ~a
     (apply entrypoint
            '())))
 
-(define* (getenv-or var
-                    #:key (default #f))
-  (let* ((v (getenv (symbol->string var))))
-    (if (not v) default v)))
-
 (define* (run-tests)
   (let* ((scan-dir (getenv-or 'VERITAS_SCAN_DIR
                               #:default "./"))
@@ -74,8 +70,9 @@ running ~a tests from file: ~a, entrypoint: ~a
                                  #:default "veritas"))
          (test-type (getenv-or 'VERITAS_TEST_TYPE
                                #:default "unit"))
-         (shuffle-files (getenv-or 'VERITAS_SHUFFLE_FILES
-                                   #:default "true"))
+         (shuffle-files (equal? "true"
+                                (getenv-or 'VERITAS_SHUFFLE_FILES
+                                           #:default "true")))
          (_ (begin
               (display (format #f "\nscanning directories for ~a tests..."
                                test-type))
@@ -93,7 +90,7 @@ scanning present working directory for ~a tests..."
                                                            #:test-module
                                                            test-module
                                                            #:dir files)))
-         (interesting-files (if (equal? "true" shuffle-files)
+         (interesting-files (if shuffle-files
                                 (fisher-yates-shuffle interesting-files*)
                                 interesting-files*)))
     
