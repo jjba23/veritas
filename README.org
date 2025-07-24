@@ -140,7 +140,7 @@ Test files should contain a no-argument function ( called ~spec~  by default) wh
 Then you can run with for example:
 
 #+begin_src shell
-VERITAS_RUNNER_TEST_TYPE=unit \
+VERITAS_TEST_TYPE=unit \
     guix shell -m manifest.scm -- \
     guile --fresh-auto-compile -L ./src \
 		-L ./test \

@@ -64,17 +64,17 @@ running ~a tests from file: ~a, entrypoint: ~a
     (if (not v) default v)))
 
 (define* (run-tests)
-  (let* ((scan-dir (getenv-or 'VERITAS_RUNNER_SCAN_DIR
+  (let* ((scan-dir (getenv-or 'VERITAS_SCAN_DIR
                               #:default "./"))
-         (test-top-dir (getenv-or 'VERITAS_RUNNER_TEST_TOP_DIR
+         (test-top-dir (getenv-or 'VERITAS_TEST_TOP_DIR
                                   #:default "test"))
-         (entrypoint-function (getenv-or 'VERITAS_RUNNER_ENTRYPOINT_FUNCTION
+         (entrypoint-function (getenv-or 'VERITAS_ENTRYPOINT
                                          #:default "spec"))
-         (test-module (getenv-or 'VERITAS_RUNNER_TEST_MODULE
+         (test-module (getenv-or 'VERITAS_TEST_MODULE
                                  #:default "veritas"))
-         (test-type (getenv-or 'VERITAS_RUNNER_TEST_TYPE
+         (test-type (getenv-or 'VERITAS_TEST_TYPE
                                #:default "unit"))
-         (shuffle-files (getenv-or 'VERITAS_RUNNER_SHUFFLE_FILES
+         (shuffle-files (getenv-or 'VERITAS_SHUFFLE_FILES
                                    #:default "true"))
          (_ (begin
               (display (format #f "\nscanning directories for ~a tests..."
