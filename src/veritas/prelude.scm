@@ -30,6 +30,8 @@
   #:use-module (veritas reporter)
   #:export (evaluate-thunks-concurrently evaluate-thunks
                                          flatten-list
+                                         capture-result-and-output
+                                         getenv-or
                                          display-all-results
                                          display-assertion-results
                                          collect-assertion-successful
@@ -120,3 +122,24 @@ those functions and return a list of what each function returned."
                               "could not display result of unknown type: ~a" x)))))
             all-results))
 
+(define* (getenv-or var
+                    #:key (default #f))
+  (catch #t
+         (lambda ()
+           (let* ((v (getenv (symbol->string var))))
+             (if (not v) default v)))
+         (lambda (key . args)
+           (display (format #f
+                     "could not read environment variable ~a, return default: ~a
+error: ~a: ~a"
+                     var
+                     default
+                     key
+                     args)) default)))
+
+(define* (capture-result-and-output thunk)
+  (let* ((output-port (open-output-string))
+         (result (with-output-to-port output-port thunk))
+         (the-output (get-output-string output-port))
+         (_ (close-port output-port)))
+    (make-result-and-output result the-output)))

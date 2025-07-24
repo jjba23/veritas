@@ -28,7 +28,10 @@
   #:use-module (fibers)
   #:use-module (fibers channels)
   #:use-module (ice-9 ftw)
-  #:export (run-unit-tests))
+  #:use-module (veritas prelude)
+  #:use-module (veritas veritas)
+  #:use-module (veritas shuffle)
+  #:export (run-tests run-test-file discover-tests))
 
 (define remove-stat
   (match-lambda
@@ -38,59 +41,113 @@
      (list name
            (map remove-stat children)))))
 
-(define (flatten-list xs)
-  (cond
-    ((null? xs)
-     '())
-    ((pair? xs)
-     (append (flatten-list (car xs))
-             (flatten-list (cdr xs))))
-    (else (list xs))))
+(define* (run-test-file #:key test-file test-type entrypoint-function)
+  (let* ((_ (display (format #f "
+running ~a tests from file: ~a, entrypoint: ~a
 
-(define (run-test-file test-file test-type)
-  (let* ((m (resolve-module (append '(veritas)
-                                    (list test-type
-                                          (string->symbol (string-replace-substring
-                                                           test-file ".scm" ""))))))
-         (spec (module-ref m
-                           'spec)))
-    (apply spec
+"
+                             test-type test-file entrypoint-function)))
+         (module-parts (map string->symbol
+                            (string-split (string-replace-substring test-file
+                                                                    ".scm" "")
+                                          #\/)))
+         (m (resolve-module (append '(veritas)
+                                    (list (string->symbol test-type))
+                                    module-parts)))
+         (entrypoint (module-ref m
+                                 (string->symbol entrypoint-function))))
+    (apply entrypoint
            '())))
 
-(define* (run-unit-tests)
-  (display "\nscanning directories for unit tests...")
-  (display "
-scanning present working directory for unit tests...")
-  (newline)
-  (let* ((dir "./")
-         (files (remove-stat (file-system-tree dir)))
-         (interesting-files (flatten-list (discover-unit-tests files))))
+(define* (run-tests)
+  (let* ((scan-dir (getenv-or 'VERITAS_SCAN_DIR
+                              #:default "./"))
+         (test-top-dir (getenv-or 'VERITAS_TEST_TOP_DIR
+                                  #:default "test"))
+         (entrypoint-function (getenv-or 'VERITAS_ENTRYPOINT
+                                         #:default "spec"))
+         (test-module (getenv-or 'VERITAS_TEST_MODULE
+                                 #:default "veritas"))
+         (test-type (getenv-or 'VERITAS_TEST_TYPE
+                               #:default "unit"))
+         (shuffle-files (equal? "true"
+                                (getenv-or 'VERITAS_SHUFFLE_FILES
+                                           #:default "true")))
+         (_ (begin
+              (display (format #f "\nscanning directories for ~a tests..."
+                               test-type))
+              (display (format #f
+                        "
+scanning present working directory for ~a tests..."
+                        test-type))
+              (newline)))
+         (files (remove-stat (file-system-tree scan-dir)))
+         (interesting-files* (flatten-list (discover-tests #:test-type
+                                                           test-type
+                                                           #:scan-dir scan-dir
+                                                           #:test-top-dir
+                                                           test-top-dir
+                                                           #:test-module
+                                                           test-module
+                                                           #:dir files)))
+         (interesting-files (if shuffle-files
+                                (fisher-yates-shuffle interesting-files*)
+                                interesting-files*)))
+    
     (if (not (null? interesting-files))
         (begin
-          (display (format #f "\nfound unit tests: ~a\n\n" interesting-files))
+          (display (format #f "\nfound ~a tests: ~a\n" test-type
+                           interesting-files))
           (for-each (lambda (file)
-                      (run-test-file file
-                                     'unit)) interesting-files))
+                      (run-test-file #:test-file file
+                                     #:test-type test-type
+                                     #:entrypoint-function entrypoint-function))
+                    interesting-files))
         (begin
-          (display (format #f "\ncould not find any unit tests!"))))))
+          (display (format #f "\ncould not find any ~a tests!" test-type))))))
 
-(define (discover-unit-tests d)
+(define* (discover-tests #:key test-type
+                         scan-dir
+                         test-top-dir
+                         test-module
+                         dir)
+  (let* ((discovery-targets (list scan-dir test-top-dir test-module)))
+    (cond
+      ((and (list? dir)
+            (member (car dir) discovery-targets))
+       (discover-tests #:test-type test-type
+                       #:scan-dir scan-dir
+                       #:test-top-dir test-top-dir
+                       #:test-module test-module
+                       #:dir (cdr dir)))
+      ((and (list? dir)
+            (equal? test-type
+                    (car dir)))
+       (flatten-test-files (cdr dir)))
+      ((list? dir)
+       (map (lambda (x)
+              (discover-tests #:test-type test-type
+                              #:scan-dir scan-dir
+                              #:test-top-dir test-top-dir
+                              #:test-module test-module
+                              #:dir x)) dir))
+      (else '()))))
+
+(define (flatten-test-files xs)
   (cond
-    ((and (list? d)
-          (or (equal? "./"
-                      (car d))
-              (equal? "test"
-                      (car d))
-              (equal? "veritas"
-                      (car d))))
-     (discover-unit-tests (cdr d)))
-    ((and (list? d)
-          (equal? "unit"
-                  (car d)))
-     (map (lambda (dir)
-            (format #f "~a" dir))
-          (flatten-list (cdr d))))
-    ((list? d)
-     (map discover-unit-tests d))
+    ((and (pair? xs)
+          (string? (car xs))
+          (not (null? (cdr xs))))
+     (map (lambda (pp)
+            (format #f "~a/~a"
+                    (car xs) pp))
+          (flatten-list (cdr xs))))
+    ((and (pair? xs)
+          (not (null? (cdr xs))))
+     (map flatten-test-files xs))
+    ((list? xs)
+     (flatten-list (map flatten-test-files xs)))
+    ((string? xs)
+     xs)
     (else '())))
 

@@ -53,7 +53,12 @@
                          make-benchmark-result
                          benchmark-result-name
                          benchmark-result?
-                         benchmark-result-results))
+                         benchmark-result-results
+                         result-and-output
+                         result-and-output?
+                         make-result-and-output
+                         result-and-output-result
+                         result-and-output-output))
 
 (define-record-type suite-result
   (make-suite-result name test-results output) suite-result?
@@ -84,3 +89,8 @@
   (make-benchmark-result name results) benchmark-result?
   (name benchmark-result-name)
   (results benchmark-result-results))
+
+(define-record-type result-and-output
+  (make-result-and-output result output) result-and-output?
+  (result result-and-output-result)
+  (output result-and-output-output))
