@@ -28,6 +28,7 @@
   #:use-module (fibers)
   #:use-module (fibers channels)
   #:use-module (ice-9 ftw)
+  #:use-module (veritas prelude)
   #:export (run-tests))
 
 (define remove-stat
@@ -37,15 +38,6 @@
     ((name stat children ...)
      (list name
            (map remove-stat children)))))
-
-(define (flatten-list xs)
-  (cond
-    ((null? xs)
-     '())
-    ((pair? xs)
-     (append (flatten-list (car xs))
-             (flatten-list (cdr xs))))
-    (else (list xs))))
 
 (define (run-test-file test-file test-type)
   (let* ((m (resolve-module (append '(veritas)
@@ -59,13 +51,17 @@
 
 (define* (getenv-or var
                     #:key (default #f))
-  (let* ((v (getenv var)))
+  (let* ((v (getenv (symbol->string var))))
     (if (not v) default v)))
 
 (define* (run-tests)
-  (let* ((dir (getenv-or "VERITAS_RUNNER_SCAN_DIR"
-                         #:default "./"))
-         (test-type (getenv-or "VERITAS_RUNNER_TEST_TYPE"
+  (let* ((scan-dir (getenv-or 'VERITAS_RUNNER_SCAN_DIR
+                              #:default "./"))
+         (test-top-dir (getenv-or 'VERITAS_RUNNER_TEST_TOP_DIR
+                                  #:default "test"))
+         (test-module (getenv-or 'VERITAS_RUNNER_TEST_MODULE
+                                 #:default "veritas"))
+         (test-type (getenv-or 'VERITAS_RUNNER_TEST_TYPE
                                #:default "unit"))
          (_ (begin
               (display (format #f "\nscanning directories for ~a tests..."
@@ -75,8 +71,15 @@
 scanning present working directory for ~a tests..."
                         test-type))
               (newline)))
-         (files (remove-stat (file-system-tree dir)))
-         (interesting-files (flatten-list (discover-tests test-type files))))
+         (files (remove-stat (file-system-tree scan-dir)))
+         (interesting-files (flatten-list (discover-tests #:test-type
+                                                          test-type
+                                                          #:scan-dir scan-dir
+                                                          #:test-top-dir
+                                                          test-top-dir
+                                                          #:test-module
+                                                          test-module
+                                                          #:dir files))))
     
     (if (not (null? interesting-files))
         (begin
@@ -88,25 +91,30 @@ scanning present working directory for ~a tests..."
         (begin
           (display (format #f "\ncould not find any ~a tests!" test-type))))))
 
-(define (discover-tests test-type d)
-  (cond
-    ((and (list? d)
-          (or (equal? "./"
-                      (car d))
-              (equal? "test"
-                      (car d))
-              (equal? "veritas"
-                      (car d))))
-     (discover-tests test-type
-                     (cdr d)))
-    ((and (list? d)
-          (equal? test-type
-                  (car d)))
-     (map (lambda (dir)
-            (format #f "~a" dir))
-          (flatten-list (cdr d))))
-    ((list? d)
-     (map (lambda (x)
-            (discover-tests test-type x)) d))
-    (else '())))
+(define* (discover-tests #:key test-type
+                         scan-dir
+                         test-top-dir
+                         test-module
+                         dir)
+  (let* ((discovery-targets (list scan-dir test-top-dir test-module)))
+    (cond
+      ((and (list? dir)
+            (member (car dir) discovery-targets))
+       (discover-tests #:test-type test-type
+                       #:scan-dir scan-dir
+                       #:test-top-dir test-top-dir
+                       #:test-module test-module
+                       #:dir (cdr dir)))
+      ((and (list? dir)
+            (equal? test-type
+                    (car dir)))
+       (flatten-list (cdr dir)))
+      ((list? dir)
+       (map (lambda (x)
+              (discover-tests #:test-type test-type
+                              #:scan-dir scan-dir
+                              #:test-top-dir test-top-dir
+                              #:test-module test-module
+                              #:dir x)) dir))
+      (else '()))))
 
