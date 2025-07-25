@@ -42,7 +42,8 @@
            (map remove-stat children)))))
 
 (define* (run-test-file #:key test-file test-type entrypoint-function)
-  (let* ((_ (display (format #f "
+  (let* ((_ (display "\n+----------------------------------------------+"))
+         (_ (display (format #f "
 running ~a tests from file: ~a, entrypoint: ~a
 
 "
