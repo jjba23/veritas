@@ -17,6 +17,8 @@ Unit, Integration and Black Box testing framework powered by Lisp (Guile Scheme)
 
 ----------------------
 
+Normal arguments are denoted by their name, keyword arguments are denoted by their name prefixed with ~#:~ as in Scheme. When ~rest~ arguments are mentioned, it's another terminology for variadic.
+
 
 * Core functions: /MUNERA PRIMA/
 
@@ -24,59 +26,55 @@ Unit, Integration and Black Box testing framework powered by Lisp (Guile Scheme)
 
 ----------------------
 
-** ~test~
+** test
 
-This function defines a collection of assertions that make up a single test case.
+~test~ defines a collection of assertions that make up a single test case.
 
 - *Parameters*:
     - ~name~ (string): A descriptive name for the test.
-    - ~:key~ (keyword arguments):
-        - ~debug?~ (boolean, optional): If ~#t~, prints a debug representation of the test results. Defaults to ~#f~.
-        - ~shuffle?~ (boolean, optional): If ~#t~, shuffles the order of the test cases. Defaults to ~#t~.
-        - ~skip?~ (boolean, optional): If ~#t~, the test is skipped. Defaults to ~#f~.
-    - ~:rest~ (list): A list of assertion procedures to be executed as part of this test.
+    - ~#:debug?~ (boolean, optional): If ~#t~, prints a debug representation of the test results. Defaults to ~#f~.
+    - ~#:shuffle?~ (boolean, optional): If ~#t~, shuffles the order of the test cases. Defaults to ~#t~.
+    - ~#:skip?~ (boolean, optional): If ~#t~, the test is skipped. Defaults to ~#f~.
+    - ~rest~ (list): A list of assertion procedures to be executed as part of this test.
 
 ----------------------
 
-** ~suite~
+** suite
 
-This function groups a series of tests into a logical suite.
+~suite~ groups a series of tests into a logical suite.
 
 - *Parameters*:
     - ~name~ (string): A descriptive name for the test suite.
-    - ~:key~ (keyword arguments):
-        - ~debug?~ (boolean, optional): If ~#t~, prints a debug representation of the suite's results. Defaults to ~#f~.
-        - ~shuffle?~ (boolean, optional): If ~#t~, shuffles the order of the tests within the suite. Defaults to ~#t~.
-        - ~skip?~ (boolean, optional): If ~#t~, the entire suite is skipped. Defaults to ~#f~.
-        - ~concurrent?~ (boolean, optional): If ~#t~, runs the tests concurrently using fibers. Defaults to ~#t~.
-    - ~:rest~ (list): A list of test procedures to be executed within this suite.
+    - ~#:debug?~ (boolean, optional): If ~#t~, prints a debug representation of the suite's results. Defaults to ~#f~.
+    - ~#:shuffle?~ (boolean, optional): If ~#t~, shuffles the order of the tests within the suite. Defaults to ~#t~.
+    - ~#:skip?~ (boolean, optional): If ~#t~, the entire suite is skipped. Defaults to ~#f~.
+    - ~#:concurrent?~ (boolean, optional): If ~#t~, runs the tests concurrently using fibers. Defaults to ~#t~.
+    - ~rest~ (list): A list of test procedures to be executed within this suite.
 
 ----------------------
 
-** ~benchmark~
+** benchmark
 
-This function runs a procedure multiple times and reports performance statistics using ~statprof~.
+~benchmark~ runs a procedure multiple times and reports performance statistics using ~statprof~.
 
 - *Parameters*:
-    - ~name~ (string): A descriptive name for the benchmark.
-    - ~runs~ (number): The number of times to run the provided procedure.
-    - ~thunk~ (function): The procedure to be measured and sampled.
-    - ~:key~ (keyword arguments):
-        - ~skip?~ (boolean, optional): If ~#t~, the benchmark is skipped. Defaults to ~#f~.
+    - ~#:name~ (string): A descriptive name for the benchmark.
+    - ~#:runs~ (number): The number of times to run the provided procedure.
+    - ~#:thunk~ (function): The procedure to be measured and sampled.
+    - ~#:skip?~ (boolean, optional): If ~#t~, the benchmark is skipped. Defaults to ~#f~.
 
 ----------------------          
 
-** ~veritas-run~
+** veritas-run
 
-This is the main entry point for executing test suites and benchmarks. It orchestrates the entire test run, collects results, and provides a final report.
+~veritas-run~ is the main entry point for executing test suites and benchmarks. It orchestrates the entire test run, collects results, and provides a final report.
 
 - *Parameters*:
-    - ~:key~ (keyword arguments):
-        - ~shuffle?~ (boolean, optional): If ~#t~, shuffles the order of the tasks (suites and benchmarks) to be run. Defaults to ~#t~.
-        - ~concurrent?~ (boolean, optional): If ~#t~, runs the tasks concurrently using fibers. Defaults to ~#t~.
-        - ~debug?~ (boolean, optional): If ~#t~, prints debug information about the test results. Defaults to ~#f~.
-        - ~reporter~ (alist of symbol to procedures, optional): The reporter to use for outputting results. Defaults to ~colorful-reporter~. You can easily write your own too.
-    - ~:rest~ (list): A list of test or benchmark procedures to be executed.
+    - ~#:shuffle?~ (boolean, optional): If ~#t~, shuffles the order of the tasks (suites and benchmarks) to be run. Defaults to ~#t~.
+    - ~#:concurrent?~ (boolean, optional): If ~#t~, runs the tasks concurrently using fibers. Defaults to ~#t~.
+    - ~#:debug?~ (boolean, optional): If ~#t~, prints debug information about the test results. Defaults to ~#f~.
+    - ~#:reporter~ (alist of symbol to procedures, optional): The reporter to use for outputting results. Defaults to ~colorful-reporter~. You can easily write your own too.
+    - ~rest~ (list): A list of test or benchmark procedures to be executed.
 
 ----------------------
 
@@ -100,7 +98,7 @@ Note: If one desires to delay execution of the ~#:got~ argument of the assertion
 
 ----------------------
 
-** ~assert-equal~
+** assert-equal
 
 Asserts that two values are equal based on the ~equal?~ comparison function.
 
@@ -111,7 +109,7 @@ Asserts that two values are equal based on the ~equal?~ comparison function.
 
 ----------------------
 
-** ~assert-eqv~
+** assert-eqv
 
 Asserts that two values are equivalent based on the ~eqv?~ comparison function. This is typically used for comparing objects that are "the same" in a more fundamental way than ~equal?~ would suggest (e.g., numbers and characters).
 
@@ -123,7 +121,7 @@ Asserts that two values are equivalent based on the ~eqv?~ comparison function. 
       
 ----------------------
 
-** ~assert-eq~
+** assert-eq
 
 Asserts that two values are the exact same object based on the ~eq?~ comparison function. This is the strictest comparison.
 
@@ -134,7 +132,7 @@ Asserts that two values are the exact same object based on the ~eq?~ comparison 
 
 ----------------------
 
-** ~assert-true~
+** assert-true
 
 Asserts that a given value is ~#t~.
 
@@ -144,7 +142,7 @@ Asserts that a given value is ~#t~.
 
 ----------------------      
 
-** ~assert-false~
+** assert-false
 
 Asserts that a given value is ~#f~.
 
@@ -154,7 +152,7 @@ Asserts that a given value is ~#f~.
 
 ----------------------      
 
-** ~assert-error~
+** assert-error
 
 Asserts that a function call will result in an error.
 
@@ -164,7 +162,7 @@ Asserts that a function call will result in an error.
 
 ----------------------      
 
-** ~assert-no-error~
+** assert-no-error
 
 Asserts that a function call will not result in an error.
 
@@ -178,9 +176,9 @@ Asserts that a function call will not result in an error.
 
 ~prelude.scm~: Shared grammar, language constructs and utilities
 
-** ~evaluate-thunks-concurrently~
+** evaluate-thunks-concurrently
 
-This macro, takes a list of functions that take no arguments (known as "thunks"),  runs each one concurrently and returns a list of their results once all have completed. This is useful for speeding up tasks that can be performed in parallel.
+~evaluate-thunks-concurrently~ is a macro that takes a list of functions that take no arguments (known as "thunks"),  runs each one concurrently and returns a list of their results once all have completed. This is useful for speeding up tasks that can be performed in parallel.
 
 - *Parameters*:
     - ~thunks~ (list of functions): A list of procedures to execute.
@@ -190,9 +188,9 @@ This macro, takes a list of functions that take no arguments (known as "thunks")
 
 ---------------
 
-** ~evaluate-thunks~
+** evaluate-thunks
 
-This macro takes a list of functions (thunks) that don't take any arguments, runs each one sequentially, and returns a list of their results. It's the non-concurrent alternative to ~evaluate-thunks-concurrently~.
+~evaluate-thunks~ is a macro takes a list of functions (thunks) that don't take any arguments, runs each one sequentially, and returns a list of their results.
 
 - *Parameters*:
     - ~thunks~ (list of functions): A list of procedures to execute.
@@ -206,20 +204,20 @@ This macro takes a list of functions (thunks) that don't take any arguments, run
 
 Some functionalities, including the runner, are configured via environment variables for ease of use and integration in CI environments. In the Guile Scheme implementation this is done leveraging parameters and. All the variables have sane defaults, but are your entry-point for lots of customisation of the test process.
 
-~VERITAS_ENTRYPOINT~ defaults to ~spec~ and determines which function should be called as entry-point to your tests.
+- ~VERITAS_ENTRYPOINT~ defaults to ~spec~ and determines which function should be called as entry-point to your tests.
 
-~VERITAS_SCAN_DIR~ defaults to ~./~ and determines which directory should be used to look for test directories and files.
+- ~VERITAS_SCAN_DIR~ defaults to ~./~ and determines which directory should be used to look for test directories and files.
 
-~VERITAS_TEST_TYPE~ defaults to ~unit~ and determines which type of test to use, and thus which directory should be used to load files from.
+- ~VERITAS_TEST_TYPE~ defaults to ~unit~ and determines which type of test to use, and thus which directory should be used to load files from.
 
-~VERITAS_TEST_TOP_DIR~ defaults to ~test~ and determines which directory to use to look for test hierarchies, typically this means a ~test~ directory beside your ~src~ directory, at top repository level.
+- ~VERITAS_TEST_TOP_DIR~ defaults to ~test~ and determines which directory to use to look for test hierarchies, typically this means a ~test~ directory beside your ~src~ directory, at top repository level.
 
-~VERITAS_TEST_MODULE~ defaults to ~veritas~ and determines the test module to load, and also should be equal to the Guile Scheme modules name you use. For example if you have a unit test file a ~./test/my-program/unit/my-test.scm~ then you should change this variable to the value ~my-program~ and your module declaration should be ~(define-module (my-program unit my-test))~. If you don't change the defaults, place your tests at for example ~./test/veritas/unit/my-test.scm~ and name them ~(define-module (veritas unit my-test))~.
+- ~VERITAS_TEST_MODULE~ defaults to ~veritas~ and determines the test module to load, and also should be equal to the Guile Scheme modules name you use. For example if you have a unit test file a ~./test/my-program/unit/my-test.scm~ then you should change this variable to the value ~my-program~ and your module declaration should be ~(define-module (my-program unit my-test))~. If you don't change the defaults, place your tests at for example ~./test/veritas/unit/my-test.scm~ and name them ~(define-module (veritas unit my-test))~.
 
-~VERITAS_SHUFFLE_FILES~ defaults to ~true~ and determines whether to shuffle test file order or not.      
+- ~VERITAS_SHUFFLE_FILES~ defaults to ~true~ and determines whether to shuffle test file order or not.      
 
-~VERITAS_RUN_BENCHMARKS~ defaults to ~true~ and determines whether benchmarks should be run.
+- ~VERITAS_RUN_BENCHMARKS~ defaults to ~true~ and determines whether benchmarks should be run.
 
-~VERITAS_ONLY_TEST~ is an optional variable you can pass to limit the execution to test cases whose name partially matches this variable.
+- ~VERITAS_ONLY_TEST~ is an optional variable you can pass to limit the execution to test cases whose name partially matches this variable.
 
-~VERITAS_ONLY_SUITE~ is an optional variable you can pass to limit the execution to suites whose name partially matches this variable.
+- ~VERITAS_ONLY_SUITE~ is an optional variable you can pass to limit the execution to suites whose name partially matches this variable.
