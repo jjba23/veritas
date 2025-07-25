@@ -137,6 +137,8 @@ scanning present working directory for ~a tests..."
   (cond
     ((and (pair? xs)
           (string? (car xs))
+          (not (string-suffix? ".scm"
+                               (car xs)))
           (not (null? (cdr xs))))
      (map (lambda (pp)
             (format #f "~a/~a"
