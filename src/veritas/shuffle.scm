@@ -34,9 +34,7 @@
   (set! *random-state*
         (random-state-from-platform))
   (if (or (null? xs)
-          (null? (cdr xs)))
-      ;; If the list has 0 or 1 elements, it's already "shuffled".
-      xs
+          (null? (cdr xs))) xs
       (let* ((vec (list->vector xs))
              (len (vector-length vec)))
         ;; Loop from the last element down to the second element.

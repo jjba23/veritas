@@ -42,6 +42,7 @@
                             fisher-yates-shuffle)
   #:export (test veritas-run suite benchmark veritas-test-only))
 
+;; ====== Parameters of Environment variables ======
 (define veritas-only-test
   (make-parameter (getenv-or 'VERITAS_ONLY_TEST
                              #:default #f)))
@@ -60,6 +61,7 @@
       (if (string-contains (string-downcase name)
                            (string-downcase restriction)) result #f)))
 
+;; ====== Core EDSL (embedded domain specific language) ======
 (define* (test name
                #:key (debug? #f)
                (shuffle? #t)
@@ -178,6 +180,7 @@
     (if skip? #f
         (if (veritas-run-benchmarks) func #f))))
 
+;; ====== Entry-point function ======
 (define* (veritas-run #:key (shuffle? #t)
                       (concurrent? #t)
                       (debug? #f)
@@ -190,13 +193,13 @@
          (ordered-tasks (if shuffle?
                             (fisher-yates-shuffle valid-tasks) valid-tasks))
          (vc (list (cons 'reporter reporter)))
-         (task-thunks (map (lambda (suite-proc)
+         (task-thunks (map (lambda (task-proc)
                              (let* ((output-port (open-output-string)))
                                (lambda ()
                                  (let* ((result (with-output-to-port
                                                  output-port
                                                  (lambda ()
-                                                   (suite-proc vc))))
+                                                   (task-proc vc))))
                                         (task-output (get-output-string
                                                       output-port))
                                         (_ (close-port output-port)))

@@ -27,15 +27,18 @@
   (suite "Basic Suite"
          (test "Basic Numeric Tests"
                (assert-equal #:expect 1
-                             #:got (+ 10
-                                      (- 0 9)))
-               (assert-equal #:expect 1
                              #:got (* 1 1 1 1 1))
                (assert-equal #:name "checks if addition works"
                              #:expect 4
                              #:got (+ 2 2))
                (assert-equal #:expect 0
-                             #:got (* 1 1 1 1 0)))
+                             #:got (* 1 1 1 1 0))
+               (assert-equal #:expect 1
+                             #:got `(comp (begin
+                                            ;; computations can be done here
+                                            ;; (sleep 5)
+                                            (+ 10
+                                               (- 0 9))))))
          (test "Basic Boolean Tests"
                #:skip? #t
                (assert-false #f

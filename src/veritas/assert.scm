@@ -34,20 +34,30 @@
 
 (define* (assert-equal* #:key expect got compare name)
   (lambda (vc)
-    (when name
-      (log-assert vc name))
-
-    (if (compare expect got)
-        (begin
-          (log-pass vc
-                    (format #f "expect: ~a, got: ~a" expect got))
-          `((assertion-successful unquote #t)
-            (assertion-name unquote name)))
-        (begin
-          (log-fail vc
-                    (format #f "error, expect: ~a, got: ~a" expect got))
-          `((assertion-successful unquote #f)
-            (assertion-name unquote name))))))
+    (let* ((gott (if (and (list? got)
+                          (not (null? got))
+                          (or (equal? 'compute
+                                      (car got))
+                              (equal? 'comp
+                                      (car got))
+                              (equal? 'computare
+                                      (car got))))
+                     (begin
+                       (eval (cadr got)
+                             (interaction-environment))) got)))
+      (when name
+        (log-assert vc name))
+      (if (compare expect gott)
+          (begin
+            (log-pass vc
+                      (format #f "expect: ~a, got: ~a" expect gott))
+            `((assertion-successful unquote #t)
+              (assertion-name unquote name)))
+          (begin
+            (log-fail vc
+                      (format #f "error, expect: ~a, got: ~a" expect gott))
+            `((assertion-successful unquote #f)
+              (assertion-name unquote name)))))))
 
 (define* (assert-error thunk
                        #:key name)
@@ -122,3 +132,4 @@
                  #:expect #f
                  #:compare eq?
                  #:name name))
+

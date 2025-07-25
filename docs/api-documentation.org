@@ -84,7 +84,22 @@ This is the main entry point for executing test suites and benchmarks. It orches
 
 ~assert.scm~: Assertion functions
 
+Note: If one desires to delay execution of the ~#:got~ argument of the assertions, one can simply quote it and wrap it inside a block with ~compute~ as ~car~. You can use ~compute~, ~computare~, or ~comp~ as special keywords for lazy evaluation. This works for all assertions, except ~assert-error~ and related. See an example here:
+
+#+begin_src scheme
+;; got will evaluate eagerly
+(assert-equal #:expect 1
+              #:got (+ 10 (- 0 9)))
+
+;; got will evaluate lazily, inside test context
+(assert-equal #:expect 1
+              #:got `(comp (begin
+                             (sleep 4)
+                             (+ 10 (- 0 9)))))
+#+end_src
+
 ----------------------
+
 ** ~assert-equal~
 
 Asserts that two values are equal based on the ~equal?~ comparison function.
