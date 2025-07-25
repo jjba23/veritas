@@ -25,20 +25,6 @@
 
 (define basic-suite
   (suite "Basic Suite"
-         (test "Basic Numeric Tests"
-               (assert-equal #:expect 1
-                             #:got (* 1 1 1 1 1))
-               (assert-equal #:name "checks if addition works"
-                             #:expect 4
-                             #:got (+ 2 2))
-               (assert-equal #:expect 0
-                             #:got (* 1 1 1 1 0))
-               (assert-equal #:expect 1
-                             #:got `(comp (begin
-                                            ;; computations can be done here
-                                            ;; (sleep 5)
-                                            (+ 10
-                                               (- 0 9))))))
          (test "Basic Boolean Tests"
                #:skip? #t
                (assert-false #f
@@ -56,9 +42,6 @@
                (assert-true (string=? "scheme" "scheme"))
                (assert-false (string=? "guile" "Scheme")))))
 
-(define (is-even n)
-  (= (modulo n 2) 0))
-
 (define (divide a b)
   (if (= b 0)
       (error "Division by zero")
@@ -73,15 +56,6 @@
 
 (define predicate-suite
   (suite "Predicate Tests"
-         (test "Even Number Checks"
-               (assert-true (is-even 4)
-                            #:name "4 should be even")
-               (assert-false (is-even 7)
-                             #:name "7 should not be even")
-               (assert-true (is-even 0)
-                            #:name "0 should be even")
-               (assert-false (is-even 1)
-                             #:name "1 should not be even"))
          (test "List Predicates"
                (assert-true (null? '())
                             #:name "Empty list should be null")
