@@ -94,6 +94,14 @@ Note: If one desires to delay execution of the ~#:got~ argument of the assertion
               #:got `(comp (begin
                              (sleep 4)
                              (+ 10 (- 0 9)))))
+
+(assert-equal #:expect 144
+              #:got `(comp (begin
+                             ;; This block is evaluated by Veritas.
+                             ;; Useful for setup or complex expressions.
+                             (let ((x 12))
+                               (* x x))))
+              #:name "Complex computation inside an assertion")
 #+end_src
 
 ----------------------
