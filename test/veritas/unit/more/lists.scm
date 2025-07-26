@@ -65,5 +65,5 @@
                              #:name "Concatenate two empty lists"))))
 
 (define (spec)
-  (veritas-run #:reporter colorful-reporter list-suite))
+  (veritas-run list-suite))
 

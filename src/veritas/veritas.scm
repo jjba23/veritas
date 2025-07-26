@@ -40,7 +40,8 @@
                             evaluate-thunks-concurrently
                             collect-assertion-successful
                             fisher-yates-shuffle)
-  #:export (test veritas-run suite benchmark veritas-test-only))
+  #:export (test veritas-run suite benchmark veritas-test-only
+                 do-if-string-contained))
 
 ;; ====== Parameters of Environment variables ======
 (define veritas-only-test
@@ -51,12 +52,12 @@
   (make-parameter (getenv-or 'VERITAS_ONLY_SUITE
                              #:default #f)))
 
-(define veritas-run-benchmarks
+(define veritas-run-benchmarks?
   (make-parameter (equal? "true"
                           (getenv-or 'VERITAS_RUN_BENCHMARKS
                                      #:default "true"))))
 
-(define* (if-matches-restriction #:key name restriction result)
+(define* (do-if-string-contained #:key name restriction result)
   (if (not restriction) result
       (if (string-contains (string-downcase name)
                            (string-downcase restriction)) result #f)))
@@ -107,7 +108,7 @@
 
                    (make-pre-test-result name test-results)))))
     (if skip? #f
-        (if-matches-restriction #:name name
+        (do-if-string-contained #:name name
                                 #:restriction (veritas-only-test)
                                 #:result func))))
 
@@ -158,7 +159,7 @@
                      (write final-suite-data)
                      (newline)) final-suite-data))))
     (if skip? #f
-        (if-matches-restriction #:name name
+        (do-if-string-contained #:name name
                                 #:restriction (veritas-only-suite)
                                 #:result func))))
 
@@ -178,21 +179,34 @@
                                                    (run-details unquote sp))))
                                              (iota runs))))))
     (if skip? #f
-        (if (veritas-run-benchmarks) func #f))))
+        (if (veritas-run-benchmarks?) func #f))))
+
+(define (%make-reporter dsl-input)
+  (let* ((env-var (getenv-or 'VERITAS_REPORTER
+                             #:default #f)))
+    (cond
+      ((not (equal? #f dsl-input))
+       dsl-input)
+      ((not (equal? #f env-var))
+       (string->symbol env-var))
+      (else dsl-input))))
 
 ;; ====== Entry-point function ======
 (define* (veritas-run #:key (shuffle? #t)
                       (concurrent? #t)
                       (debug? #f)
-                      (reporter colorful-reporter)
+                      (reporter #f)
                       #:rest tasks)
-  (let* ((start-test-time (gettimeofday))
+  (let* ((_ (begin
+              (write reporter)))
+         (start-test-time (gettimeofday))
          (start-seconds (car start-test-time))
          (start-microseconds (cdr start-test-time))
          (valid-tasks (filter procedure? tasks))
          (ordered-tasks (if shuffle?
                             (fisher-yates-shuffle valid-tasks) valid-tasks))
-         (vc (list (cons 'reporter reporter)))
+         (made-reporter (%make-reporter reporter))
+         (vc (list (cons 'reporter made-reporter)))
          (task-thunks (map (lambda (task-proc)
                              (let* ((output-port (open-output-string)))
                                (lambda ()

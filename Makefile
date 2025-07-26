@@ -41,7 +41,9 @@ repl:
 
 # Unit tests
 test: fmt
-	VERITAS_RUN_BENCHMARKS=true VERITAS_TEST_TYPE=unit \
+	VERITAS_REPORTER="monotone-reporter" \
+	VERITAS_RUN_BENCHMARKS=true \
+	VERITAS_TEST_TYPE=unit \
 		guix shell -m manifest.scm -- \
 		guile --fresh-auto-compile -L ./src \
 		-L ./test \

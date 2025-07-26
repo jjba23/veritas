@@ -63,10 +63,7 @@
                        #:key name)
   (lambda (vc)
     (when name
-      (apply (assoc-ref (assoc-ref vc
-                                   'reporter)
-                        'log-assert)
-             (list name)))
+      (log-assert vc name))
     (catch #t
            (lambda ()
              (apply thunk
@@ -84,10 +81,7 @@
                           #:key name)
   (lambda (vc)
     (when name
-      (apply (assoc-ref (assoc-ref vc
-                                   'reporter)
-                        'log-assert)
-             (list name)))
+      (log-assert vc name))
     (catch #t
            (lambda ()
              (apply thunk

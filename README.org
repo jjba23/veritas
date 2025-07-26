@@ -78,8 +78,7 @@ We can also write some benchmarks:
 And then we wire it all up:
 #+begin_src scheme
 (define (spec)
-  (veritas-run #:reporter colorful-reporter
-               #:debug? #t
+  (veritas-run #:debug? #t
                my-veritas-suite
                ;; you can directly pass tests or suites too
                (test "some test without suite"
