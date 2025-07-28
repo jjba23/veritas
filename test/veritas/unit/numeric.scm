@@ -56,7 +56,4 @@
                              #:name "1 should not be even"))))
 
 (define (spec)
-  (veritas-run #:reporter colorful-reporter
-               #:debug? #f
-               predicate-suite
-               basic-suite))
+  (veritas-run #:debug? #t predicate-suite basic-suite))

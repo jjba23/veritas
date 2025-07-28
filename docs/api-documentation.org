@@ -73,7 +73,7 @@ Normal arguments are denoted by their name, keyword arguments are denoted by the
     - ~#:shuffle?~ (boolean, optional): If ~#t~, shuffles the order of the tasks (suites and benchmarks) to be run. Defaults to ~#t~.
     - ~#:concurrent?~ (boolean, optional): If ~#t~, runs the tasks concurrently using fibers. Defaults to ~#t~.
     - ~#:debug?~ (boolean, optional): If ~#t~, prints debug information about the test results. Defaults to ~#f~.
-    - ~#:reporter~ (alist of symbol to procedures, optional): The reporter to use for outputting results. Defaults to ~colorful-reporter~. You can easily write your own too.
+    - ~#:reporter~ (symbol, optional): The reporter to use for outputting results. Defaults to ~emoji-reporter~. You can also use ~monotone-reporter~
     - ~rest~ (list): A list of test or benchmark procedures to be executed.
 
 ----------------------
@@ -94,6 +94,14 @@ Note: If one desires to delay execution of the ~#:got~ argument of the assertion
               #:got `(comp (begin
                              (sleep 4)
                              (+ 10 (- 0 9)))))
+
+(assert-equal #:expect 144
+              #:got `(comp (begin
+                             ;; This block is evaluated by Veritas.
+                             ;; Useful for setup or complex expressions.
+                             (let ((x 12))
+                               (* x x))))
+              #:name "Complex computation inside an assertion")
 #+end_src
 
 ----------------------
@@ -221,3 +229,5 @@ Some functionalities, including the runner, are configured via environment varia
 - ~VERITAS_ONLY_TEST~ is an optional variable you can pass to limit the execution to test cases whose name partially matches this variable.
 
 - ~VERITAS_ONLY_SUITE~ is an optional variable you can pass to limit the execution to suites whose name partially matches this variable.
+
+- ~VERITAS_REPORTER~ is an optional variable, interpreted as symbol in Lisp, by default ~emoji-reporter~, other choices are ~monotone-reporter~ 

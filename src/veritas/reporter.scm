@@ -25,19 +25,19 @@
   #:use-module (ice-9 textual-ports)
   #:use-module (ice-9 rdelim)
   #:use-module (veritas model)
-  #:export (colorful-reporter log
-                              ansi-color-escapes
-                              monotone-reporter
-                              log-debug
-                              log-pass
-                              log-fail
-                              log-assert
-                              log-test
-                              log-suite
-                              log-info
-                              log-error
-                              log-benchmark
-                              dispatch-log))
+  #:export (emoji-reporter log
+                           ansi-color-escapes
+                           monotone-reporter
+                           log-debug
+                           log-pass
+                           log-fail
+                           log-assert
+                           log-test
+                           log-suite
+                           log-info
+                           log-error
+                           log-benchmark
+                           dispatch-log))
 
 (define ansi-color-escapes
   `((yellow . "\x1b[0;33m") (magenta . "\x1b[0;35m")
@@ -52,10 +52,16 @@
 (define-syntax-rule (log msg)
   (format #t "\n~a" msg))
 
-(define-syntax-rule (dispatch-log vc log-type msg)
-  ((assoc-ref (assoc-ref vc
-                         'reporter) log-type)
-   msg))
+(define (dispatch-log vc log-type msg)
+  (let* ((reporter-sym (assoc-ref vc
+                                  'reporter))
+         (reporter-alist (cond
+                           ((equal? 'monotone-reporter reporter-sym)
+                            monotone-reporter)
+                           (else emoji-reporter))))
+    
+    (apply (assoc-ref reporter-alist log-type)
+           (list msg))))
 
 (define-syntax-rule (log-pass vc msg)
   (dispatch-log vc
@@ -93,14 +99,17 @@
   (dispatch-log vc
                 'log-benchmark msg))
 
-(define colorful-reporter
-  `((log-pass unquote
-              (lambda (msg)
-                (log (format #f "    ~a✅ pass - ~a~a"
-                             (assoc-ref ansi-color-escapes
-                                        'green) msg
-                             (assoc-ref ansi-color-escapes
-                                        'reset)))))
+(define emoji-reporter
+  `((reporter-name . emoji-reporter) (log-pass unquote
+                                               (lambda (msg)
+                                                 (log (format #f
+                                                       "    ~a✅ pass - ~a~a"
+                                                       (assoc-ref
+                                                        ansi-color-escapes
+                                                        'green) msg
+                                                       (assoc-ref
+                                                        ansi-color-escapes
+                                                        'reset)))))
     (log-fail unquote
               (lambda (msg)
                 (log (format #f "    ~a❌ fail - ~a~a"
@@ -205,9 +214,10 @@
                                           'reset)))))))
 
 (define monotone-reporter
-  `((log-pass unquote
-              (lambda (msg)
-                (log (format #f "    [pass] ~a" msg))))
+  `((reporter-name . monotone-reporter) (log-pass unquote
+                                                  (lambda (msg)
+                                                    (log (format #f
+                                                          "    [pass] ~a" msg))))
     (log-fail unquote
               (lambda (msg)
                 (log (format #f "    [fail] ~a"

@@ -105,26 +105,12 @@
                              #:got (vector-ref some-vector 0)
                              #:name "Vector ref at index 0"))))
 
-(define (factorial n)
-  (if (= n 0) 1
-      (* n
-         (factorial (- n 1)))))
-
-(define simple-factorial-benchmark
-  (benchmark #:name "Recursive computation of the factorial of 10000"
-             #:runs 3
-             #:thunk (lambda ()
-                       (factorial 10000))))
-
 (define (spec)
-  (veritas-run #:reporter colorful-reporter
-               ;; ⤴ or monotone-reporter, or your own implementation
-               #:debug? #f
+  (veritas-run #:debug? #f
                predicate-suite
                error-handling-suite
                complex-data-suite
                basic-suite
-               simple-factorial-benchmark
                (test "some test without suite"
                      (assert-equal #:expect 1
                                    #:got (* 1 1 1 1)))

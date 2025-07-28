@@ -40,7 +40,6 @@ We can define some simple Scheme functions to test with:
 
 We can then write a test suite:
 #+begin_src scheme
-
 (define my-veritas-suite
   (suite "My First Veritas Test Suite"
          (test "is-even"
@@ -54,8 +53,15 @@ We can then write a test suite:
                              #:name "length of empty list should be 0")
                (assert-equal #:expect 3
                              #:got (length '(a b c))
-                             #:name "length of list with 3 elements should be 3"))))
-
+                             #:name "length of list with 3 elements should be 3"))
+         (test "delayed computation"
+               (assert-equal #:expect 144
+                             #:got `(comp (begin
+                                            ;; This block is evaluated by Veritas.
+                                            ;; Useful for setup or complex expressions.
+                                            (let ((x 12))
+                                              (* x x))))
+                             #:name "Complex computation inside an assertion"))))
 
 #+end_src
 
@@ -72,8 +78,7 @@ We can also write some benchmarks:
 And then we wire it all up:
 #+begin_src scheme
 (define (spec)
-  (veritas-run #:reporter colorful-reporter
-               #:debug? #t
+  (veritas-run #:debug? #t
                my-veritas-suite
                ;; you can directly pass tests or suites too
                (test "some test without suite"
