@@ -50,7 +50,9 @@ steps:
   pr-submit-byggsteg-job-jointhefreeworld:
     image: *byggsteg_submit_job_image
     when:
-      - event: [ "pull_request" ]
+      - event: [ "push" ]
+        branch:
+          exclude: [ "trunk" ]
     settings:
       BYGGSTEG_URL: *byggsteg_url
       BYGGSTEG_JOB_CODE: |
