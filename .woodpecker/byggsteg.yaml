@@ -25,8 +25,7 @@ steps:
   get-byggsteg-token-jointhefreeworld:
     image: *byggsteg_get_token_image
     when:
-      - event: [ "push" ]
-        branch: [ "trunk" ]
+      - event: [ "push", "pull_request" ]
     settings:
       BYGGSTEG_EMAIL:
         from_secret: "BYGGSTEG_EMAIL"
@@ -45,15 +44,25 @@ steps:
         (lambda()
           `((task . ("make-test" "pull-and-deploy"))
             (project . "%%CI_REPO_NAME%%")
-            (branch-name . "%%CI_COMMIT_BRANCH%%")            
+            (branch-name . "%%CI_COMMIT_BRANCH%%")
             (clone-url . "%%CI_REPO_CLONE_URL%%")))
+
+  pr-submit-byggsteg-job-jointhefreeworld:
+    image: *byggsteg_submit_job_image
+    when:
+      - event: [ "pull_request" ]
+    settings:
+      BYGGSTEG_URL: *byggsteg_url
+      BYGGSTEG_JOB_CODE: |
+        (lambda()
+          `((task . "make-test")
+            (project . "%%CI_REPO_NAME%%")
+            (branch-name . "%%CI_COMMIT_BRANCH%%")            
+            (clone-url . "%%CI_REPO_CLONE_URL%%")))            
             
   poll-byggsteg-job-jointhefreeworld:
     image: *byggsteg_poll_job_image
     when:
-      - event: [ "push" ]
-        branch: [ "trunk" ]
+      - event: [ "push", "pull_request" ]
     settings:
       BYGGSTEG_URL: *byggsteg_url
-
-
