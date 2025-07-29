@@ -96,6 +96,36 @@
 
 (define advanced-features-suite
   (suite "Advanced Veritas Features"
+         #:before-all (lambda (vc)
+                        (let* ((some-dir "./tmp-advanced-features-suite")
+                               (some-file (format #f "~a/some-file.txt"
+                                                  some-dir)))
+                          (catch #t
+                                 (lambda ()
+                                   (mkdir some-dir))
+                                 (lambda (key . args)
+                                   (log-info vc
+                                             (format #f "~a already existed"
+                                                     some-dir))))
+                          (with-output-to-file some-file
+                            (lambda ()
+                              (display "TRANSIRE RUBICONEM")
+                              (display "\nALEA IACTA EST")))))
+         #:after-all (lambda (vc)
+                       (let* ((some-dir "./tmp-advanced-features-suite")
+                              (some-file (format #f "~a/some-file.txt"
+                                                 some-dir)))
+                         (catch #t
+                                (lambda ()
+                                  (delete-file some-file))
+                                (lambda (key . args)
+                                  '()))
+                         (catch #t
+                                (lambda ()
+                                  (rmdir some-dir))
+                                (lambda (key . args)
+                                  '()))))
+
          (test "A test that is currently skipped"
                #:skip? #t
                (assert-equal #:expect #f
@@ -139,3 +169,4 @@
                advanced-features-suite
                simple-factorial-benchmark))
 (spec)
+

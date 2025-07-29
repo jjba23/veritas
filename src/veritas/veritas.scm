@@ -37,6 +37,9 @@
                             assert-false
                             assert-error
                             assert-no-error
+                            log-info
+                            log-error
+                            log-debug
                             evaluate-thunks-concurrently
                             collect-assertion-successful
                             fisher-yates-shuffle)
@@ -67,6 +70,8 @@
                #:key (debug? #f)
                (shuffle? #t)
                (skip? #f)
+               (before #f)
+               (after #f)
                #:rest cases)
   (let* ((func (lambda (vc)
                  (log-test vc name)
@@ -99,7 +104,13 @@
                                                                   result-and-output)
                                                                  'assertion-successful)))))
                                                indexed-cases))
-                        (test-results (evaluate-thunks assertion-thunks)))
+                        (_ (if (not before)
+                               '()
+                               (before vc)))
+                        (test-results (evaluate-thunks assertion-thunks))
+                        (_ (if (not after)
+                               '()
+                               (after vc))))
                    
                    (when debug?
                      (newline)
@@ -117,6 +128,8 @@
                 (shuffle? #t)
                 (skip? #f)
                 (concurrent? #t)
+                (before-all #f)
+                (after-all #f)
                 #:rest tests)
   (let* ((func (lambda (vc)
                  (let* ((procedure-tests (filter procedure? tests))
@@ -145,12 +158,19 @@
                                                   (make-test-result idx
                                                    test-output result)))))
                                           indexed-tests))
-                        (_ (unless (null? test-thunks)
-                             (log-suite vc name)))
+                        (_ (begin
+                             (unless (null? test-thunks)
+                               (log-suite vc name))
+                             (if (not before-all)
+                                 '()
+                                 (before-all vc))))
                         (test-results (if concurrent?
                                           (evaluate-thunks-concurrently
                                            test-thunks)
                                           (evaluate-thunks test-thunks)))
+                        (_ (if (not after-all)
+                               '()
+                               (after-all vc)))
                         (final-suite-data (make-suite-result name test-results
                                                              "")))
                    
@@ -197,9 +217,7 @@
                       (debug? #f)
                       (reporter #f)
                       #:rest tasks)
-  (let* ((_ (begin
-              (write reporter)))
-         (start-test-time (gettimeofday))
+  (let* ((start-test-time (gettimeofday))
          (start-seconds (car start-test-time))
          (start-microseconds (cdr start-test-time))
          (valid-tasks (filter procedure? tasks))
