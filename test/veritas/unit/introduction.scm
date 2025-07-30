@@ -117,11 +117,7 @@
                                                  some-dir)))
                          (catch #t
                                 (lambda ()
-                                  (delete-file some-file))
-                                (lambda (key . args)
-                                  '()))
-                         (catch #t
-                                (lambda ()
+                                  (delete-file some-file)
                                   (rmdir some-dir))
                                 (lambda (key . args)
                                   '()))))

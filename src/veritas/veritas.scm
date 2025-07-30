@@ -123,6 +123,16 @@
                                 #:restriction (veritas-only-test)
                                 #:result func))))
 
+(define (get-test-cases-for-suite xs)
+  (cond
+    ((null? xs)
+     '())
+    ((equal? #:before-all (car xs))
+     (get-test-cases-for-suite (cdr (cdr xs))))
+    ((equal? #:after-all (car xs))
+     (get-test-cases-for-suite (cdr (cdr xs))))
+    (else (filter procedure? xs))))
+
 (define* (suite name
                 #:key (debug? #f)
                 (shuffle? #t)
@@ -132,7 +142,7 @@
                 (after-all #f)
                 #:rest tests)
   (let* ((func (lambda (vc)
-                 (let* ((procedure-tests (filter procedure? tests))
+                 (let* ((procedure-tests (get-test-cases-for-suite tests))
                         (indexed-tests (map (lambda (test-proc i)
                                               (list i test-proc))
                                             (if shuffle?

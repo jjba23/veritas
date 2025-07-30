@@ -84,6 +84,8 @@ those functions and return a list of what each function returned."
      '())
     ((list? xs)
      (map collect-assertion-successful xs))
+    ((equal? #t xs)
+     '())
     (else (error (format #f
                   "could not read assertion success from unknown type: ~a" xs)))))
 
@@ -91,7 +93,6 @@ those functions and return a list of what each function returned."
   (flatten-list (collect-assertion-successful* xs)))
 
 (define (display-assertion-results assertion-results)
-  (write assertion-results)
   (for-each (lambda (x)
               (catch #t
                      (lambda ()
