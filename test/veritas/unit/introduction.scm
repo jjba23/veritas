@@ -155,8 +155,7 @@
 ;; The main function that Veritas will call to
 ;; run all tests in this file.
 (define (spec)
-  (veritas-run #:reporter emoji-reporter
-               #:debug? #f
+  (veritas-run #:debug? #f
                ;; Add all suites, individual tests,
                ;; and benchmarks to the runner.
                basics-suite
