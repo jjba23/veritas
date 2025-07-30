@@ -41,7 +41,7 @@ repl:
 
 # Unit tests
 test: fmt
-	VERITAS_REPORTER="json-reporter" \
+	VERITAS_REPORTER="emoji-reporter" \
 	VERITAS_RUN_BENCHMARKS=true \
 	VERITAS_TEST_TYPE=unit \
 		guix shell -m manifest.scm -- \
