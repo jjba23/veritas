@@ -115,12 +115,8 @@
                        (let* ((some-dir "./tmp-advanced-features-suite")
                               (some-file (format #f "~a/some-file.txt"
                                                  some-dir)))
-                         (catch #t
-                                (lambda ()
-                                  (delete-file some-file)
-                                  (rmdir some-dir))
-                                (lambda (key . args)
-                                  '()))))
+                         (delete-file some-file)
+                         (rmdir some-dir)))
 
          (test "A test that is currently skipped"
                #:skip? #t
@@ -129,6 +125,10 @@
                              #:name
                              "This test won't run because it is skipped"))
          (test "A test with a complex computation block"
+               #:before (lambda (vc)
+                          (log-info vc "before test runs"))
+               #:after (lambda (vc)
+                         (log-info vc "after test runs"))
                (assert-equal #:expect 144
                              #:got `(comp (begin
                                             ;; This block is evaluated by Veritas.

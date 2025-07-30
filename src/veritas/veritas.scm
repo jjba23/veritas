@@ -65,6 +65,18 @@
       (if (string-contains (string-downcase name)
                            (string-downcase restriction)) result #f)))
 
+(define (get-cases-for-test xs)
+  (cond
+    ((null? xs)
+     '())
+    ((equal? #:before (car xs))
+     (get-cases-for-test (cdr (cdr xs))))
+    ((equal? #:after (car xs))
+     (get-cases-for-test (cdr (cdr xs))))
+    ((list? xs)
+     (filter procedure? xs))
+    (else xs)))
+
 ;; ====== Core EDSL (embedded domain specific language) ======
 (define* (test name
                #:key (debug? #f)
@@ -75,7 +87,7 @@
                #:rest cases)
   (let* ((func (lambda (vc)
                  (log-test vc name)
-                 (let* ((procedure-cases (filter procedure? cases))
+                 (let* ((procedure-cases (get-cases-for-test cases))
                         (indexed-cases (map (lambda (case-proc i)
                                               (list i case-proc))
                                             (if shuffle?
@@ -123,15 +135,17 @@
                                 #:restriction (veritas-only-test)
                                 #:result func))))
 
-(define (get-test-cases-for-suite xs)
+(define (get-tests-for-suite xs)
   (cond
     ((null? xs)
      '())
     ((equal? #:before-all (car xs))
-     (get-test-cases-for-suite (cdr (cdr xs))))
+     (get-tests-for-suite (cdr (cdr xs))))
     ((equal? #:after-all (car xs))
-     (get-test-cases-for-suite (cdr (cdr xs))))
-    (else (filter procedure? xs))))
+     (get-tests-for-suite (cdr (cdr xs))))
+    ((list? xs)
+     (filter procedure? xs))
+    (else xs)))
 
 (define* (suite name
                 #:key (debug? #f)
@@ -142,7 +156,7 @@
                 (after-all #f)
                 #:rest tests)
   (let* ((func (lambda (vc)
-                 (let* ((procedure-tests (get-test-cases-for-suite tests))
+                 (let* ((procedure-tests (get-tests-for-suite tests))
                         (indexed-tests (map (lambda (test-proc i)
                                               (list i test-proc))
                                             (if shuffle?
