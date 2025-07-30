@@ -18,6 +18,7 @@
 (define-module (veritas unit introduction)
   #:use-module (veritas veritas)
   #:use-module (veritas reporter)
+  #:use-module (ice-9 textual-ports)
   #:export (spec))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -114,7 +115,12 @@
          #:after-all (lambda (vc)
                        (let* ((some-dir "./tmp-advanced-features-suite")
                               (some-file (format #f "~a/some-file.txt"
-                                                 some-dir)))
+                                                 some-dir))
+                              (file-lines (string-split (call-with-input-file some-file
+                                                          get-string-all)
+                                                        #\newline)))
+                         (for-each (lambda (line)
+                                     (log-info vc line)) file-lines)
                          (delete-file some-file)
                          (rmdir some-dir)))
 
