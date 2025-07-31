@@ -42,9 +42,8 @@
            (map remove-stat children)))))
 
 (define* (run-test-file #:key test-file test-type entrypoint-function)
-  (let* ((_ (display "
-+----------------------------------------------+"))
-         (_ (display (format #f "
+  (let* ((_ (display (format #f "
+
 running ~a tests from file: ~a, entrypoint: ~a
 
 "
@@ -104,7 +103,8 @@ scanning present working directory for ~a tests..."
                       (run-test-file #:test-file file
                                      #:test-type test-type
                                      #:entrypoint-function entrypoint-function))
-                    interesting-files))
+                    interesting-files)
+          (display (format #f "\n\nfinished running tests\n")))
         (begin
           (display (format #f "\ncould not find any ~a tests!" test-type))))))
 

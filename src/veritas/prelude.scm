@@ -71,6 +71,8 @@ those functions and return a list of what each function returned."
 
 (define (collect-assertion-successful* xs)
   (cond
+    ((unspecified? xs)
+     '())
     ((assertion-result? xs)
      (assertion-result-successful xs))
     ((pre-test-result? xs)
@@ -82,27 +84,42 @@ those functions and return a list of what each function returned."
      '())
     ((list? xs)
      (map collect-assertion-successful xs))
+    ((equal? #t xs)
+     '())
     (else (error (format #f
                   "could not read assertion success from unknown type: ~a" xs)))))
 
 (define (collect-assertion-successful xs)
   (flatten-list (collect-assertion-successful* xs)))
 
-(define-syntax-rule (display-assertion-results assertion-results)
+(define (display-assertion-results assertion-results)
   (for-each (lambda (x)
-              (if (assertion-result? x)
-                  (display (assertion-result-output x))
-                  (error (format #f "not an assertion-result: ~a" x))))
-            assertion-results))
+              (catch #t
+                     (lambda ()
+                       (if (assertion-result? x)
+                           (display (assertion-result-output x))
+                           (error (format #f "not an assertion-result: ~a" x))))
+                     (lambda (key . args)
+                       (format #t "could not display assertion: ~a: ~a" key
+                               args)))) assertion-results))
 
 (define-syntax-rule (display-test-results test-results)
   (for-each (lambda (x)
-              (if (test-result? x)
-                  (begin
-                    (display (test-result-output x))
-                    (display-assertion-results (pre-test-result-results (test-result-results
-                                                                         x))))
-                  (error (format #f "not a test-result: ~a" x)))) test-results))
+              (cond
+                ((unspecified? x)
+                 '())
+                ((test-result? x)
+                 (begin
+                   (catch #t
+                          (lambda ()
+                            (display (test-result-output x)))
+                          (lambda (key . args)
+                            (format #t "~a: ~a" key args)))
+                   (display-assertion-results (pre-test-result-results (test-result-results
+                                                                        x))))
+                 '())
+
+                (else '()))) test-results))
 
 (define-syntax-rule (display-all-results vc all-results)
   (for-each (lambda (x)

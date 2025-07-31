@@ -18,6 +18,7 @@
 (define-module (veritas unit introduction)
   #:use-module (veritas veritas)
   #:use-module (veritas reporter)
+  #:use-module (ice-9 textual-ports)
   #:export (spec))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -96,6 +97,33 @@
 
 (define advanced-features-suite
   (suite "Advanced Veritas Features"
+         #:before-all (lambda (vc)
+                        (let* ((some-dir "./tmp-advanced-features-suite")
+                               (some-file (format #f "~a/some-file.txt"
+                                                  some-dir)))
+                          (catch #t
+                                 (lambda ()
+                                   (mkdir some-dir))
+                                 (lambda (key . args)
+                                   (log-info vc
+                                             (format #f "~a already existed"
+                                                     some-dir))))
+                          (with-output-to-file some-file
+                            (lambda ()
+                              (display "TRANSIRE RUBICONEM")
+                              (display "\nALEA IACTA EST")))))
+         #:after-all (lambda (vc)
+                       (let* ((some-dir "./tmp-advanced-features-suite")
+                              (some-file (format #f "~a/some-file.txt"
+                                                 some-dir))
+                              (file-lines (string-split (call-with-input-file some-file
+                                                          get-string-all)
+                                                        #\newline)))
+                         (for-each (lambda (line)
+                                     (log-info vc line)) file-lines)
+                         (delete-file some-file)
+                         (rmdir some-dir)))
+
          (test "A test that is currently skipped"
                #:skip? #t
                (assert-equal #:expect #f
@@ -103,6 +131,10 @@
                              #:name
                              "This test won't run because it is skipped"))
          (test "A test with a complex computation block"
+               #:before (lambda (vc)
+                          (log-info vc "before test runs"))
+               #:after (lambda (vc)
+                         (log-info vc "after test runs"))
                (assert-equal #:expect 144
                              #:got `(comp (begin
                                             ;; This block is evaluated by Veritas.
@@ -129,8 +161,7 @@
 ;; The main function that Veritas will call to
 ;; run all tests in this file.
 (define (spec)
-  (veritas-run #:reporter emoji-reporter
-               #:debug? #f
+  (veritas-run #:debug? #f
                ;; Add all suites, individual tests,
                ;; and benchmarks to the runner.
                basics-suite
@@ -139,3 +170,4 @@
                advanced-features-suite
                simple-factorial-benchmark))
 (spec)
+

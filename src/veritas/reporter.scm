@@ -19,6 +19,7 @@
   #:use-module (ice-9 string-fun)
   #:use-module (srfi srfi-1)
   #:use-module (ice-9 iconv)
+  #:use-module (json)
   #:use-module (ice-9 time)
   #:use-module (ice-9 format)
   #:use-module (ice-9 popen)
@@ -27,6 +28,7 @@
   #:use-module (veritas model)
   #:export (emoji-reporter log
                            ansi-color-escapes
+                           json-reporter
                            monotone-reporter
                            log-debug
                            log-pass
@@ -58,6 +60,8 @@
          (reporter-alist (cond
                            ((equal? 'monotone-reporter reporter-sym)
                             monotone-reporter)
+                           ((equal? 'json-reporter reporter-sym)
+                            json-reporter)
                            (else emoji-reporter))))
     
     (apply (assoc-ref reporter-alist log-type)
@@ -272,3 +276,87 @@
     (log-assert unquote
                 (lambda (msg)
                   (log (format #f "    [assert] ~a" msg))))))
+
+(define (now)
+  (strftime "%c"
+            (localtime (current-time))))
+
+(define json-reporter
+  `((reporter-name . json-reporter) (log-pass unquote
+                                              (lambda (msg)
+                                                (log (scm->json-string `((timestamp
+                                                                          unquote
+                                                                          (now))
+                                                                         (level . pass)
+                                                                         (message
+                                                                          unquote
+                                                                          msg))))))
+    (log-fail unquote
+              (lambda (msg)
+                (log (scm->json-string `((timestamp unquote
+                                                    (now))
+                                         (level . fail)
+                                         (message unquote msg))))))
+    (log-error unquote
+               (lambda (msg)
+                 (log (scm->json-string `((timestamp unquote
+                                                     (now))
+                                          (level . error)
+                                          (message unquote msg))))))
+    (log-test unquote
+              (lambda (msg)
+                (log (scm->json-string `((timestamp unquote
+                                                    (now))
+                                         (level . test)
+                                         (message unquote msg))))))
+    (log-benchmark unquote
+                   (lambda (msg)
+                     (log (scm->json-string `((timestamp unquote
+                                                         (now))
+                                              (level . benchmark)
+                                              (message unquote
+                                                       (benchmark-result-name
+                                                        msg)))))
+                     (for-each (lambda (run)
+                                 
+                                 (log (scm->json-string `((timestamp unquote
+                                                                     (now))
+                                                          (level . benchmark)
+                                                          (message unquote
+                                                                   (assoc-ref
+                                                                    run
+                                                                    'run-index)))))
+
+                                 (log (scm->json-string `((timestamp unquote
+                                                                     (now))
+                                                          (level . benchmark)
+                                                          (message unquote
+                                                                   (assoc-ref
+                                                                    run
+                                                                    'run-details))))))
+
+                               (benchmark-result-results msg))))
+    (log-debug unquote
+               (lambda (msg)
+                 (log (scm->json-string `((timestamp unquote
+                                                     (now))
+                                          (level . debug)
+                                          (message unquote msg))))))
+    (log-info unquote
+              (lambda (msg)
+                (log (scm->json-string `((timestamp unquote
+                                                    (now))
+                                         (level . info)
+                                         (message unquote msg))))))
+    (log-suite unquote
+               (lambda (msg)
+                 (log (scm->json-string `((timestamp unquote
+                                                     (now))
+                                          (level . suite)
+                                          (message unquote msg))))))
+    (log-assert unquote
+                (lambda (msg)
+                  (log (scm->json-string `((timestamp unquote
+                                                      (now))
+                                           (level . assert)
+                                           (message unquote msg))))))))
