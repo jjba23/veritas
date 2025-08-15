@@ -53,7 +53,7 @@ test: fmt
 
 # docs: Generate technical API documentation
 docs:
-	-rm -rfv doc
+	rm -rfv doc
 	guix shell -m manifest.scm -- documenta api ./src/veritas
 	guix shell -m manifest.scm -- texi2any -v --html \
 		--css-ref=$(API_DOCS_CSS_URL) ./doc/api/index.texi
@@ -66,7 +66,7 @@ deploy: docs
 	mkdir -pv $(DEPLOY_WWW)/manuals/veritas-api-documentation
 	rm -rfv $(DEPLOY_WWW)/manuals/veritas-api-documentation/index.html
 	mv -v docs/api-documentation.html $(DEPLOY_WWW)/manuals/veritas-api-documentation/index.html
-	-rm -rfv $(DEPLOY_WWW)/api-docs/veritas
-	-mkdir -p $(DEPLOY_WWW)/api-docs/veritas
-	-mv doc/api-dist/* $(DEPLOY_WWW)/api-docs/veritas/
-	-rm -rfv doc
+	rm -rfv $(DEPLOY_WWW)/api-docs/veritas
+	mkdir -p $(DEPLOY_WWW)/api-docs/veritas
+	mv doc/api-dist/* $(DEPLOY_WWW)/api-docs/veritas/
+	rm -rfv doc
