@@ -128,6 +128,10 @@ Refer to the Makefile to understand how to run this project and more.
 
 /agreements must be kept/
 
+You can find the technical Guile Scheme API documentation for Veritas here:
+
+https://jointhefreeworld.org/api-docs/veritas/API.html
+
 You can find a detailed documentation on Veritas, its functions and the runner here:
 
 - in [[https://codeberg.org/jjba23/veritas/src/branch/trunk/docs/api-documentation.org][Org format]]

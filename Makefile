@@ -15,8 +15,10 @@
 # You should have received a copy of the Lesser GNU General Public License
 # along with veritas.  If not, see <https://www.gnu.org/licenses/>.
 
-.PHONY: test
+.PHONY: test docs
 
+ELISP_MANUAL_CMD:='(progn (find-file "$(shell realpath ./docs/api-documentation.org)")(org-html-export-to-html)(message "finished publishing Veritas API documentation"))'
+API_DOCS_CSS_URL:="https://jointhefreeworld.org/static-assets/api-docs/css/style.css"
 DEPLOY_WWW="/srv/http/jointhefreeworld.org"
 
 # Logging helpers
@@ -49,11 +51,22 @@ test: fmt
 		-L ./test \
 		-c '((@ (veritas runner) run-tests))'
 
-# deploy: Deploys the manual HTML to a web server directory.
-deploy:
+# docs: Generate technical API documentation
+docs:
+	-rm -rfv doc
+	guix shell -m manifest.scm -- documenta api ./src/veritas
+	guix shell -m manifest.scm -- texi2any -v --html \
+		--css-ref=$(API_DOCS_CSS_URL) ./doc/api/index.texi
+	mv ./index ./doc/api-dist
+
+# deploy: Deploys the project and documentation to a web server directory.
+deploy: docs
 	guix shell -m manifest.scm -- emacs -Q --batch \
-		--eval '(progn (find-file "$(shell realpath ./docs/api-documentation.org)")(org-html-export-to-html)(message "finished publishing Veritas API documentation"))'
+		--eval $(ELISP_MANUAL_CMD)
 	mkdir -pv $(DEPLOY_WWW)/manuals/veritas-api-documentation
 	rm -rfv $(DEPLOY_WWW)/manuals/veritas-api-documentation/index.html
 	mv -v docs/api-documentation.html $(DEPLOY_WWW)/manuals/veritas-api-documentation/index.html
-
+	-rm -rfv $(DEPLOY_WWW)/api-docs/veritas
+	-mkdir -p $(DEPLOY_WWW)/api-docs/veritas
+	-mv doc/api-dist/* $(DEPLOY_WWW)/api-docs/veritas/
+	-rm -rfv doc

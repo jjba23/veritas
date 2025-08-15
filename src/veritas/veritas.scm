@@ -43,7 +43,7 @@
                             evaluate-thunks-concurrently
                             collect-assertion-successful
                             fisher-yates-shuffle)
-  #:export (test veritas-run suite benchmark veritas-test-only
+  #:export (test veritas-run suite benchmark
                  do-if-string-contained))
 
 ;; ====== Parameters of Environment variables ======
