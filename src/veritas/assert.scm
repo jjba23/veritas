@@ -15,6 +15,22 @@
 ;; You should have received a copy of the Lesser GNU General Public License
 ;; along with veritas.  If not, see <https://www.gnu.org/licenses/>.
 
+;;; Commentary:
+;;
+;; This module is a Scheme testing library that provides a comprehensive set
+;; of assertion functions. At its core is the assert-equal* procedure,
+;; a flexible and powerful tool for comparing an expected value against a result.
+;; 
+;; Beyond simple value comparison, the module offers a set of tools for
+;; testing program behavior related to error handling.
+;; 
+;; These functions provide a complete assertion toolkit, enabling developers
+;; to write robust tests that cover both expected outcomes and predictable
+;; failures, thereby improving the reliability and quality of their Scheme code.
+;;
+;;; Code:
+
+
 (define-module (veritas assert)
   #:use-module (ice-9 string-fun)
   #:use-module (srfi srfi-1)
@@ -104,7 +120,7 @@ that returns an assertion that checks that a thunk
   
 This is a crucial function for testing error-handling logic. It attempts
 to execute the provided @var{thunk}. If an error is caught during its execution,
-the assertion passes. If the @code{thunk} completes without raising an error,
+the assertion passes. If the @var{thunk} completes without raising an error,
 the assertion fails.
 
 @table @var
@@ -143,6 +159,30 @@ A string to identify the assertion in the logs.
 
 (define* (assert-no-error thunk
                           #:key name)
+  "Returns a function taking a @acronym{VC, veritas-context}
+that returns an assertion that checks that a thunk
+(a procedure with no arguments) does not raise an error when called.
+  
+This is a crucial function for testing error-handling logic. It attempts
+to execute the provided @var{thunk}. If no error is caught during its execution,
+the assertion passes. If the @var{thunk} raises an error,
+the assertion fails.
+
+@table @var
+@item thunk
+A procedure of no arguments to be executed.
+@item name
+A string to identify the assertion in the logs.
+@end table
+
+@example
+(assert-no-error (lambda ()
+                      (sum-list-elements '(1 2 \"a\" 4))))
+@result{} #<procedure 8f58ec5ce390 at veritas/assert.scm:69:2 (vc)>
+
+;; Upon applying vc to the procedure we will compute the assertion:
+`((assertion-successful . #f))
+@end example"  
   (lambda (vc)
     (when name
       (log-assert vc name))
@@ -190,4 +230,5 @@ A string to identify the assertion in the logs.
                  #:expect #f
                  #:compare eq?
                  #:name name))
+
 
