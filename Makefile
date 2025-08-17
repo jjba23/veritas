@@ -1,3 +1,5 @@
+.PHONY: test docs
+
 # veritas
 
 # Copyright © Josep Bigorra <jjbigorra@gmail.com>
@@ -15,11 +17,9 @@
 # You should have received a copy of the Lesser GNU General Public License
 # along with veritas.  If not, see <https://www.gnu.org/licenses/>.
 
-.PHONY: test docs
-
-ELISP_MANUAL_CMD:='(progn (find-file "$(shell realpath ./docs/api-documentation.org)")(org-html-export-to-html)(message "finished publishing Veritas API documentation"))'
-API_DOCS_CSS_URL:="https://jointhefreeworld.org/static-assets/api-docs/css/style.css"
-DEPLOY_WWW="/srv/http/jointhefreeworld.org"
+ELISP_MANUAL_CMD := '(progn (find-file "$(shell realpath ./docs/api-documentation.org)")(org-html-export-to-html)(message "finished publishing Veritas API documentation"))'
+API_DOCS_CSS_URL := "https://jointhefreeworld.org/static-assets/api-docs/css/style.css"
+DEPLOY_WWW = "/srv/http/jointhefreeworld.org"
 
 # Logging helpers
 
@@ -28,11 +28,11 @@ define veritas-log-info
 endef
 
 # Target to format source code files according to the style guide
-# Find all .scm files and format them using 'guix style'
 fmt:
 	$(call veritas-log-info,"formatting all Scheme files")
-	find . -maxdepth 8 -name "*.scm" -type f -exec guix style -f {} \;
-
+	@-find . -maxdepth 8 -name "*.scm" -type f -exec guix style -f {} \;
+	$(call veritas-log-info,"formatting Makefile")
+	@-mbake format --config .mbake.toml Makefile
 
 # Development REPL
 repl:
@@ -44,12 +44,12 @@ repl:
 # Unit tests
 test: fmt
 	VERITAS_REPORTER="emoji-reporter" \
-	VERITAS_RUN_BENCHMARKS=true \
-	VERITAS_TEST_TYPE=unit \
-		guix shell -m manifest.scm -- \
-		guile --fresh-auto-compile -L ./src \
-		-L ./test \
-		-c '((@ (veritas runner) run-tests))'
+  VERITAS_RUN_BENCHMARKS=true \
+  VERITAS_TEST_TYPE=unit \
+  guix shell -m manifest.scm -- \
+  guile --fresh-auto-compile -L ./src \
+  -L ./test \
+  -c '((@ (veritas runner) run-tests))'
 
 # docs: Generate technical API documentation
 docs:

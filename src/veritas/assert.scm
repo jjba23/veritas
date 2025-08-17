@@ -30,7 +30,6 @@
 ;;
 ;;; Code:
 
-
 (define-module (veritas assert)
   #:use-module (ice-9 string-fun)
   #:use-module (srfi srfi-1)
@@ -182,7 +181,7 @@ A string to identify the assertion in the logs.
 
 ;; Upon applying vc to the procedure we will compute the assertion:
 `((assertion-successful . #f))
-@end example"  
+@end example"
   (lambda (vc)
     (when name
       (log-assert vc name))
@@ -230,5 +229,4 @@ A string to identify the assertion in the logs.
                  #:expect #f
                  #:compare eq?
                  #:name name))
-
 
