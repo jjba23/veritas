@@ -30,9 +30,46 @@
                          assert-true
                          assert-false
                          assert-error
+                         assert-equal*
                          assert-no-error))
 
 (define* (assert-equal* #:key expect got compare name)
+  "Returns a function taking a @acronym{VC, veritas-context}
+that returns an assertion that two values are equal based on a given comparison procedure.
+This is the core assertion procedure that the other `assert-equal` variants
+are built upon. It's used to compare an expected value with a computed value.
+
+The @var{got} parameter can be a value or a special list to compute a value
+dynamically. If @var{got} is a list starting with @code{compute},
+@code{comp}, or @code{computare}, the second element of the list is
+evaluated to get the actual value for comparison.
+
+For example, @code{(assert-equal* #:got '(compute (+ 1 1)) ...)}
+would evaluate @code{(+ 1 1)} to @code{2} before the comparison.
+
+@table @var
+@item expect
+The expected value.
+@item got
+The value to compare against, or a list to be computed.
+@item compare
+The comparison procedure, which should be a function of two
+ arguments, e.g., `equal?`, `eqv?`, or `eq?`.
+@item name
+A doc string to identify the assertion in the logs.
+@end table
+
+@example
+(assert-equal* #:expect 3
+               #:got (+ 1 1 1)
+               #:compare equal?
+               #:name \"Ensuring addition works\")
+@result{} #<procedure 7f58ec5ce390 at veritas/assert.scm:69:2 (vc)>
+
+;; Upon applying vc to the procedure we will compute the assertion:
+`((assertion-successful . #t)
+  (assertion-name \"Ensuring addition works\"))
+@end example"
   (lambda (vc)
     (let* ((gott (if (and (list? got)
                           (not (null? got))
@@ -61,6 +98,33 @@
 
 (define* (assert-error thunk
                        #:key name)
+  "Returns a function taking a @acronym{VC, veritas-context}
+that returns an assertion that checks that a thunk
+(a procedure with no arguments) raises an error when called.
+  
+This is a crucial function for testing error-handling logic. It attempts
+to execute the provided @var{thunk}. If an error is caught during its execution,
+the assertion passes. If the @code{thunk} completes without raising an error,
+the assertion fails.
+
+@table @var
+@item thunk
+A procedure of no arguments to be executed.
+@item name
+A string to identify the assertion in the logs.
+@end table
+
+@example
+(assert-error (lambda ()
+                      (sum-list-elements '(1 2 \"a\" 4)))
+                    #:name
+                    \"Should fail when list contains non-numbers\")
+@result{} #<procedure 8f58ec5ce390 at veritas/assert.scm:69:2 (vc)>
+
+;; Upon applying vc to the procedure we will compute the assertion:
+`((assertion-successful . #t)
+  (assertion-name \"Should fail when list contains non-numbers\"))
+@end example"
   (lambda (vc)
     (when name
       (log-assert vc name))
