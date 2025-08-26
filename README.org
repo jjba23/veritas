@@ -130,8 +130,8 @@ Refer to the Makefile to understand how to run this project and more.
 
 You can find a detailed documentation on Veritas, its functions and the runner here:
 
-- in [[https://codeberg.org/jjba23/veritas/src/branch/trunk/docs/api-documentation.org][Org format]]
-- in   [[https://jointhefreeworld.org/manuals/veritas-api-documentation/index.html][HTML format]]
+- in [[https://codeberg.org/jjba23/veritas/src/branch/trunk/docs/manual/en.org][Org format]]
+- in   [[https://jointhefreeworld.org/manuals/veritas/index.html][HTML format]]
 
 You can find the technical Guile Scheme API documentation for Veritas here:
 
