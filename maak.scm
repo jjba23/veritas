@@ -80,7 +80,7 @@
 
 (define (test)
   "Run project's tests."
-  ($ (list "VERITAS_RUN_BENCHMARKS=false" "VERITAS_TEST_TYPE=unit"
+  ($ (list "VERITAS_TEST_TYPE=unit"
            "guix shell -m manifest.scm --" "guile -L ./src -L ./test"
            "-c '((@ (veritas runner) run-tests))'")))
 
