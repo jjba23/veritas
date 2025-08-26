@@ -28,6 +28,8 @@
              (gnu packages linux)
              (gnu packages compression)
              (gnu packages texinfo)
+             (gnu packages admin)
+             (gnu packages emacs)
              (gnu packages autotools)
              ((guix licenses)
               #:prefix license:))
@@ -38,5 +40,7 @@
                           (specification->package "guile-json@4")
                           guile-ares-rs
                           guile-documenta
-                          texinfo))
+                          texinfo
+                          emacs
+                          direvent))
 
