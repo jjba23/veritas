@@ -25,11 +25,11 @@
 (define deploy-dir
   "/srv/http/jointhefreeworld.org")
 
-;; The absolute URL for the CSS style-sheet used to style API documentation.
+;; The URL for the CSS style-sheet used to style API documentation.
 (define api-docs-css-url
-  "https://jointhefreeworld.org/static-assets/api-docs/css/style.css")
+  "https://jointhefreeworld.org/static/css/jointhefreeworld.css")
 
-;; The absolute path to the directory where the API documentation will be deployed.
+;; The path to the directory where the API documentation will be deployed.
 (define deploy-api-docs-dir
   "/srv/http/jointhefreeworld.org")
 
