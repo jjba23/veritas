@@ -30,17 +30,17 @@
              (gnu packages texinfo)
              (gnu packages admin)
              (gnu packages emacs)
+             (gnu packages rust-apps)
              (gnu packages autotools)
              ((guix licenses)
               #:prefix license:))
 
-(packages->manifest (list (specification->package "make")
-                          guile-next
+(packages->manifest (list guile-next
                           guile-fibers
                           (specification->package "guile-json@4")
                           guile-ares-rs
                           guile-documenta
                           texinfo
                           emacs
-                          direvent))
+                          watchexec))
 
