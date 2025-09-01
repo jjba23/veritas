@@ -43,7 +43,8 @@
           (org-html-export-to-html)
           (message "finished publishing Veritas manual")))
 
-(define hot-reload-file-types '(scm))
+(define hot-reload-file-types
+  '(scm))
 
 ;; ====== Maak tasks ======
 
@@ -75,6 +76,10 @@
   "Deploy the project's documentation."
   (docs)
   (build-manual)
+  (remkdir-p (~ "~a/api-docs/~a" deploy-api-docs-dir project-name))
+  (mv "doc/api-dist/*"
+      (~ "~a/api-docs/~a" deploy-api-docs-dir project-name))
+  (delete-file-recursively "doc")
   (mkdir-p (~ "~a/manuals/~a" deploy-dir project-name))
   (delete-file-recursively (~ "~a/manuals/~a/index.html" deploy-dir
                               project-name))
@@ -83,9 +88,8 @@
 
 (define (test)
   "Run project's tests."
-  ($ (list "VERITAS_TEST_TYPE=unit"
-           "guix shell -m manifest.scm --" "guile -L ./src -L ./test"
-           "-c '((@ (veritas runner) run-tests))'")))
+  ($ (list "VERITAS_TEST_TYPE=unit" "guix shell -m manifest.scm --"
+           "guile -L ./src -L ./test" "-c '((@ (veritas runner) run-tests))'")))
 
 (define (hot-reload)
   "Hot-reloading developer's setup."
