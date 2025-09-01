@@ -61,7 +61,8 @@
   (delete-file-recursively "doc")
   (manifest-shell (list (~ "documenta api ./src/~a && " project-name)
                         (~ "texi2any -v --html --css-ref=~a" api-docs-css-url)
-                        "./doc/api/index.texi"))
+                        "./doc/api/index.texi")
+                  #:verbose? #t)
   (mv "./index" "./doc/api-dist"))
 
 (define (build-manual)
