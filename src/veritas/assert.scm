@@ -102,7 +102,7 @@ A doc string to identify the assertion in the logs.
       (if (compare expect gott)
           (begin
             (log-pass vc
-                      (format #f "expect: ~a, got: ~a" expect gott))
+                      (format #f "assertion succesful, got: ~a" expect gott))
             `((assertion-successful unquote #t)
               (assertion-name unquote name)))
           (begin

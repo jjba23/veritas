@@ -54,23 +54,25 @@
 
 (define (repl)
   "Development REPL."
-  (manifest-shell '("guile -L ./src"
-                    "-c '((@ (ares server) run-nrepl-server))'")))
+  (time-machine-manifest-shell '("guile -L ./src"
+                                 "-c '((@ (ares server) run-nrepl-server))'")))
 
 (define (docs)
   "Generate technical API documentation for Veritas."
   (delete-file-recursively "doc")
-  (manifest-shell (list (~ "documenta api ./src/~a && " project-name)
-                        (~ "texi2any -v --html --css-ref=~a" api-docs-css-url)
-                        "./doc/api/index.texi")
-                  #:verbose? #t)
+  (time-machine-manifest-shell (list (~ "documenta api ./src/~a && "
+                                        project-name)
+                                     (~ "texi2any -v --html --css-ref=~a"
+                                        api-docs-css-url)
+                                     "./doc/api/index.texi")
+                               #:verbose? #t)
   (mv "./index" "./doc/api-dist"))
 
 (define (build-manual)
   "Render the project's manual."
-  (manifest-shell (list (~ "emacs -Q --batch --eval '~s'"
-                           emacs-lisp-manual-publish-cmd))
-                  #:verbose? #t))
+  (time-machine-manifest-shell (list (~ "emacs -Q --batch --eval '~s'"
+                                        emacs-lisp-manual-publish-cmd))
+                               #:verbose? #t))
 
 (define (deploy)
   "Deploy the project's documentation."
@@ -93,14 +95,15 @@
 
 (define (hot-reload)
   "Hot-reloading developer's setup."
-  (manifest-shell (list "watchexec 'maak test'"
-                        "--clear"
-                        (~ "--exts ~a"
-                           (string-join (map symbol->string
-                                             hot-reload-file-types) ","))
-                        "--on-busy-update=restart"
-                        "--shell bash"
-                        "--watch .")))
+  (time-machine-manifest-shell (list "watchexec 'maak test'"
+                                     "--clear"
+                                     (~ "--exts ~a"
+                                        (string-join (map symbol->string
+                                                      hot-reload-file-types)
+                                                     ","))
+                                     "--on-busy-update=restart"
+                                     "--shell bash"
+                                     "--watch .")))
 
 (define (hr)
   "Alias to hot-reloading."
