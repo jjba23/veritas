@@ -3,9 +3,9 @@
 #+email: jjbigorra@gmail.com
 #+language: en
 
-[[https://jointhefreeworld.org/ggg/dist/scheme-guile.svg]] [[https://jointhefreeworld.org/ggg/dist/gnu-guix.svg]]  
-[[https://jointhefreeworld.org/ggg/dist/gnu-make.svg]] 
-[[https://jointhefreeworld.org/ggg/dist/license-lgpl3+.svg]]    [[https://jointhefreeworld.org/ggg/dist/license-fdl13+.svg]] [[https://jointhefreeworld.org/ggg/dist/jointhefreeworld-org.svg]] 
+[[https://jointhefreeworld.org/ggg/dist/scheme-guile.svg]] [[https://jointhefreeworld.org/ggg/dist/gnu-guix.svg]]
+[[https://jointhefreeworld.org/ggg/dist/maak.svg]]
+[[https://jointhefreeworld.org/ggg/dist/license-lgpl3+.svg]]    [[https://jointhefreeworld.org/ggg/dist/license-fdl13+.svg]] [[https://jointhefreeworld.org/ggg/dist/jointhefreeworld-org.svg]]
 
 Unit, Integration and Black Box testing framework powered by Lisp (Guile Scheme)
 
@@ -104,7 +104,7 @@ The hierarchy is defined as follows:
 - ~veritas-run~ takes an arbitrary (variadic) amount of ~suite~ items, ~test~ items or ~benchmark~ items.
 - ~suite~ takes a variadic amount of ~test~ items.
 - ~test~ takes a variadic amount of assertions (~assert-equal~, ~assert-error~,  ~assert-true~, etc.)
-- ~benchmark~ takes a ~name~, a number of ~runs~ and a ~thunk~ to be measured. This is currently done by using ~statprof~.  
+- ~benchmark~ takes a ~name~, a number of ~runs~ and a ~thunk~ to be measured. This is currently done by using ~statprof~.
 
 Instead of executing tests immediately, test and suite functions return anonymous functions (lambdas), and thunks (no argument lambdas). This helps "close over" environments and scopes, capturing all necessary information (like test name, input cases, debug flags) from where they were defined.
 
@@ -124,6 +124,41 @@ Refer to the Makefile to understand how to run this project and more.
 
 --------------------
 
+* Data driven testing
+
+a.k.a. table-driven testing
+
+This is made easy thanks to Lisp, with higher order functions, quasi-quoting and whatever you want to use. See a simple example here, using ~apply~.
+
+#+begin_src scheme
+(define log-level-suite
+  (suite "Log Level"
+         (apply test "is-in-log-level?"
+                (map (lambda (c)
+                       (if (caddr c)
+                           (assert-true (is-in-log-level? (car c)
+                                                          (cadr c))
+                                        #:name (format #f
+                                                       "~a is allowed in ~a"
+                                                       (car c)
+                                                       (cadr c)))
+                           (assert-false (is-in-log-level? (car c)
+                                                           (cadr c))
+                                         #:name (format #f
+                                                 "~a is not allowed in ~a"
+                                                 (car c)
+                                                 (cadr c)))))
+                     '((trace trace #t)
+                       (trace debug #f)
+                       (trace info #f)
+                       ;; ...... and so on
+                       (error warn #t)
+                       (error error #t))))))
+#+end_src
+
+
+------------
+
 * Documentation: /PACTA SUNT SERVANDA/
 
 /agreements must be kept/
@@ -140,7 +175,7 @@ https://jointhefreeworld.org/api-docs/veritas/API.html
 
 ----------------------
 
-* Runner: /ARTIFEX EXPERIMENTI/ 
+* Runner: /ARTIFEX EXPERIMENTI/
 
 /the master of the experiment/
 
@@ -203,7 +238,7 @@ Alternatively, you can install it by downloading the source code files and addin
      (list
       #:source-directory "src"))
     (native-inputs (list guile-3.0))
-    (propagated-inputs (list guile-fibers))    
+    (propagated-inputs (list guile-fibers))
     (home-page "https://codeberg.org/jjba23/veritas")
     (synopsis "Testing framework for Guile")
     (description
@@ -242,4 +277,3 @@ We welcome everyone to feel invited to the veritas Project, and encourage active
 Find here the Backlog and Kanban boards for veritas: https://lucidplan.jointhefreeworld.org/tickets/veritas
 
 -----
-
