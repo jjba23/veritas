@@ -37,9 +37,6 @@
                             assert-false
                             assert-error
                             assert-no-error
-                            log-info
-                            log-error
-                            log-debug
                             evaluate-thunks-concurrently
                             collect-assertion-successful
                             fisher-yates-shuffle)
@@ -99,8 +96,8 @@
                                                         (assertion-proc (cadr
                                                                          indexed-case))
                                                         (result-and-output (capture-result-and-output (lambda ()
-                                                                                                        
-                                                                                                        
+
+
                                                                                                         (assertion-proc
                                                                                                          vc)))))
                                                    (lambda ()
@@ -122,7 +119,7 @@
                         (_ (if (not after)
                                '()
                                (after vc))))
-                   
+
                    (when debug?
                      (newline)
                      (write test-results)
@@ -196,7 +193,7 @@
                                (after-all vc)))
                         (final-suite-data (make-suite-result name test-results
                                                              "")))
-                   
+
                    (when debug?
                      (newline)
                      (write final-suite-data)
@@ -211,11 +208,11 @@
                  (make-benchmark-result name
                                         (map (lambda (i)
                                                (let* ((sp (with-output-to-string (lambda ()
-                                                                                   
-                                                                                   
+
+
                                                                                    (statprof (lambda ()
-                                                                                               
-                                                                                               
+
+
                                                                                                (thunk)
                                                                                                #f))))))
                                                  `((run-index unquote i)
@@ -285,7 +282,7 @@
          (end-microseconds (cdr end-test-time))
          (seconds-elapsed (- end-seconds start-seconds))
          (microseconds-elapsed (- end-microseconds start-microseconds)))
-    
+
     (display-all-results vc all-results)
     (log-info vc
               (format #f "ran ~a tasks in: ~a seconds, ~a microseconds"
@@ -300,4 +297,3 @@
       (exit 1))
 
     all-results))
-
