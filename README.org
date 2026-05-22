@@ -19,9 +19,11 @@ If you like my work, please support me by [[https://bmc.link/jjbigorra][buying m
 
 /An expressive, free (as in freedom), and extensible test framework is crucial for modern software engineering and is a great instrument to explore systems and algorithms/
 
-* Introduction: /AD REM/ - to the matter
+* Introduction
 
-It's very easy to import Veritas and start using it:
+/AD REM/ - to the matter
+
+It's easy to import Veritas and start using it:
 #+begin_src scheme
 (use-modules (veritas veritas))
 #+end_src
@@ -91,9 +93,9 @@ And then we wire it all up:
 
 -----------------------------
 
-* Design: /EX LABORE VENUSTAS/
+* Design
 
-/from hard work, beauty/
+/EX LABORE VENUSTAS/ - /from hard work, beauty/
 
 Due to its elegance, succinctness, and opinionated design, veritas has a really *low learning curve*, for beginners and seasoned hackers alike, great for onboarding too.
 
@@ -126,9 +128,9 @@ Refer to the Makefile to understand how to run this project and more.
 
 * Data driven testing
 
-a.k.a. table-driven testing
+/PROBATIO EX DATIS/ - a.k.a. table-driven testing
 
-This is made easy thanks to Lisp, with higher order functions, quasi-quoting and whatever you want to use. See a simple example here, using ~apply~.
+This is made easy thanks to Lisp, with higher order functions, quasi-quoting and whatever you want to use. See a simple example here, using ~apply~. You can do this easily at the suite, test or assertion levels.
 
 #+begin_src scheme
 (define log-level-suite
@@ -159,9 +161,9 @@ This is made easy thanks to Lisp, with higher order functions, quasi-quoting and
 
 ------------
 
-* Documentation: /PACTA SUNT SERVANDA/
+* Documentation:
 
-/agreements must be kept/
+/PACTA SUNT SERVANDA/ - /agreements must be kept/
 
 You can find a detailed documentation on Veritas, its functions and the runner here:
 
@@ -175,16 +177,15 @@ https://jointhefreeworld.org/api-docs/veritas/API.html
 
 ----------------------
 
-* Runner: /ARTIFEX EXPERIMENTI/
+* Runner
 
-/the master of the experiment/
+/ARTIFEX EXPERIMENTI/ - /the master of the experiment/
 
 You can feel free to use ~veritas~ as you prefer, and dynamically run tests at your will. For ease-of-use, a runner with test auto-discovery is provided.
 
-If you use this runner, without changing the defaults, place your unit test files at: ~./test/veritas/unit/*.scm~  and name your modules ~(veritas unit your-name)~ due to how Guile module loading works. This is configurable via environment variables. One-directory depth is supported, but no more than that. So ~./test/veritas/unit/*.scm~  is valid, and ~./test/veritas/unit/some-dir/*.scm~  is also valid, but ~./test/veritas/unit/some-dir/other-dir/*.scm~  is not.
+If you use this runner, without changing the defaults, place your unit test files at: ~./test/veritas/unit/*.scm~  and name your modules ~(veritas unit your-name)~ due to how Guile module loading works. This is configurable via environment variables. Currently, one-directory depth is supported, but no more than that. So ~./test/veritas/unit/*.scm~  is valid, and ~./test/veritas/unit/some-dir/*.scm~  is also valid, but ~./test/veritas/unit/some-dir/other-dir/*.scm~  is not.
 
 Test files should contain a no-argument function ( called ~spec~  by default) which is the entry-point, and the place to add your ~veritas-run~ statements.
-
 
 Then you can run with for example:
 
@@ -199,7 +200,9 @@ VERITAS_TEST_TYPE=unit \
 
 ------------------------
 
-* Licensing: /DE LICENTIIS/
+* Licensing
+
+/DE LICENTIIS/
 
 Veritas and all of its source code are free software, licensed under the GNU Lesser General Public License v3 (or newer at your convenience).
 
@@ -211,7 +214,9 @@ https://www.gnu.org/licenses/fdl-1.3.html
 
 ------------------
 
-* Installing: /COLLOCATIO ET USUS/
+* Installing
+
+/COLLOCATIO ET USUS/ - placing, using
 
 I'm working to stabilize veritas so expect changes until we reach v1.0.0
 
@@ -252,13 +257,20 @@ runs them concurrently by default to ensure robust testing practices.")
 
 -------------
 
-* Projects using this: /OPERA UTENS VERITAS/
+* Projects using this
 
-- SSS ([[https://codeberg.org/jjba23/sss][Supreme Sexp System]]) -   SSS is a Lisp machine adventure, where the hacking culture is celebrated. Let me help you achieve GNUrvana. This custom GNU + Linux (Guix) setup enhances customization to infinity, encourages the hacking spirit, and offers a superior user experience thanks in part too to REPL (Read Eval Print Loop) and Lisps.
+/OPERA UTENS VERITAS/ - works using Veritas
+
+- [[https://codeberg.org/jjba23/scriba][Scriba]] - A powerful logging library for Guile Scheme with flexibility and configuration in mind.
+- [[https://codeberg.org/jjba23/kracht][Kracht]] - Prelude for Guile Scheme, an opt-in enhancement to the standard library.
+- [[https://codeberg.org/jjba23/heks-linux][Heks Linux]] - The witches' GNU/Linux: modular, flexible, reproducible, powered by Lisp and Fedora / Debian + GNOME / Niri.
+- [[https://codeberg.org/jjba23/sss][Supreme Sexp System]] -  SSS is a GNU Linux Guix system / Lisp machine adventure, where the hacking culture is celebrated. Let me help you achieve GNUrvana.
 
 ---------------
 
-* Code of conduct: /CODEX MORUM/
+* Code of conduct
+
+/CODEX MORUM/ - moral code
 
 This project adheres to the jointhefreeworld code of conduct. Find it here:
 
@@ -268,7 +280,9 @@ In summary, we foster an inclusive, respectful, and cooperative environment for 
 
 -------
 
-* Project: /OPERA VERITAS/
+* Project
+
+/OPERA VERITAS/ - the Veritas project
 
 Contributing to free software is a uniquely beautiful act because it embodies principles of generosity, collaboration, and empowerment.
 
