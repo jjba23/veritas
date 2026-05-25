@@ -37,10 +37,9 @@
 
 (packages->manifest (list guile-next
                           guile-fibers
-                          (specification->package "guile-json@4")
+                          guile-json-4
                           guile-ares-rs
                           guile-documenta
                           texinfo
-                          emacs
+                          emacs-no-x
                           watchexec))
-

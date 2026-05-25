@@ -41,17 +41,31 @@
   "Given a list of functions that don't take any inputs, run each one of
 those functions concurrently, and then return a list of what each function
 returned once they're all finished."
-  (let* ((channel
-           (make-channel)))
+  (let ((channel
+          (make-channel)))
     (run-fibers (lambda ()
+                  ;; Spawn producers
                   (for-each (lambda (func)
                               (spawn-fiber (lambda ()
-                                             (let ((result (func)))
-                                               (put-message channel result)))))
-                            thunks))
-                #:drain? #t)
-    (map (lambda (_)
-           (get-message channel)) thunks)))
+                                             ;; Catch exceptions so the fiber doesn't die silently
+                                             (catch #t
+                                                    (lambda ()
+                                                      (let ((result (func)))
+                                                        (put-message channel
+                                                                     result)))
+                                                    (lambda (key . args)
+                                                      ;; Send the error down the channel to prevent hanging
+                                                      (put-message channel
+                                                                   `(error ,key
+                                                                           ,@args)))))))
+                            thunks)
+
+                  ;; Consume messages INSIDE the run-fibers block
+                  ;;
+                  ;; Note: #:drain? #t is not needed because the `map` loop implicitly
+                  ;; blocks the main fiber until all thunks have reported back.
+                  (map (lambda (_)
+                         (get-message channel)) thunks)))))
 
 (define-syntax-rule (evaluate-thunks thunks)
   "Given a list of functions that don't take any inputs, run each one of
