@@ -266,6 +266,17 @@ runs them concurrently by default to ensure robust testing practices.")
 - [[https://codeberg.org/jjba23/heks-linux][Heks Linux]] - The witches' GNU/Linux: modular, flexible, reproducible, powered by Lisp and Fedora / Debian + GNOME / Niri.
 - [[https://codeberg.org/jjba23/sss][Supreme Sexp System]] -  SSS is a GNU Linux Guix system / Lisp machine adventure, where the hacking culture is celebrated. Let me help you achieve GNUrvana.
 
+----------------------
+
+* AI Policy
+
+This project adheres to the jointhefreeworld AI policy. Find it here:
+
+https://jointhefreeworld.org/blog/articles/personal/jointhefreeworld-ai-policy/index.html
+
+In summary, AI should assist human creativity and problem-solving, never replace human reasoning. We strongly favor human-authored code. While tools like Large Language Models (LLMs) and interactive chatbots can be beneficial for reviewing, refactoring small functions, or acting as a sounding board, they should be used with moderation. Contributors must maintain a deep, comprehensive understanding of the task at hand.
+
+
 ---------------
 
 * Code of conduct
