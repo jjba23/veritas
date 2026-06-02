@@ -243,7 +243,8 @@ Alternatively, you can install it by downloading the source code files and addin
      (list
       #:source-directory "src"))
     (native-inputs (list guile-3.0))
-    (propagated-inputs (list guile-fibers))
+    (propagated-inputs (list guile-fibers
+                             guile-json-4)) ;; for versions >= 2.0.0
     (home-page "https://codeberg.org/jjba23/veritas")
     (synopsis "Testing framework for Guile")
     (description
@@ -253,7 +254,6 @@ on legibility and maintainability of tests.  Veritas shuffles tests and
 runs them concurrently by default to ensure robust testing practices.")
     (license license:lgpl3+)))
 #+end_src
-
 
 -------------
 
