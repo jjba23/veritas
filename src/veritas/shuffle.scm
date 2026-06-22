@@ -16,14 +16,6 @@
 ;; along with veritas.  If not, see <https://www.gnu.org/licenses/>.
 
 (define-module (veritas shuffle)
-  #:use-module (ice-9 string-fun)
-  #:use-module (srfi srfi-1)
-  #:use-module (ice-9 iconv)
-  #:use-module (ice-9 time)
-  #:use-module (ice-9 format)
-  #:use-module (ice-9 popen)
-  #:use-module (ice-9 textual-ports)
-  #:use-module (ice-9 rdelim)
   #:export (fisher-yates-shuffle))
 
 ;; List shuffle which implements the modern Fisher-Yates shuffle algorithm.
