@@ -16,15 +16,9 @@
 ;; along with veritas.  If not, see <https://www.gnu.org/licenses/>.
 
 (define-module (veritas reporter)
-  #:use-module (ice-9 string-fun)
   #:use-module (srfi srfi-1)
-  #:use-module (ice-9 iconv)
   #:use-module (json)
-  #:use-module (ice-9 time)
   #:use-module (ice-9 format)
-  #:use-module (ice-9 popen)
-  #:use-module (ice-9 textual-ports)
-  #:use-module (ice-9 rdelim)
   #:use-module (veritas model)
   #:export (emoji-reporter log
                            ansi-color-escapes
