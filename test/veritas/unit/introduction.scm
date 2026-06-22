@@ -168,6 +168,5 @@
                logic-and-lists-suite
                error-handling-suite
                advanced-features-suite
-               simple-factorial-benchmark
-               ))
+               simple-factorial-benchmark))
 

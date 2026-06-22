@@ -20,10 +20,10 @@
 ;; This module is a Scheme testing library that provides a comprehensive set
 ;; of assertion functions. At its core is the assert-equal* procedure,
 ;; a flexible and powerful tool for comparing an expected value against a result.
-;; 
+;;
 ;; Beyond simple value comparison, the module offers a set of tools for
 ;; testing program behavior related to error handling.
-;; 
+;;
 ;; These functions provide a complete assertion toolkit, enabling developers
 ;; to write robust tests that cover both expected outcomes and predictable
 ;; failures, thereby improving the reliability and quality of their Scheme code.
@@ -31,14 +31,7 @@
 ;;; Code:
 
 (define-module (veritas assert)
-  #:use-module (ice-9 string-fun)
-  #:use-module (srfi srfi-1)
-  #:use-module (ice-9 iconv)
-  #:use-module (ice-9 time)
   #:use-module (ice-9 format)
-  #:use-module (ice-9 popen)
-  #:use-module (ice-9 textual-ports)
-  #:use-module (ice-9 rdelim)
   #:use-module (veritas reporter)
   #:export (assert-equal assert-eq
                          assert-eqv
@@ -102,7 +95,7 @@ A doc string to identify the assertion in the logs.
       (if (compare expect gott)
           (begin
             (log-pass vc
-                      (format #f "assertion succesful, got: ~a" expect gott))
+                      (format #f "assertion succesful, got: ~a" gott))
             `((assertion-successful unquote #t)
               (assertion-name unquote name)))
           (begin
@@ -116,7 +109,7 @@ A doc string to identify the assertion in the logs.
   "Returns a function taking a @acronym{VC, veritas-context}
 that returns an assertion that checks that a thunk
 (a procedure with no arguments) raises an error when called.
-  
+
 This is a crucial function for testing error-handling logic. It attempts
 to execute the provided @var{thunk}. If an error is caught during its execution,
 the assertion passes. If the @var{thunk} completes without raising an error,
@@ -161,7 +154,7 @@ A string to identify the assertion in the logs.
   "Returns a function taking a @acronym{VC, veritas-context}
 that returns an assertion that checks that a thunk
 (a procedure with no arguments) does not raise an error when called.
-  
+
 This is a crucial function for testing error-handling logic. It attempts
 to execute the provided @var{thunk}. If no error is caught during its execution,
 the assertion passes. If the @var{thunk} raises an error,
@@ -229,4 +222,3 @@ A string to identify the assertion in the logs.
                  #:expect #f
                  #:compare eq?
                  #:name name))
-

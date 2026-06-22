@@ -37,7 +37,7 @@
 (define project-name
   'veritas)
 
-;; The Emacs Lisp script to run for publishing the manual. 
+;; The Emacs Lisp script to run for publishing the manual.
 (define emacs-lisp-manual-publish-cmd
   '(progn (find-file "./docs/manual/en.org")
           (org-html-export-to-html)
@@ -47,6 +47,11 @@
   '(scm))
 
 ;; ====== Maak tasks ======
+
+(define (compile)
+  "Compile all project source code."
+  (time-machine-manifest-shell (list "guild compile -L ./src" "-W3"
+                                     "./src/**/*.scm")))
 
 (define (fmt)
   "Format Scheme source code files according to the Guix style guide."
@@ -90,8 +95,15 @@
 
 (define (test)
   "Run project's tests."
-  ($ (list "VERITAS_TEST_TYPE=unit" "guix shell -m manifest.scm --"
-           "guile -L ./src -L ./test" "-c '((@ (veritas runner) run-tests))'")))
+  ($ (list "VERITAS_TEST_TYPE=unit" "VERITAS_RUN_BENCHMARKS=true"
+           "guix shell -m manifest.scm --" "guile -L ./src -L ./test"
+           "-c '((@ (veritas runner) run-tests))'")))
+
+(define (validate)
+  "Format, compile and test."
+  (fmt)
+  (compile)
+  (test))
 
 (define (hot-reload)
   "Hot-reloading developer's setup."

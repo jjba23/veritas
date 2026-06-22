@@ -16,16 +16,8 @@
 ;; along with veritas.  If not, see <https://www.gnu.org/licenses/>.
 
 (define-module (veritas veritas)
-  #:use-module (ice-9 string-fun)
   #:use-module (srfi srfi-1)
-  #:use-module (ice-9 iconv)
-  #:use-module (ice-9 time)
   #:use-module (ice-9 format)
-  #:use-module (ice-9 popen)
-  #:use-module (ice-9 textual-ports)
-  #:use-module (ice-9 rdelim)
-  #:use-module (fibers)
-  #:use-module (fibers channels)
   #:use-module (veritas reporter)
   #:use-module (veritas assert)
   #:use-module (veritas prelude)
@@ -52,9 +44,10 @@
                              #:default #f)))
 
 (define veritas-run-benchmarks?
-  (make-parameter (equal? "true"
-                          (getenv-or 'VERITAS_RUN_BENCHMARKS
-                                     #:default "true"))))
+  (make-parameter (let ((should-run (getenv-or 'VERITAS_RUN_BENCHMARKS
+                                               #:default "true")))
+                    (or (equal? "true" should-run)
+                        (equal? "1" should-run)))))
 
 (define* (do-if-string-contained #:key name restriction result)
   (if (not restriction) result
@@ -96,8 +89,8 @@
                                                         (assertion-proc (cadr
                                                                          indexed-case))
                                                         (result-and-output (capture-result-and-output (lambda ()
-
-
+                                                                                                        
+                                                                                                        
                                                                                                         (assertion-proc
                                                                                                          vc)))))
                                                    (lambda ()
@@ -119,7 +112,7 @@
                         (_ (if (not after)
                                '()
                                (after vc))))
-
+                   
                    (when debug?
                      (newline)
                      (write test-results)
@@ -193,7 +186,7 @@
                                (after-all vc)))
                         (final-suite-data (make-suite-result name test-results
                                                              "")))
-
+                   
                    (when debug?
                      (newline)
                      (write final-suite-data)
@@ -208,11 +201,11 @@
                  (make-benchmark-result name
                                         (map (lambda (i)
                                                (let* ((sp (with-output-to-string (lambda ()
-
-
+                                                                                   
+                                                                                   
                                                                                    (statprof (lambda ()
-
-
+                                                                                               
+                                                                                               
                                                                                                (thunk)
                                                                                                #f))))))
                                                  `((run-index unquote i)
@@ -282,7 +275,7 @@
          (end-microseconds (cdr end-test-time))
          (seconds-elapsed (- end-seconds start-seconds))
          (microseconds-elapsed (- end-microseconds start-microseconds)))
-
+    
     (display-all-results vc all-results)
     (log-info vc
               (format #f "ran ~a tasks in: ~a seconds, ~a microseconds"
