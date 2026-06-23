@@ -32,7 +32,14 @@
                              "should succeed on checking that false is false"))
          (test "Check that function calls work"
                (assert-equal #:expect 42
-                             #:got (add-two 40)))))
+                             #:got (add-two 40)))
+         (test "Do some assertions"
+               (assert-not-eq #:expect 2
+                              #:got 1)
+               (assert-not-eqv #:expect 2
+                               #:got 1)
+               (assert-not-equal #:expect 2
+                                 #:got 1))))
 
 (define str-suite
   (suite "str"

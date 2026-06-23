@@ -32,6 +32,9 @@
                             assert-no-error
                             assert-approximate
                             assert-not-approximate
+                            assert-not-eq
+                            assert-not-eqv
+                            assert-not-equal
                             is-approximate?
                             evaluate-thunks-concurrently
                             collect-assertion-successful

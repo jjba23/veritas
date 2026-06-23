@@ -51,8 +51,9 @@ returned once they're all finished."
                                                     (lambda (key . args)
                                                       ;; Send the error down the channel to prevent hanging
                                                       (put-message channel
-                                                                   `(error ,key
-                                                                           ,@args)))))))
+                                                                   (format #f
+                                                                    "~a: ~a"
+                                                                    key args)))))))
                             thunks)
 
                   ;; Consume messages INSIDE the run-fibers block

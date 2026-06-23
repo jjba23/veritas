@@ -34,6 +34,7 @@
   #:declarative? #t
   #:use-module (ice-9 format)
   #:use-module (veritas reporter)
+  #:use-module (veritas prelude)
   #:export (assert-equal assert-eq
                          assert-eqv
                          assert-true
@@ -41,6 +42,9 @@
                          assert-error
                          assert-equal*
                          assert-no-error
+                         assert-not-eq
+                         assert-not-equal
+                         assert-not-eqv
                          is-approximate?
                          assert-approximate
                          assert-not-approximate))
@@ -211,6 +215,27 @@ A string to identify the assertion in the logs.
   (assert-equal* #:expect expect
                  #:got got
                  #:compare eq?
+                 #:name name))
+
+(define* (assert-not-eq #:key expect got name)
+  (assert-equal* #:expect expect
+                 #:got got
+                 #:compare (lambda (a b)
+                             (not (eq? a b)))
+                 #:name name))
+
+(define* (assert-not-eqv #:key expect got name)
+  (assert-equal* #:expect expect
+                 #:got got
+                 #:compare (lambda (a b)
+                             (not (eqv? a b)))
+                 #:name name))
+
+(define* (assert-not-equal #:key expect got name)
+  (assert-equal* #:expect expect
+                 #:got got
+                 #:compare (lambda (a b)
+                             (not (equal? a b)))
                  #:name name))
 
 (define* (assert-true x
