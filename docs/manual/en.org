@@ -23,15 +23,16 @@ If you like my work, please support me by [[https://bmc.link/jjbigorra][buying m
 
 /An expressive, free (as in freedom), and extensible test framework is crucial for modern software engineering and is a great instrument to explore systems and algorithms/
 
+You can find the full technical Guile Scheme API documentation for Veritas here:
+
+https://jointhefreeworld.org/api-docs/veritas/API.html
+
 ----------------------
 
 Normal arguments are denoted by their name, keyword arguments are denoted by their name prefixed with ~#:~ as in Scheme. When ~rest~ arguments are mentioned, it's another terminology for variadic.
 
 Note: Veritas generally expects you to pass keyword arguments before variadic arguments.
 
-You can find the full technical Guile Scheme API documentation for Veritas here:
-
-https://jointhefreeworld.org/api-docs/veritas/API.html
 
 ----------------------
 
