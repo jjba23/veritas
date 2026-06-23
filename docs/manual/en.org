@@ -7,13 +7,21 @@
 #+HTML_HEAD: <link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&family=IBM+Plex+Serif:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&display=swap" />
 
 
-[[https://jointhefreeworld.org/ggg/dist/scheme-guile.svg]] [[https://jointhefreeworld.org/ggg/dist/gnu-guix.svg]]  
-[[https://jointhefreeworld.org/ggg/dist/gnu-make.svg]] 
-[[https://jointhefreeworld.org/ggg/dist/license-lgpl3+.svg]]    [[https://jointhefreeworld.org/ggg/dist/license-fdl13+.svg]] [[https://jointhefreeworld.org/ggg/dist/jointhefreeworld-org.svg]] 
+[[https://jointhefreeworld.org/ggg/dist/scheme-guile.svg]] [[https://jointhefreeworld.org/ggg/dist/gnu-guix.svg]]
+[[https://jointhefreeworld.org/ggg/dist/maak.svg]]
+[[https://jointhefreeworld.org/ggg/dist/license-lgpl3+.svg]]    [[https://jointhefreeworld.org/ggg/dist/license-fdl13+.svg]] [[https://jointhefreeworld.org/ggg/dist/jointhefreeworld-org.svg]]
 
 Unit, Integration and Black Box testing framework powered by Lisp (Guile Scheme)
 
 /Veritas helps you verify the correctness of software and explore its functioning and robustness. It achieves this by providing a clear structure for writing tests and producing easy-to-read feedback in various formats./
+
+The framework is built around the concepts of "suites," which group related "tests," and "assertions," which perform the actual checks. I'd encourage you to peruse the ~test/~ folder of this project to see real examples of how to use ~veritas~.
+
+The power of ~veritas~ lies in its simplicity, expressive embedded domain-specific language (EDSL), and some clever features that promote robust testing practices and correctness, like order randomization and concurrent testing.
+
+If you like my work, please support me by [[https://bmc.link/jjbigorra][buying me a cup of coffee ☕]] so I can continue with a lot of motivation.
+
+/An expressive, free (as in freedom), and extensible test framework is crucial for modern software engineering and is a great instrument to explore systems and algorithms/
 
 ----------------------
 
@@ -38,7 +46,7 @@ Note: Veritas generally expects you to pass keyword arguments before variadic ar
   - ~#:shuffle?~ (boolean, optional): If ~#t~, shuffles the order of the test cases. Defaults to ~#t~.
   - ~#:skip?~ (boolean, optional): If ~#t~, the test is skipped. Defaults to ~#f~.
   - ~#:before~ (function taking vc, optional): Procedure to run before the test case.
-  - ~#:after~ (function taking vc, optional): Procedure to run after the test case.    
+  - ~#:after~ (function taking vc, optional): Procedure to run after the test case.
   - ~rest~ (list): A list of assertion procedures to be executed as part of this test.
 
 ----------------------
@@ -54,7 +62,7 @@ Note: Veritas generally expects you to pass keyword arguments before variadic ar
   - ~#:skip?~ (boolean, optional): If ~#t~, the entire suite is skipped. Defaults to ~#f~.
   - ~#:concurrent?~ (boolean, optional): If ~#t~, runs the tests concurrently using fibers. Defaults to ~#t~.
   - ~#:before-all~ (function taking vc, optional): Procedure to run before the suite.
-  - ~#:after-all~ (function taking vc, optional): Procedure to run after the suite.        
+  - ~#:after-all~ (function taking vc, optional): Procedure to run after the suite.
   - ~rest~ (list): A list of test procedures to be executed within this suite.
 
 ----------------------
@@ -69,7 +77,7 @@ Note: Veritas generally expects you to pass keyword arguments before variadic ar
   - ~#:thunk~ (function): The procedure to be measured and sampled.
   - ~#:skip?~ (boolean, optional): If ~#t~, the benchmark is skipped. Defaults to ~#f~.
 
-----------------------          
+----------------------
 
 ** veritas-run
 
@@ -132,7 +140,7 @@ Asserts that two values are equivalent based on the ~eqv?~ comparison function. 
   - ~#:got~ (any): The value to test.
   - ~#:name~ (string, optional): A descriptive name for the assertion.
 
-      
+
 ----------------------
 
 ** assert-eq
@@ -154,7 +162,7 @@ Asserts that a given value is ~#t~.
   - ~x~ (any): The value to test.
   - ~#:name~ (string, optional): A descriptive name for the assertion.
 
-----------------------      
+----------------------
 
 ** assert-false
 
@@ -164,7 +172,7 @@ Asserts that a given value is ~#f~.
   - ~x~ (any): The value to test.
   - ~#:name~ (string, optional): A descriptive name for the assertion.
 
-----------------------      
+----------------------
 
 ** assert-error
 
@@ -174,7 +182,7 @@ Asserts that a function call will result in an error.
   - ~thunk~ (function): The function to be executed.
   - ~#:name~ (string, optional): A descriptive name for the assertion.
 
-----------------------      
+----------------------
 
 ** assert-no-error
 
@@ -212,8 +220,8 @@ Asserts that a function call will not result in an error.
 *Returns*:
   - A list containing the return value of each thunk.
 
----------------------      
-      
+---------------------
+
 * Environment Variables: /VARIABILES AMBITUS/
 
 Some functionalities, including the runner, are configured via environment variables for ease of use and integration in CI environments. In the Guile Scheme implementation this is done leveraging parameters and. All the variables have sane defaults, but are your entry-point for lots of customisation of the test process.
@@ -228,7 +236,7 @@ Some functionalities, including the runner, are configured via environment varia
 
 - ~VERITAS_TEST_MODULE~ defaults to ~veritas~ and determines the test module to load, and also should be equal to the Guile Scheme modules name you use. For example if you have a unit test file a ~./test/my-program/unit/my-test.scm~ then you should change this variable to the value ~my-program~ and your module declaration should be ~(define-module (my-program unit my-test))~. If you don't change the defaults, place your tests at for example ~./test/veritas/unit/my-test.scm~ and name them ~(define-module (veritas unit my-test))~.
 
-- ~VERITAS_SHUFFLE_FILES~ defaults to ~true~ and determines whether to shuffle test file order or not.      
+- ~VERITAS_SHUFFLE_FILES~ defaults to ~true~ and determines whether to shuffle test file order or not.
 
 - ~VERITAS_RUN_BENCHMARKS~ defaults to ~true~ and determines whether benchmarks should be run.
 
@@ -236,4 +244,4 @@ Some functionalities, including the runner, are configured via environment varia
 
 - ~VERITAS_ONLY_SUITE~ is an optional variable you can pass to limit the execution to suites whose name partially matches this variable.
 
-- ~VERITAS_REPORTER~ is an optional variable, interpreted as symbol in Lisp, by default ~emoji-reporter~, other choices are ~monotone-reporter~ 
+- ~VERITAS_REPORTER~ is an optional variable, interpreted as symbol in Lisp, by default ~emoji-reporter~, other choices are ~monotone-reporter~
