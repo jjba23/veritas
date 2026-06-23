@@ -31,6 +31,17 @@
                (assert-equal #:name "checks if addition works"
                              #:expect 4
                              #:got (+ 2 2))
+               (assert-approximate #:name "arithmetic approximation"
+                                   #:expect 1
+                                   #:got 0.99999999999
+                                   #:epsilon 1.0e-8)
+               (assert-approximate #:name "arithmetic approximation"
+                                   #:expect 1
+                                   #:got 0.99999999999)
+               (assert-not-approximate #:name "arithmetic approximation"
+                                       #:expect 1
+                                       #:got 0.9999999
+                                       #:epsilon 1.0e-8)
                (assert-equal #:expect 0
                              #:got (* 1 1 1 1 0))
                (assert-equal #:expect 1

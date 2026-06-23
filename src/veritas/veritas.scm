@@ -30,6 +30,9 @@
                             assert-false
                             assert-error
                             assert-no-error
+                            assert-approximate
+                            assert-not-approximate
+                            is-approximate?
                             evaluate-thunks-concurrently
                             collect-assertion-successful
                             fisher-yates-shuffle)

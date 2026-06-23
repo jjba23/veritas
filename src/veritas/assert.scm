@@ -40,7 +40,10 @@
                          assert-false
                          assert-error
                          assert-equal*
-                         assert-no-error))
+                         assert-no-error
+                         is-approximate?
+                         assert-approximate
+                         assert-not-approximate))
 
 (define* (assert-equal* #:key expect got compare name)
   "Returns a function taking a @acronym{VC, veritas-context}
@@ -223,3 +226,23 @@ A string to identify the assertion in the logs.
                  #:expect #f
                  #:compare eq?
                  #:name name))
+
+(define* (is-approximate? a b
+                          #:key epsilon)
+  (< (abs (- a b)) epsilon))
+
+(define* (assert-approximate #:key expect got name
+                             (epsilon 1.0e-8))
+  (assert-equal* #:expect expect
+                 #:got got
+                 #:compare (lambda (a b)
+                             (is-approximate? a b
+                                              #:epsilon epsilon))))
+
+(define* (assert-not-approximate #:key expect got name
+                                 (epsilon 1.0e-8))
+  (assert-equal* #:expect expect
+                 #:got got
+                 #:compare (lambda (a b)
+                             (not (is-approximate? a b
+                                                   #:epsilon epsilon)))))
