@@ -16,14 +16,9 @@
 ;; along with veritas.  If not, see <https://www.gnu.org/licenses/>.
 
 (define-module (veritas prelude)
-  #:use-module (ice-9 string-fun)
+  #:declarative? #t
   #:use-module (srfi srfi-1)
-  #:use-module (ice-9 iconv)
-  #:use-module (ice-9 time)
   #:use-module (ice-9 format)
-  #:use-module (ice-9 popen)
-  #:use-module (ice-9 textual-ports)
-  #:use-module (ice-9 rdelim)
   #:use-module (fibers)
   #:use-module (fibers channels)
   #:use-module (veritas model)

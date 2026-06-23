@@ -16,6 +16,7 @@
 ;; along with veritas.  If not, see <https://www.gnu.org/licenses/>.
 
 (define-module (veritas shuffle)
+  #:declarative? #t
   #:export (fisher-yates-shuffle))
 
 ;; List shuffle which implements the modern Fisher-Yates shuffle algorithm.

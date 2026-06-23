@@ -16,15 +16,8 @@
 ;; along with veritas.  If not, see <https://www.gnu.org/licenses/>.
 
 (define-module (veritas model)
-  #:use-module (ice-9 string-fun)
-  #:use-module (srfi srfi-1)
+  #:declarative? #t
   #:use-module (srfi srfi-9)
-  #:use-module (ice-9 iconv)
-  #:use-module (ice-9 time)
-  #:use-module (ice-9 format)
-  #:use-module (ice-9 popen)
-  #:use-module (ice-9 textual-ports)
-  #:use-module (ice-9 rdelim)
   #:export (suite-result suite-result?
                          make-suite-result
                          suite-result-name

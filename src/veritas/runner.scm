@@ -16,17 +16,11 @@
 ;; along with veritas.  If not, see <https://www.gnu.org/licenses/>.
 
 (define-module (veritas runner)
+  #:declarative? #t
   #:use-module (ice-9 string-fun)
   #:use-module (srfi srfi-1)
-  #:use-module (ice-9 iconv)
-  #:use-module (ice-9 time)
   #:use-module (ice-9 format)
-  #:use-module (ice-9 popen)
   #:use-module (ice-9 match)
-  #:use-module (ice-9 textual-ports)
-  #:use-module (ice-9 rdelim)
-  #:use-module (fibers)
-  #:use-module (fibers channels)
   #:use-module (ice-9 ftw)
   #:use-module (veritas prelude)
   #:use-module (veritas veritas)
@@ -154,4 +148,3 @@ scanning present working directory for ~a tests..."
     ((string? xs)
      xs)
     (else '())))
-

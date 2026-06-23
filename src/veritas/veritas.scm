@@ -16,6 +16,7 @@
 ;; along with veritas.  If not, see <https://www.gnu.org/licenses/>.
 
 (define-module (veritas veritas)
+  #:declarative? #t
   #:use-module (srfi srfi-1)
   #:use-module (ice-9 format)
   #:use-module (veritas reporter)

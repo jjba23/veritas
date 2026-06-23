@@ -31,6 +31,7 @@
 ;;; Code:
 
 (define-module (veritas assert)
+  #:declarative? #t
   #:use-module (ice-9 format)
   #:use-module (veritas reporter)
   #:export (assert-equal assert-eq
