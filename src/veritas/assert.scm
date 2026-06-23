@@ -18,7 +18,7 @@
 ;;; Commentary:
 ;;
 ;; This module is a Scheme testing library that provides a comprehensive set
-;; of assertion functions. At its core is the assert-equal* procedure,
+;; of assertion functions. At its core is the assert procedure,
 ;; a flexible and powerful tool for comparing an expected value against a result.
 ;;
 ;; Beyond simple value comparison, the module offers a set of tools for
@@ -40,7 +40,7 @@
                          assert-true
                          assert-false
                          assert-error
-                         assert-equal*
+                         assert
                          assert-no-error
                          assert-not-eq
                          assert-not-equal
@@ -49,7 +49,7 @@
                          assert-approximate
                          assert-not-approximate))
 
-(define* (assert-equal* #:key expect got compare name)
+(define* (assert #:key expect got compare name)
   "Returns a function taking a @acronym{VC, veritas-context}
 that returns an assertion that two values are equal based on a given comparison procedure.
 This is the core assertion procedure that the other `assert-equal` variants
@@ -60,7 +60,7 @@ dynamically. If @var{got} is a list starting with @code{compute},
 @code{comp}, or @code{computare}, the second element of the list is
 evaluated to get the actual value for comparison.
 
-For example, @code{(assert-equal* #:got '(compute (+ 1 1)) ...)}
+For example, @code{(assert #:got '(compute (+ 1 1)) ...)}
 would evaluate @code{(+ 1 1)} to @code{2} before the comparison.
 
 @table @var
@@ -69,14 +69,14 @@ The expected value.
 @item got
 The value to compare against, or a list to be computed.
 @item compare
-The comparison procedure, which should be a function of two
+The comparison procedure, the predicate, which should be a function of two
  arguments, e.g., `equal?`, `eqv?`, or `eq?`.
 @item name
 A doc string to identify the assertion in the logs.
 @end table
 
 @example
-(assert-equal* #:expect 3
+(assert #:expect 3
                #:got (+ 1 1 1)
                #:compare equal?
                #:name \"Ensuring addition works\")
@@ -200,74 +200,248 @@ A string to identify the assertion in the logs.
                (assertion-name unquote name))))))
 
 (define* (assert-equal #:key expect got name)
-  (assert-equal* #:expect expect
-                 #:got got
-                 #:compare equal?
-                 #:name name))
+  "Returns a function taking a @acronym{VC, veritas-context}
+that returns an assertion checking that @var{expect}
+and @var{got} are structurally equal using @code{equal?} predicate.
+
+This is the standard assertion for comparing lists, strings,
+vectors, and other compound data structures.
+
+It is a convenience wrapper around @code{assert}.
+
+@table @var
+@item expect
+The expected value.
+@item got
+The value to compare against.
+@item name
+A string to identify the assertion in the logs.
+@end table
+
+@example
+(assert-equal #:expect '(1 2 3)
+              #:got '(1 2 3)
+              #:name \"Lists should match\")
+@end example"
+  (assert #:expect expect
+          #:got got
+          #:compare equal?
+          #:name name))
 
 (define* (assert-eqv #:key expect got name)
-  (assert-equal* #:expect expect
-                 #:got got
-                 #:compare eqv?
-                 #:name name))
+  "Returns a function taking a @acronym{VC, veritas-context}
+that returns an assertion checking that @var{expect}
+and @var{got} are equivalent using @code{eqv?} predicate.
+
+This is useful for comparing numbers, characters, and symbols
+where value equivalence matters.
+
+It is a convenience wrapper around @code{assert}.
+
+@table @var
+@item expect
+The expected value.
+@item got
+The value to compare against.
+@item name
+A string to identify the assertion in the logs.
+@end table
+
+@example
+(assert-eqv #:expect 42
+            #:got (+ 40 2))
+@end example"
+  (assert #:expect expect
+          #:got got
+          #:compare eqv?
+          #:name name))
 
 (define* (assert-eq #:key expect got name)
-  (assert-equal* #:expect expect
-                 #:got got
-                 #:compare eq?
-                 #:name name))
+  "Returns a function taking a @acronym{VC, veritas-context}
+that returns an assertion checking that @var{expect}
+and @var{got} are identical using @code{eq?}.
+
+This is the strictest equality assertion and is typically used
+for symbols, booleans, and identity-sensitive comparisons.
+
+It is a convenience wrapper around @code{assert}.
+
+@table @var
+@item expect
+The expected value.
+@item got
+The value to compare against.
+@item name
+A string to identify the assertion in the logs.
+@end table
+
+@example
+(assert-eq #:expect 'foo
+           #:got 'foo)
+@end example"
+  (assert #:expect expect
+          #:got got
+          #:compare eq?
+          #:name name))
 
 (define* (assert-not-eq #:key expect got name)
-  (assert-equal* #:expect expect
-                 #:got got
-                 #:compare (lambda (a b)
-                             (not (eq? a b)))
-                 #:name name))
+  "Returns a function taking a @acronym{VC, veritas-context}
+that returns an assertion checking that @var{expect}
+and @var{got} are not identical using @code{eq?}.
+
+This assertion passes when the two values do not share identity.
+
+It is the inverse of @code{assert-eq}.
+
+@example
+(assert-not-eq #:expect '(1 2)
+               #:got '(1 2))
+@end example"
+  (assert #:expect expect
+          #:got got
+          #:compare (lambda (a b)
+                      (not (eq? a b)))
+          #:name name))
 
 (define* (assert-not-eqv #:key expect got name)
-  (assert-equal* #:expect expect
-                 #:got got
-                 #:compare (lambda (a b)
-                             (not (eqv? a b)))
-                 #:name name))
+  "Returns a function taking a @acronym{VC, veritas-context}
+that returns an assertion checking that @var{expect}
+and @var{got} are not equivalent using @code{eqv?}.
+
+This assertion is useful when values should differ in meaning
+or representation.
+
+It is the inverse of @code{assert-eqv}.
+
+@example
+(assert-not-eqv #:expect 1
+                #:got 2)
+@end example"
+  (assert #:expect expect
+          #:got got
+          #:compare (lambda (a b)
+                      (not (eqv? a b)))
+          #:name name))
 
 (define* (assert-not-equal #:key expect got name)
-  (assert-equal* #:expect expect
-                 #:got got
-                 #:compare (lambda (a b)
-                             (not (equal? a b)))
-                 #:name name))
+  "Returns a function taking a @acronym{VC, veritas-context}
+that returns an assertion checking that @var{expect}
+and @var{got} are not structurally equal using @code{equal?}.
+
+This assertion is useful when testing for inequality
+of compound values.
+
+It is the inverse of @code{assert-equal}.
+
+@example
+(assert-not-equal #:expect '(1 2 3)
+                  #:got '(1 2 4))
+@end example"
+  (assert #:expect expect
+          #:got got
+          #:compare (lambda (a b)
+                      (not (equal? a b)))
+          #:name name))
 
 (define* (assert-true x
                       #:key name)
-  (assert-equal* #:got x
-                 #:expect #t
-                 #:compare eq?
-                 #:name name))
+  "Returns a function taking a @acronym{VC, veritas-context}
+that returns an assertion checking that @var{x} is @code{#t}.
+
+This is a convenience wrapper for boolean truth assertions.
+
+@example
+(assert-true (> 5 2)
+             #:name \"5 is greater than 2\")
+@end example"
+  (assert #:got x
+          #:expect #t
+          #:compare eq?
+          #:name name))
 
 (define* (assert-false x
                        #:key name)
-  (assert-equal* #:got x
-                 #:expect #f
-                 #:compare eq?
-                 #:name name))
+  "Returns a function taking a @acronym{VC, veritas-context}
+that returns an assertion checking that @var{x} is @code{#f}.
+
+This is a convenience wrapper for boolean falsehood assertions.
+
+@example
+(assert-false (< 5 2)
+              #:name \"5 is not less than 2\")
+@end example"
+  (assert #:got x
+          #:expect #f
+          #:compare eq?
+          #:name name))
 
 (define* (is-approximate? a b
                           #:key epsilon)
+  "Returns @code{#t} if the absolute difference between
+@var{a} and @var{b} is smaller than @var{epsilon}.
+
+This is useful for comparing floating-point values where
+exact equality may not be reliable.
+
+@table @var
+@item a
+The first numeric value.
+@item b
+The second numeric value.
+@item epsilon
+The maximum allowed difference.
+@end table
+
+@example
+(is-approximate? 3.14159 3.14160
+                 #:epsilon 0.0001)
+@result{} #t
+@end example"
   (< (abs (- a b)) epsilon))
 
 (define* (assert-approximate #:key expect got name
                              (epsilon 1.0e-8))
-  (assert-equal* #:expect expect
-                 #:got got
-                 #:compare (lambda (a b)
-                             (is-approximate? a b
-                                              #:epsilon epsilon))))
+  "Returns a function taking a @acronym{VC, veritas-context}
+that returns an assertion checking that @var{expect}
+and @var{got} are approximately equal.
+
+Two values are considered approximately equal if their
+difference is smaller than @var{epsilon}.
+
+This is useful for floating-point computations.
+
+@example
+(assert-approximate #:expect 3.14
+                    #:got 3.141
+                    #:epsilon 0.01)
+@end example"
+
+  (assert #:expect expect
+          #:got got
+          #:name name
+          #:compare (lambda (a b)
+                      (is-approximate? a b
+                                       #:epsilon epsilon))))
 
 (define* (assert-not-approximate #:key expect got name
                                  (epsilon 1.0e-8))
-  (assert-equal* #:expect expect
-                 #:got got
-                 #:compare (lambda (a b)
-                             (not (is-approximate? a b
-                                                   #:epsilon epsilon)))))
+  "Returns a function taking a @acronym{VC, veritas-context}
+that returns an assertion checking that @var{expect}
+and @var{got} are not approximately equal.
+
+This assertion passes when the difference between the values
+is greater than or equal to @var{epsilon}.
+
+It is the inverse of @code{assert-approximate}.
+
+@example
+(assert-not-approximate #:expect 3.14
+                        #:got 3.5
+                        #:epsilon 0.01)
+@end example"
+  (assert #:expect expect
+          #:got got
+          #:name name
+          #:compare (lambda (a b)
+                      (not (is-approximate? a b
+                                            #:epsilon epsilon)))))
