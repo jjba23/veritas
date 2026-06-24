@@ -30,7 +30,7 @@ clone:
 
 steps:
   get-byggsteg-token:
-    name: "🔒 Get token @ Byggsteg"    
+    name: "🔒 Get token @ Byggsteg"
     image: *get_token_image
     when:
       - event: [ push ]
@@ -40,9 +40,9 @@ steps:
       BYGGSTEG_PASSWORD:
         from_secret: BYGGSTEG_PASSWORD
       BYGGSTEG_URL: *jointhefreeworld_byggsteg_url
-    
+
   submit-byggsteg-job:
-    name: "💼 Submit job @ Byggsteg"    
+    name: "💼 Submit job @ Byggsteg"
     image: *submit_job_image
     when:
       - event: [ push ]
@@ -59,7 +59,7 @@ steps:
                     (VERITAS_RUN_BENCHMARKS . false)))))
 
   pr-submit-byggsteg-job:
-    name: "💼 Submit PR job @ Byggsteg"        
+    name: "💼 Submit PR job @ Byggsteg"
     image: *submit_job_image
     when:
       - event: [ push ]
@@ -71,11 +71,11 @@ steps:
         (lambda()
           `((task . "make-test")
             (project . "%%CI_REPO_NAME%%")
-            (branch-name . "%%CI_COMMIT_BRANCH%%")            
-            (clone-url . "%%CI_REPO_CLONE_URL%%")))            
-            
+            (branch-name . "%%CI_COMMIT_BRANCH%%")
+            (clone-url . "%%CI_REPO_CLONE_URL%%")))
+
   poll-byggsteg-job:
-    name: "🔄 Poll job status @ Byggsteg"    
+    name: "🔄 Poll job status @ Byggsteg"
     image: *poll_job_image
     when:
       - event: [ push ]

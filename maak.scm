@@ -21,10 +21,6 @@
 
 ;; ====== Maak constants ======
 
-;; The absolute path to the directory where the main project files will be deployed.
-(define deploy-dir
-  "/srv/http/jointhefreeworld.org")
-
 ;; The URL for the CSS style-sheet used to style API documentation.
 (define api-docs-css-url
   "https://jointhefreeworld.org/static/css/jointhefreeworld.css")
@@ -36,12 +32,6 @@
 ;; The name of the project, represented as a symbol.
 (define project-name
   'veritas)
-
-;; The Emacs Lisp script to run for publishing the manual.
-(define emacs-lisp-manual-publish-cmd
-  '(progn (find-file "./docs/manual/en.org")
-          (org-html-export-to-html)
-          (message "finished publishing Veritas manual")))
 
 (define hot-reload-file-types
   '(scm))
@@ -73,25 +63,13 @@
                                #:verbose? #t)
   (mv "./index" "./doc/api-dist"))
 
-(define (build-manual)
-  "Render the project's manual."
-  (time-machine-manifest-shell (list (~ "emacs -Q --batch --eval '~s'"
-                                        emacs-lisp-manual-publish-cmd))
-                               #:verbose? #t))
-
 (define (deploy)
   "Deploy the project's documentation."
   (docs)
-  (build-manual)
   (remkdir-p (~ "~a/api-docs/~a" deploy-api-docs-dir project-name))
   (mv "doc/api-dist/*"
       (~ "~a/api-docs/~a" deploy-api-docs-dir project-name))
-  (delete-file-recursively "doc")
-  (mkdir-p (~ "~a/manuals/~a" deploy-dir project-name))
-  (delete-file-recursively (~ "~a/manuals/~a/index.html" deploy-dir
-                              project-name))
-  (mv "docs/manual/en.html"
-      (~ "~a/manuals/~a/index.html" deploy-dir project-name)))
+  (delete-file-recursively "doc"))
 
 (define (test)
   "Run project's tests."

@@ -19,6 +19,10 @@ If you like my work, please support me by [[https://bmc.link/jjbigorra][buying m
 
 /An expressive, free (as in freedom), and extensible test framework is crucial for modern software engineering and is a great instrument to explore systems and algorithms/
 
+You can find the full technical Guile Scheme API documentation for Veritas here:
+
+https://jointhefreeworld.org/api-docs/veritas/API.html
+
 * Introduction
 
 /AD REM/ - to the matter
@@ -91,6 +95,33 @@ And then we wire it all up:
 
 #+end_src
 
+Normal arguments are denoted by their name, keyword arguments are denoted by their name prefixed with ~#:~ as in Scheme. When ~rest~ arguments are mentioned, it's another terminology for variadic.
+
+Note: Veritas generally expects you to pass keyword arguments before variadic arguments.
+
+Note: If one desires to delay execution of the ~#:got~ argument of the assertions, one can simply quote it and wrap it inside a block with ~compute~ as ~car~. You can use ~compute~, ~computare~, or ~comp~ as special keywords for lazy evaluation. This works for all assertions, except ~assert-error~ and related. See an example here:
+
+#+begin_src scheme
+;; got will evaluate eagerly
+(assert-equal #:expect 1
+              #:got (+ 10 (- 0 9)))
+
+;; got will evaluate lazily, inside test context
+(assert-equal #:expect 1
+              #:got `(comp (begin
+                             (sleep 4)
+                             (+ 10 (- 0 9)))))
+
+(assert-equal #:expect 144
+              #:got `(comp (begin
+                             ;; This block is evaluated by Veritas at test-time.
+                             ;; Useful for setup or complex expressions.
+                             (let ((x 12))
+                               (* x x))))
+              #:name "Complex computation inside an assertion")
+#+end_src
+
+
 -----------------------------
 
 * Design
@@ -159,20 +190,31 @@ This is made easy thanks to Lisp, with higher order functions, quasi-quoting and
 #+end_src
 
 
-------------
+--------------
 
-* Documentation:
+* Environment Variables: /VARIABILES AMBITUS/
 
-/PACTA SUNT SERVANDA/ - /agreements must be kept/
+Some functionalities, including the runner, are configured via environment variables for ease of use and integration in CI environments. In the Guile Scheme implementation this is done leveraging parameters and. All the variables have sane defaults, but are your entry-point for lots of customisation of the test process.
 
-You can find a detailed documentation on Veritas, its functions and the runner here:
+- ~VERITAS_ENTRYPOINT~ defaults to ~spec~ and determines which function should be called as entry-point to your tests.
 
-- in [[https://codeberg.org/jjba23/veritas/src/branch/trunk/docs/manual/en.org][Org format]]
-- in   [[https://jointhefreeworld.org/manuals/veritas/index.html][HTML format]]
+- ~VERITAS_SCAN_DIR~ defaults to ~./~ and determines which directory should be used to look for test directories and files.
 
-You can find the technical Guile Scheme API documentation for Veritas here:
+- ~VERITAS_TEST_TYPE~ defaults to ~unit~ and determines which type of test to use, and thus which directory should be used to load files from.
 
-https://jointhefreeworld.org/api-docs/veritas/API.html
+- ~VERITAS_TEST_TOP_DIR~ defaults to ~test~ and determines which directory to use to look for test hierarchies, typically this means a ~test~ directory beside your ~src~ directory, at top repository level.
+
+- ~VERITAS_TEST_MODULE~ defaults to ~veritas~ and determines the test module to load, and also should be equal to the Guile Scheme modules name you use. For example if you have a unit test file a ~./test/my-program/unit/my-test.scm~ then you should change this variable to the value ~my-program~ and your module declaration should be ~(define-module (my-program unit my-test))~. If you don't change the defaults, place your tests at for example ~./test/veritas/unit/my-test.scm~ and name them ~(define-module (veritas unit my-test))~.
+
+- ~VERITAS_SHUFFLE_FILES~ defaults to ~true~ and determines whether to shuffle test file order or not.
+
+- ~VERITAS_RUN_BENCHMARKS~ defaults to ~true~ and determines whether benchmarks should be run.
+
+- ~VERITAS_ONLY_TEST~ is an optional variable you can pass to limit the execution to test cases whose name partially matches this variable.
+
+- ~VERITAS_ONLY_SUITE~ is an optional variable you can pass to limit the execution to suites whose name partially matches this variable.
+
+- ~VERITAS_REPORTER~ is an optional variable, interpreted as symbol in Lisp, by default ~emoji-reporter~, other choices are ~monotone-reporter~
 
 
 ----------------------
