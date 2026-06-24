@@ -22,6 +22,7 @@
              (guix download)
              (gnu packages guile)
              (gnu packages nss)
+             (gnu packages code)
              (gnu packages guile-xyz)
              (gnu packages pkg-config)
              (guix build-system guile)
@@ -41,5 +42,6 @@
                           guile-ares-rs
                           guile-documenta
                           texinfo
+                          lcov
                           emacs-no-x
                           watchexec))

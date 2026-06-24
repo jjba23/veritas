@@ -25,6 +25,7 @@
   #:use-module (veritas shuffle)
   #:use-module (veritas model)
   #:use-module (statprof)
+  #:use-module (system vm coverage)
   #:re-export (assert-equal assert-eqv
                             assert-true
                             assert-false
@@ -317,11 +318,99 @@ to falling back on the explicit runtime variable configuration provided by @var{
        (string->symbol env-var))
       (else dsl-input))))
 
+(define (%prepare-task-thunks tasks shuffle? vc)
+  "Filter and orchestrate user positional @var{tasks} into execution thunks.
+
+Captures all nested trace output blocks written during module tests to standard out
+and saves them cleanly back inside structural results configurations. Returns a
+sequential flat list containing purely ready-to-run thunk closures."
+  (let* ((valid-tasks (filter procedure? tasks))
+         (ordered-tasks (if shuffle?
+                            (fisher-yates-shuffle valid-tasks) valid-tasks)))
+    (map (lambda (task-proc)
+           (let* ((output-port (open-output-string)))
+             (lambda ()
+               (let* ((result (with-output-to-port output-port
+                                                   (lambda ()
+                                                     (task-proc vc))))
+                      (task-output (get-output-string output-port))
+                      (_ (close-port output-port)))
+                 (cond
+                   ((suite-result? result)
+                    (set-suite-result-output! result task-output))
+                   (else '())) result)))) ordered-tasks)))
+
+(define (%execute-tasks task-thunks concurrent?)
+  "Execute a suite of compiled @var{task-thunks} with explicit VM orchestration.
+
+Respects the @var{concurrent?} block flags by spreading
+evaluations over Fibers setups or running single-threaded execution stacks.
+
+Returns two distinct values via a standard multi-value return structure:
+@enumerate
+@item The caught VM code coverage information matrix record (or @code{#f})
+@item The aggregated raw execution results collection
+@end enumerate"
+  (if concurrent?
+      (evaluate-thunks-concurrently task-thunks)
+      (evaluate-thunks task-thunks)))
+
+(define (%extract-test-results all-results)
+  "Recursively normalize mixed-type results arrays into sequential flat test sheets."
+  (map (lambda (sr)
+         (cond
+           ((suite-result? sr)
+            (suite-result-test-results sr))
+           ((pre-test-result? sr)
+            sr)
+           ((benchmark-result? sr)
+            '())
+           (else (error (format #f "Unknown evaluation structure parsed: ~a"
+                                sr))))) all-results))
+
+(define (%write-coverage-report coverage-data vc)
+  "Write internal compiled VM @var{coverage-data} records safely into an LCOV trace file."
+  (let* ((t (gettimeofday))
+         (report-name (string-append "reports/lcov/coverage-"
+                                     (format #f "~a-~a"
+                                             (car t)
+                                             (cdr t)) ".info")))
+    (call-with-output-file report-name
+      (lambda (port)
+        (coverage-data->lcov coverage-data port)))
+    (log-info vc
+              (format #f "Code coverage report written to ~a" report-name))))
+
+(define (%process-execution-lifecycle vc all-results task-count start-time
+                                      debug?)
+  "Gather execution metrics, print logger telemetry dashboards, and handle failure states."
+  (let* ((test-results (%extract-test-results all-results))
+         (assertion-results (collect-assertion-successful test-results))
+         (end-time (gettimeofday))
+         (seconds-elapsed (- (car end-time)
+                             (car start-time)))
+         (microseconds-elapsed (- (cdr end-time)
+                                  (cdr start-time))))
+    
+    (display-all-results vc all-results)
+    (log-info vc
+              (format #f "ran ~a tasks in: ~a seconds, ~a microseconds"
+                      task-count seconds-elapsed microseconds-elapsed))
+
+    (when debug?
+      (log-debug vc
+                 (format #f "assertion-results: ~a" assertion-results)))
+
+    (when (member #f assertion-results)
+      (log-error vc "\naborting due to error in test case...\n")
+      (exit 1))))
+
 ;; ====== Entry-point function ======
 (define* (veritas-run #:key (shuffle? #t)
                       (concurrent? #t)
                       (debug? #f)
                       (reporter #f)
+                      (with-coverage? #t)
                       #:rest tasks)
   "Top-level execution runtime wrapper engine designed to orchestrate test execution runs.
 
@@ -330,70 +419,31 @@ Evaluates positional task variables sequentially or concurrently, providing orch
 @item @var{shuffle?}: Shuffles top-level block entry components randomly before runner routing.
 @item @var{concurrent?}: Runs distinct suite closures asynchronously using lightweight concurrent fibers.
 @item @var{debug?}: Provides developer trace visibility parameters to stdout streams.
-@item @var{reporter}: Selects the designated printing formatter design structure (e.g. @code{'emoji-reporter}, @code{'json-reporter}, @code{'monotone-reporter}).
-@end itemize
-
-Measures elapsed microsecond time spans accurately using system clocks. Upon execution loop completion,
-recursively scans assertion lists; if any assertion validation indicates a failure (@code{#f}),
-intercepts execution control and terminates the system process immediately by invoking an explicit system exit command (@code{exit 1})."
-
-  (let* ((start-test-time (gettimeofday))
-         (start-seconds (car start-test-time))
-         (start-microseconds (cdr start-test-time))
-         (valid-tasks (filter procedure? tasks))
-         (ordered-tasks (if shuffle?
-                            (fisher-yates-shuffle valid-tasks) valid-tasks))
+@item @var{reporter}: Selects the designated printing formatter design structure.
+@item @var{with-coverage?}: Whether to measure test code coverage and produce an LCOV report.
+@end itemize"
+  (let* ((start-time (gettimeofday))
          (made-reporter (%make-reporter reporter))
          (vc (list (cons 'reporter made-reporter)))
-         (task-thunks (map (lambda (task-proc)
-                             (let* ((output-port (open-output-string)))
-                               (lambda ()
-                                 (let* ((result (with-output-to-port
-                                                 output-port
-                                                 (lambda ()
-                                                   (task-proc vc))))
-                                        (task-output (get-output-string
-                                                      output-port))
-                                        (_ (close-port output-port)))
-                                   (cond
-                                     ((suite-result? result)
-                                      (set-suite-result-output! result
-                                                                task-output))
-                                     (else '()))
+         (task-thunks (%prepare-task-thunks tasks shuffle? vc)))
+    (catch #t
+           (lambda ()
+             (mkdir "reports")
+             (mkdir "reports/lcov"))
+           (lambda (key . args)
+             #f))
+    (call-with-values (lambda ()
+                        (if with-coverage?
+                            (with-code-coverage (lambda ()
+                                                  (%execute-tasks task-thunks
+                                                                  concurrent?)))
+                            (%execute-tasks task-thunks concurrent?)))
+                      (lambda (coverage-data all-results)
+                        (when (and with-coverage? coverage-data)
+                          (%write-coverage-report coverage-data vc))
 
-                                   result)))) ordered-tasks))
-         (all-results (if concurrent?
-                          (evaluate-thunks-concurrently task-thunks)
-                          (evaluate-thunks task-thunks)))
-         (test-results (map (lambda (sr)
-                              (cond
-                                ((suite-result? sr)
-                                 (suite-result-test-results sr))
-                                ((pre-test-result? sr)
-                                 sr)
-                                ((benchmark-result? sr)
-                                 '())
-                                (else (error (format #f
-                                              "could not read test results from unknown type: ~a"
-                                              sr))))) all-results))
-         (assertion-results (collect-assertion-successful test-results))
-         (end-test-time (gettimeofday))
-         (end-seconds (car end-test-time))
-         (end-microseconds (cdr end-test-time))
-         (seconds-elapsed (- end-seconds start-seconds))
-         (microseconds-elapsed (- end-microseconds start-microseconds)))
-    
-    (display-all-results vc all-results)
-    (log-info vc
-              (format #f "ran ~a tasks in: ~a seconds, ~a microseconds"
-                      (length valid-tasks) seconds-elapsed
-                      microseconds-elapsed))
-    (when debug?
-      (log-debug vc
-                 (format #f "assertion-results: ~a" assertion-results)))
+                        (%process-execution-lifecycle vc all-results
+                                                      (length task-thunks)
+                                                      start-time debug?)
 
-    (when (member #f assertion-results)
-      (log-error vc "\naborting due to error in test case...\n")
-      (exit 1))
-
-    all-results))
+                        all-results))))

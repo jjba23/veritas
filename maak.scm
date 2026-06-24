@@ -73,9 +73,18 @@
 
 (define (test)
   "Run project's tests."
+  (delete-file-recursively "reports/lcov/coverage*"
+                           #:verbose? #f)
+  (delete-file-recursively "reports/html"
+                           #:verbose? #f)
   ($ (list "VERITAS_TEST_TYPE=unit" "VERITAS_RUN_BENCHMARKS=true"
            "guix shell -m manifest.scm --" "guile -L ./src -L ./test"
-           "-c '((@ (veritas runner) run-tests))'")))
+           "-c '((@ (veritas runner) run-tests))'"))
+  (coverage-report))
+
+(define (coverage-report)
+  "Make test coverage report."
+  ($ '("genhtml reports/lcov/*.info --output-directory reports/html > /dev/null")))
 
 (define (validate)
   "Format, compile and test."
