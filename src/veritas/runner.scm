@@ -36,6 +36,24 @@
            (map remove-stat children)))))
 
 (define* (run-test-file #:key test-file test-type entrypoint-function)
+  "Dynamically resolve and execute a designated test file module.
+
+Accepts three keyword arguments:
+@itemize
+@item @var{test-file}: The relative string path targeting a test definition file.
+@item @var{test-type}: A descriptive categorization string used for module names (e.g., @code{\"unit\"}).
+@item @var{entrypoint-function}: A string name identifying the zero-argument procedure to run.
+@end itemize
+
+Transforms the target string file path into an expected Guile module path syntax under the top-level
+hierarchy prefix @code{(veritas @var{test-type} ...)}, maps the matching entrypoint, and executes it synchronously.
+
+@example
+(run-test-file #:test-file \"math/algebra.scm\"
+               #:test-type \"unit\"
+               #:entrypoint-function \"spec\")
+;; Dynamically runs the 'spec' function inside module: (veritas unit math algebra)
+@end example"
   (let* ((_ (display (format #f "
 
 running ~a tests from file: ~a, entrypoint: ~a
@@ -55,6 +73,19 @@ running ~a tests from file: ~a, entrypoint: ~a
            '())))
 
 (define* (run-tests)
+  "Main entry point orchestration runner for looking up, organizing, and executing tests.
+
+Automatically configures operations by reading environment variables on execution:
+@itemize
+@item @code{VERITAS_SCAN_DIR}: High-level folder root used to scan files. Defaults to @code{\"./\"}.
+@item @code{VERITAS_TEST_TOP_DIR}: The subfolder boundary identifier containing test suites. Defaults to @code{\"test\"}.
+@item @code{VERITAS_ENTRYPOINT}: The signature method executed inside test targets. Defaults to @code{\"spec\"}.
+@item @code{VERITAS_TEST_MODULE}: Top level test parent folder filter. Defaults to @code{\"veritas\"}.
+@item @code{VERITAS_TEST_TYPE}: Category discriminator keyword used during routing. Defaults to @code{\"unit\"}.
+@item @code{VERITAS_SHUFFLE_FILES}: Set to string @code{\"true\"} to shuffle execution sequences using a Fisher-Yates algorithm. Defaults to @code{\"true\"}.
+@item @end itemize
+
+Locates target test collections dynamically via directory traversal hooks, updates stdout buffers with operational summaries, and processes matching test suites consecutively."
   (let* ((scan-dir (getenv-or 'VERITAS_SCAN_DIR
                               #:default "./"))
          (test-top-dir (getenv-or 'VERITAS_TEST_TOP_DIR
@@ -107,6 +138,15 @@ scanning present working directory for ~a tests..."
                          test-top-dir
                          test-module
                          dir)
+  "Recursively traverse a cleaned directory metadata structure @var{dir} to isolate relevant test targets.
+
+Dispatches recursive tree matching across structural listings by comparing elements against the designated configuration constraints:
+@itemize
+@item If directory branches match structural target strings, routes deeper down those tree boundaries.
+@item If a matching folder named after @var{test-type} is reached, routes the underlying components to @code{flatten-test-files}.
+@end itemize
+
+Returns a multi-dimensional nested string list structure grouping eligible test module file locations."
   (let* ((discovery-targets (list scan-dir test-top-dir test-module)))
     (cond
       ((and (list? dir)
@@ -130,6 +170,15 @@ scanning present working directory for ~a tests..."
       (else '()))))
 
 (define (flatten-test-files xs)
+  "Construct explicit relative file path strings from segmented subfolder list representations @var{xs}.
+
+Evaluates list structures matching file layouts recursively to concatenate path segments. Skips or filters
+out invalid files or non-Scheme structures that do not match a standard @code{\".scm\"} extension suffix notation.
+
+@example
+(flatten-test-files '(\"math\" ((\"algebra.scm\" ()) (\"geometry.scm\" ()))))
+@result{} (\"math/algebra.scm\" \"math/geometry.scm\")
+@end example"
   (cond
     ((and (pair? xs)
           (string? (car xs))

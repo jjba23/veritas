@@ -19,11 +19,24 @@
   #:declarative? #t
   #:export (fisher-yates-shuffle))
 
-;; List shuffle which implements the modern Fisher-Yates shuffle algorithm.
-;; It converts the list to a vector for efficient O(1) random access
-;; and mutation, shuffles the vector in-place, and then converts it back to a list.
 (define (fisher-yates-shuffle xs)
-  "Returns a randomly shuffled copy of XS."
+  "Return a new list containing the elements of @var{xs} in a randomized permutation.
+
+Implements the modern Fisher–Yates (also known as the Knuth) shuffle algorithm.
+To ensure optimal performance, the input list @var{xs} is copied into an internal
+vector to leverage O(1) random access and mutation. The elements are shuffled
+in-place within the vector before being converted back into a standard Scheme list.
+
+Every invocation automatically re-initializes Guile's internal @code{*random-state*}
+variable using system entropy via @code{random-state-from-platform} to ensure high-quality
+pseudo-random distribution.
+
+If @var{xs} is empty or contains only a single element, it is returned unmodified.
+
+@example
+(fisher-yates-shuffle '(1 2 3 4 5))
+@result{} (4 1 5 3 2)  ; Note: Output is randomized and non-deterministic
+@end example"
   (set! *random-state*
         (random-state-from-platform))
   (if (or (null? xs)
