@@ -130,6 +130,11 @@
                              #:got #t
                              #:name
                              "This test won't run because it is skipped"))
+         (test "Addition Validation"
+               #:before (lambda (vc)
+                          (display "Initializing..."))
+               (assert-equal #:got 4
+                             #:expect (+ 2 2)))
          (test "A test with a complex computation block"
                #:before (lambda (vc)
                           (log-info vc "before test runs"))
@@ -169,4 +174,3 @@
                error-handling-suite
                advanced-features-suite
                simple-factorial-benchmark))
-

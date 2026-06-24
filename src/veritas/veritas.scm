@@ -124,7 +124,7 @@ captured, and returned inside an encapsulated @code{pre-test-result} data struct
 @example
 (test \"Addition Validation\"
       #:before (lambda (vc) (display \"Initializing...\"))
-      (lambda (vc) (assert-equal vc 4 (+ 2 2))))
+      (assert-equal #:expect 4 #:got (+ 2 2)))
 @end example"
   (let* ((func (lambda (vc)
                  (log-test vc name)
