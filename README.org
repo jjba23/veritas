@@ -192,6 +192,12 @@ This is made easy thanks to Lisp, with higher order functions, quasi-quoting and
 
 --------------
 
+** Code coverage
+
+It's enabled by default, and reports are produced for every test file , ending up in ~./reports/lcov~ and ~./reports/html~. It's recommended to allow write permission and/or create these folders and to take care of removing them at every run (best done with automation, such as Maak file: see ~./maak.scm~
+
+----------
+
 * Environment Variables: /VARIABILES AMBITUS/
 
 Some functionalities, including the runner, are configured via environment variables for ease of use and integration in CI environments. In the Guile Scheme implementation this is done leveraging parameters and. All the variables have sane defaults, but are your entry-point for lots of customisation of the test process.
