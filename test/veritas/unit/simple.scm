@@ -114,6 +114,7 @@
 
 (define (spec)
   (veritas-run #:debug? #f
+               #:with-coverage? #t
                predicate-suite
                error-handling-suite
                complex-data-suite

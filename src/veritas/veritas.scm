@@ -410,7 +410,7 @@ Returns two distinct values via a standard multi-value return structure:
                       (concurrent? #t)
                       (debug? #f)
                       (reporter #f)
-                      (with-coverage? #t)
+                      (with-coverage? #f)
                       #:rest tasks)
   "Top-level execution runtime wrapper engine designed to orchestrate test execution runs.
 
@@ -437,7 +437,9 @@ Evaluates positional task variables sequentially or concurrently, providing orch
                             (with-code-coverage (lambda ()
                                                   (%execute-tasks task-thunks
                                                                   concurrent?)))
-                            (%execute-tasks task-thunks concurrent?)))
+                            ;; Force a two-value return matching the signature
+                            (values #f
+                                    (%execute-tasks task-thunks concurrent?))))
                       (lambda (coverage-data all-results)
                         (when (and with-coverage? coverage-data)
                           (%write-coverage-report coverage-data vc))

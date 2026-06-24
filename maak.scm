@@ -84,7 +84,11 @@
 
 (define (coverage-report)
   "Make test coverage report."
-  ($ '("genhtml reports/lcov/*.info --output-directory reports/html > /dev/null")))
+  (catch #t
+         (lambda ()
+           ($ '("genhtml reports/lcov/*.info --output-directory reports/html > /dev/null")))
+         (lambda (key . args)
+           #f)))
 
 (define (validate)
   "Format, compile and test."
