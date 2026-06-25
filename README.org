@@ -19,9 +19,7 @@ If you like my work, please support me by [[https://bmc.link/jjbigorra][buying m
 
 /An expressive, free (as in freedom), and extensible test framework is crucial for modern software engineering and is a great instrument to explore systems and algorithms/
 
-You can find the full technical Guile Scheme API documentation for Veritas here:
-
-https://jointhefreeworld.org/api-docs/veritas/API.html
+You can find out more by reading [[https://jointhefreeworld.org/api-docs/veritas/API.html][the full technical Guile Scheme API documentation for Veritas]]
 
 * Introduction
 
@@ -192,7 +190,7 @@ This is made easy thanks to Lisp, with higher order functions, quasi-quoting and
 
 --------------
 
-** Code coverage
+* Code coverage
 
 /Ambitus probationis codicis/: "The testing scope of the code"
 
@@ -201,6 +199,35 @@ It's disabled by default per every run of ~veritas-run~ but you can opt-in, and 
 We are in experimental phase still for this feature, using LCOV + HTML method, more improvements to come yet!
 
 ----------
+
+* Generators
+
+/GENERATOR/
+
+* Data Generators
+
+Veritas provides a powerful set of data generator combinators designed for property-based testing. All generators in Veritas compile down into a predictable closure contract matching a simplified signature:
+
+#+begin_src scheme
+(lambda (rand) ...)
+#+end_src
+
+Example usage:
+#+begin_src scheme
+(define gen (generate-symbol #:min-len 3 #:max-len 6))
+(gen (seed->random-state 42))
+;; or (gen (random-state-from-platform))
+#+end_src
+
+- State-Driven properties, to yield a value, a generator closure must be invoked with an explicit Guile random state object (e.g., generated via =(random-state-from-platform)=).
+- By using the combinator pattern, generators can be nested seamlessly. For instance, passing =(generate-char)= into =(generate-list)= instantly creates a structured character-list generator.
+
+Veritas includes several out-of-the-box generators to construct your test cases. See [[https://jointhefreeworld.org/api-docs/veritas/API.html][the full technical Guile Scheme API documentation for Veritas]] for more.
+
+Also, you can learn more by reading the unit tests for veritas itself, at ~test/veritas/unit~
+
+
+------------
 
 * Environment Variables
 

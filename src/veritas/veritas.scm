@@ -24,22 +24,28 @@
   #:use-module (veritas prelude)
   #:use-module (veritas shuffle)
   #:use-module (veritas model)
+  #:use-module (veritas generator)
   #:use-module (statprof)
   #:use-module (system vm coverage)
-  #:re-export (assert-equal assert-eqv
-                            assert-true
-                            assert-false
-                            assert-error
-                            assert-no-error
-                            assert-approximate
-                            assert-not-approximate
-                            assert-not-eq
-                            assert-not-eqv
-                            assert-not-equal
-                            is-approximate?
-                            evaluate-thunks-concurrently
-                            collect-assertion-successful
-                            fisher-yates-shuffle)
+  #:re-export (generate-integer generate-char
+                                generate-list
+                                generate-symbol
+                                generate-string
+                                assert-equal
+                                assert-eqv
+                                assert-true
+                                assert-false
+                                assert-error
+                                assert-no-error
+                                assert-approximate
+                                assert-not-approximate
+                                assert-not-eq
+                                assert-not-eqv
+                                assert-not-equal
+                                is-approximate?
+                                evaluate-thunks-concurrently
+                                collect-assertion-successful
+                                fisher-yates-shuffle)
   #:export (test veritas-run suite benchmark do-if-string-contained))
 
 ;; ====== Parameters of Environment variables ======
