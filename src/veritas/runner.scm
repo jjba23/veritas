@@ -188,7 +188,7 @@ out invalid files or non-Scheme structures that do not match a standard @code{\"
      (map (lambda (pp)
             (format #f "~a/~a"
                     (car xs) pp))
-          (flatten-list (cdr xs))))
+          (flatten-test-files (cdr xs))))
     ((and (pair? xs)
           (not (null? (cdr xs))))
      (map flatten-test-files xs))
