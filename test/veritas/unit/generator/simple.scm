@@ -15,7 +15,7 @@
 ;; You should have received a copy of the Lesser GNU General Public License
 ;; along with veritas.  If not, see <https://www.gnu.org/licenses/>.
 
-(define-module (veritas unit generator)
+(define-module (veritas unit generator simple)
   #:use-module (veritas veritas)
   #:use-module (veritas reporter)
   #:export (spec))
