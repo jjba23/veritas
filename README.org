@@ -202,9 +202,7 @@ We are in experimental phase still for this feature, using LCOV + HTML method, m
 
 * Generators
 
-/GENERATOR/
-
-* Data Generators
+/GENERATORES DANT, GENERATORES AUFERUNT/ - the generators giveth, and the generators taketh away
 
 Veritas provides a powerful set of data generator combinators designed for property-based testing. All generators in Veritas compile down into a predictable closure contract matching a simplified signature:
 
@@ -217,6 +215,10 @@ Example usage:
 (define gen (generate-symbol #:min-len 3 #:max-len 6))
 (gen (seed->random-state 42))
 ;; or (gen (random-state-from-platform))
+;; > 'veritas
+
+(define int-gen (generate-integer #:max-bound 1024))
+(int-gen (random-state-from-platform)) ;; > 42
 #+end_src
 
 - State-Driven properties, to yield a value, a generator closure must be invoked with an explicit Guile random state object (e.g., generated via =(random-state-from-platform)=).
@@ -225,7 +227,20 @@ Example usage:
 Veritas includes several out-of-the-box generators to construct your test cases. See [[https://jointhefreeworld.org/api-docs/veritas/API.html][the full technical Guile Scheme API documentation for Veritas]] for more.
 
 Also, you can learn more by reading the unit tests for veritas itself, at ~test/veritas/unit~
+Here a simple example:
 
+#+begin_src scheme
+(define basic-generation-test
+  (let* ((rand (seed->random-state 42))
+         (phone-generator (generate-list (generate-integer))))
+    (test "Basic Generation"
+          (assert-no-error (lambda ()
+                             (format #t "\n~a"
+                                     (phone-generator rand))
+                             (format #t "\n~a"
+                                     (phone-generator rand)))))))
+
+#+end_src
 
 ------------
 

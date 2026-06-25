@@ -47,7 +47,8 @@
                                     (write (int-generator rand))))
                  (assert-no-error (lambda ()
                                     (newline)
-                                    (write (str-generator rand))
+                                    (write (str-generator (seed->random-state
+                                                                              42)))
                                     (newline)
                                     (write (str-generator rand))))))))
 
