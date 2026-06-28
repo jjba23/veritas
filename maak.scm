@@ -61,7 +61,7 @@
                                         api-docs-css-url)
                                      "./doc/api/index.texi")
                                #:verbose? #t)
-  (mv "./index" "./doc/api-dist"))
+  (mv "./index_html" "./doc/api-dist"))
 
 (define (deploy)
   "Deploy the project's documentation."
