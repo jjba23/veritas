@@ -86,7 +86,7 @@
   "Make test coverage report."
   (catch #t
          (lambda ()
-           ($ '("genhtml reports/lcov/*.info --output-directory reports/html > /dev/null")))
+           ($ '("genhtml reports/lcov/*.info --output-directory reports/html &> /dev/null")))
          (lambda (key . args)
            #f)))
 
