@@ -97,6 +97,8 @@ Normal arguments are denoted by their name, keyword arguments are denoted by the
 
 Note: Veritas generally expects you to pass keyword arguments before variadic arguments.
 
+[[https://jointhefreeworld.org/static-assets/veritas/screen-2026-09-24-09-25-36.png]]
+
 Note: If one desires to delay execution of the ~#:got~ argument of the assertions, one can simply quote it and wrap it inside a block with ~compute~ as ~car~. You can use ~compute~, ~computare~, or ~comp~ as special keywords for lazy evaluation. This works for all assertions, except ~assert-error~ and related. See an example here:
 
 #+begin_src scheme
