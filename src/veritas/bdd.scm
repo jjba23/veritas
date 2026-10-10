@@ -76,6 +76,7 @@
                    (debug? #f)
                    (shuffle? #f)
                    (concurrent? #f)
+                   (timeout #f)
                    (before-all #f)
                    (after-all #f)
                    #:rest steps)
@@ -85,6 +86,10 @@ A scenario is a suite whose steps execute in declaration order.  All step
 arguments are forwarded to @code{suite}; steps are normally created with
 @code{given}, @code{when-step}, @code{then}, @code{and-step} and
 @code{but-step}.
+
+@var{timeout}, when given, caps the whole scenario in seconds, exactly like
+@code{suite}; a step can carry its own @code{#:timeout} as well, since steps
+are ordinary tests.
 
 @example
 (scenario \"emptying the cart\"
@@ -101,6 +106,7 @@ arguments are forwarded to @code{suite}; steps are normally created with
                        #:debug? debug?
                        #:shuffle? shuffle?
                        #:concurrent? concurrent?
+                       #:timeout timeout
                        #:before-all before-all
                        #:after-all after-all) steps)))
 

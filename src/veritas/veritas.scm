@@ -80,6 +80,7 @@
                                 unus-ex
                                 evaluate-thunks-concurrently
                                 collect-assertion-successful
+                                call-with-timeout
                                 fisher-yates-shuffle)
   #:export (test veritas-run suite benchmark do-if-string-contained))
 
@@ -155,10 +156,48 @@ flat list containing purely test-case execution lambda functions.
     (else xs)))
 
 ;; ====== Core EDSL (embedded domain specific language) ======
+(define* (with-task-timeout timeout proc on-timeout)
+  "Wrap task procedure @var{proc} with an optional @var{timeout}.
+
+When @var{timeout} is a positive number of seconds the returned procedure runs
+@var{proc} under @code{call-with-timeout}: if the task overruns its deadline its
+fiber is aborted and @var{on-timeout} is called with the validation client to
+build the result to report.  When @var{timeout} is @code{#f} @var{proc} is
+returned untouched."
+  (if (not timeout) proc
+      (lambda (vc)
+        (call-with-timeout timeout
+                           (lambda ()
+                             (proc vc))
+                           #:on-timeout (lambda ()
+                                          (on-timeout vc))))))
+
+(define* (task-timeout-result vc name timeout)
+  "Build the result reported when a test or benchmark exceeds its @var{timeout}."
+  (make-pre-test-result name
+                        (list (make-timeout-assertion-result #:vc vc
+                                                             #:name name
+                                                             #:timeout timeout))))
+
+(define* (suite-timeout-result vc name timeout)
+  "Build the result reported when a suite exceeds its @var{timeout}."
+  (make-suite-result name
+                     (list (make-test-result 0 ""
+                                             (make-pre-test-result name
+                                                                   (list (make-timeout-assertion-result
+                                                                          #:vc
+                                                                          vc
+                                                                          #:name
+                                                                          name
+                                                                          #:timeout
+                                                                          timeout)))))
+                     ""))
+
 (define* (test name
                #:key (debug? #f)
                (shuffle? #t)
                (skip? #f)
+               (timeout #f)
                (tags '())
                (before #f)
                (after #f)
@@ -170,6 +209,7 @@ Defines individual specification properties via keyword parameters:
 @item @var{debug?}: When @code{#t}, prints raw assertion results dump structures directly to standard out.
 @item @var{shuffle?}: Instigates randomized execution ordering of internal cases via Fisher-Yates shuffle hooks.
 @item @var{skip?}: Completely aborts blocks from running when set to true.
+@item @var{timeout}: A number of seconds the whole test may take, including its @var{before} and @var{after} hooks, before its fiber is aborted and the test is reported as a failure.  @code{#f} (the default) means no deadline.
 @item @var{before}: A lifecycle function hook that accepts a validation client (@var{vc}) executed prior to evaluations.
 @item @var{after}: A lifecycle function hook that accepts a validation client (@var{vc}) executed post evaluations.
 @end itemize
@@ -233,7 +273,11 @@ captured, and returned inside an encapsulated @code{pre-test-result} data struct
                                #:restriction (veritas-only-tag))) #f
             (do-if-string-contained #:name name
                                     #:restriction (veritas-only-test)
-                                    #:result func)))))
+                                    #:result (with-task-timeout timeout func
+                                                                (lambda (vc)
+                                                                  (task-timeout-result
+                                                                   vc name
+                                                                   timeout))))))))
 
 (define (get-tests-for-suite xs)
   "Parse trailing list elements @var{xs} to separate executable child components for suites.
@@ -261,6 +305,7 @@ containing purely runnable internal @code{test} or macro-generated lambda defini
                 #:key (debug? #f)
                 (shuffle? #t)
                 (skip? #f)
+                (timeout #f)
                 (tags '())
                 (concurrent? #t)
                 (before-all #f)
@@ -273,6 +318,7 @@ Supports high-level execution choreography parameters:
 @item @var{debug?}: Prints full suite compilation dumps directly to stdout when set to @code{#t}.
 @item @var{shuffle?}: Shuffles the sequential order of embedded child tests to isolate side effects.
 @item @var{skip?}: Inhibits execution of this suite block completely when evaluated as true.
+@item @var{timeout}: A number of seconds the suite may take, including its @var{before-all} and @var{after-all} hooks and every nested test, before its fiber is aborted and the suite is reported as a failure.  @code{#f} (the default) means no deadline.
 @item @var{concurrent?}: Controls concurrent scheduling. When @code{#t}, uses asynchronous Guile Fiber blocks to execute tests concurrently.
 @item @var{before-all}: A global hook procedure executed once prior to launching any child tests.
 @item @var{after-all}: A global hook procedure executed once following the completion of all nested tests.
@@ -332,9 +378,17 @@ Captures and isolation-binds all textual test output streams inside a single con
                                #:restriction (veritas-only-tag))) #f
             (do-if-string-contained #:name name
                                     #:restriction (veritas-only-suite)
-                                    #:result func)))))
+                                    #:result (with-task-timeout timeout func
+                                                                (lambda (vc)
+                                                                  (suite-timeout-result
+                                                                   vc name
+                                                                   timeout))))))))
 
-(define* (benchmark #:key (skip? #f) name runs thunk)
+(define* (benchmark #:key (skip? #f)
+                    name
+                    runs
+                    thunk
+                    (timeout #f))
   "Register a micro-benchmarking task block to assess execution latency characteristics.
 
 Accepts configuration settings:
@@ -343,6 +397,7 @@ Accepts configuration settings:
 @item @var{name}: Descriptive tracking label used for diagnostics reporting.
 @item @var{runs}: An integer count specifying how many consecutive times to invoke the execution routine.
 @item @var{thunk}: A zero-argument lambda wrap containing the code sequence targeted for optimization evaluation.
+@item @var{timeout}: A number of seconds all @var{runs} together may take before the benchmarking fiber is aborted and the benchmark is reported as a failure.  @code{#f} (the default) means no deadline.
 @end itemize
 
 Utilizes Guile's native statistical profiler engine (@code{statprof}) to capture performance statistics and call-stack diagnostics across loop evaluations. Returns a @code{benchmark-result} record mapping details for each index."
@@ -368,10 +423,13 @@ Utilizes Guile's native statistical profiler engine (@code{statprof}) to capture
     ;; broken results.
     (if skip? #f
         (if (veritas-run-benchmarks?)
-            (begin
-              (set-procedure-property! func
+            (let ((timed (with-task-timeout timeout func
+                                            (lambda (vc)
+                                              (task-timeout-result vc name
+                                                                   timeout)))))
+              (set-procedure-property! timed
                                        'veritas-task-type
-                                       'benchmark) func) #f))))
+                                       'benchmark) timed) #f))))
 
 (define (benchmark-task? proc)
   "Return @code{#t} when @var{proc} is a task built by @code{benchmark}."

@@ -151,6 +151,84 @@ Refer to the Makefile to understand how to run this project and more.
 ----------------
 
 
+* Timeouts
+
+/FESTINA LENTE/ - /make haste slowly/
+
+A test, a suite, a benchmark and even a single assertion can be given a
+~#:timeout~: the number of seconds it may run for. When the deadline passes the
+unit is aborted and reported as a failed assertion, so a hang becomes an
+ordinary failure instead of a run that never ends.
+
+#+begin_src scheme
+(test "the payment service answers"
+      #:timeout 5                       ;; seconds, real numbers allowed
+      (assert-equal #:expect "ok" #:got (call-payment-service)))
+
+(suite "integration"
+       #:timeout 30
+       payment-suite
+       database-suite)
+
+(benchmark #:name "sorting 10k items"
+           #:runs 3
+           #:timeout 10
+           #:thunk (lambda () (sort (iota 10000) <)))
+
+(test "lazy payloads are covered too"
+      (assert-equal #:expect '(1 2 3)
+                    #:got `(comp (fetch-remote-list))  ;; runs at test time
+                    #:timeout 2))
+#+end_src
+
+~#:timeout~ defaults to ~#f~, meaning "no deadline", so existing tests and
+suites are unaffected. Units nest and each one keeps its own deadline: a suite
+with ~#:timeout 30~ may hold a test with ~#:timeout 5~.
+
+A timeout is meant to make a run finish, not to silence it: an overrunning unit
+is reported as a *failure* (the message names the unit and the deadline, for
+example ~a hanging test with a deadline timed out after 0.3 seconds~) and
+~veritas-run~ exits with a non-zero status. Errors are never swallowed either: a
+timed unit that raises still raises, exactly like an untimed one.
+
+** What gets killed
+
+The timed unit runs in its own fiber. When the deadline passes, a watchdog
+aborts that fiber, which unwinds it back to the boundary of the unit and gets it
+off the scheduler, instead of leaving it spinning in the background. A fiber
+suspended in a blocking wait cannot be unwound from the outside, so for those
+the caller simply stops waiting: the deadline is enforced by the caller's own
+timer, the run continues, and the abandoned fiber is discarded when the
+scheduler that owns it finishes.
+
+** What is covered
+
+- For ~test~ and ~suite~ the deadline covers everything the unit does while it
+  runs: its lifecycle hooks (~#:before~, ~#:after~, ~#:before-all~,
+  ~#:after-all~) and every nested test.
+- For ~benchmark~ it covers all of its ~#:runs~ together (a benchmark that
+  overruns its deadline is reported as a failure as well).
+- For an assertion it covers the assertion's own execution: the comparison and
+  the computation of a lazy ~comp~ payload, or whatever the thunks passed to
+  ~assert-error~, ~assert-no-error~ and ~assert-raises~ do when they are called.
+
+Remember that an assertion evaluates an eager ~#:got~ when the assertion is
+built - that is, when your test file is loaded - not when the test runs. Only
+work that happens at test time - the lazy ~comp~ form, the thunk assertions or
+the lifecycle hooks - can be bounded by a deadline. See the note in the
+assertions section above.
+
+Deadlines are read from a real clock, so fractional seconds are fine; a
+~#:timeout~ of ~0.3~ is a useful smoke test when you are trying to reproduce a
+hang.
+
+See ~test/veritas/unit/timeout.scm~ for every case exercised, including the
+proof that the fiber of an overrunning unit is really aborted.
+
+
+----------------
+
+
 * /IN VINO VERITAS/ - /IN AQUA SANITAS/
 
 [[https://jointhefreeworld.org/static-assets/veritas/vino-veritas-small.png]]
@@ -161,7 +239,7 @@ Refer to the Makefile to understand how to run this project and more.
 
 /PROBATIO ET REFUTATIO/ - proof and disproof
 
-Assertions are the atoms of a Veritas run: each one returns a check that is evaluated during the test and reported as a pass or a fail. Give an assertion a ~#:name~ to make the report readable.
+Assertions are the atoms of a Veritas run: each one returns a check that is evaluated during the test and reported as a pass or a fail. Give an assertion a ~#:name~ to make the report readable, and a ~#:timeout~ (in seconds) to bound how long it may take; see [[*Timeouts][Timeouts]].
 
 Core equality and boolean assertions:
 
@@ -400,7 +478,7 @@ For Given/When/Then scenarios in the spirit of Cucumber / Gherkin, Veritas ships
       (assert-not-matches #:pattern "^Hello, (Mr|Ms)" #:got (greet ada)))))
 #+end_src
 
-Steps run in declaration order: scenarios disable shuffling and concurrency by default, so a ~Given~ always precedes its ~When~ and ~Then~. Scenarios accept the same lifecycle keywords as ~suite~ (~#:before-all~, ~#:after-all~, ~#:skip?~, ~#:concurrent?~).
+Steps run in declaration order: scenarios disable shuffling and concurrency by default, so a ~Given~ always precedes its ~When~ and ~Then~. Scenarios accept the same lifecycle keywords as ~suite~ (~#:before-all~, ~#:after-all~, ~#:skip?~, ~#:concurrent?~, ~#:timeout~), and since a step is an ordinary test it can carry its own ~#:timeout~ too.
 
 The scenario keyword is also available as ~feature~, ~story~, ~fabula~ and ~scaena~, and every step has a Latin alias: ~dato~ (~given~), ~quando~ (~when-step~), ~tunc~ (~then~), ~etiam~ (~and-step~) and ~sed~ (~but-step~). The When step is called ~when-step~ because Guile's core ~when~ is syntax and importing a conflicting binding would break ~(when ...)~ for the whole module. The Latin ~quando~ is unshadowed and reads naturally:
 

@@ -94,7 +94,38 @@
                          intra
                          unus-ex))
 
-(define* (assert #:key expect got compare name)
+(define* (assertion-with-timeout timeout name assertion)
+  "Wrap assertion procedure @var{assertion} with an optional @var{timeout}.
+
+When @var{timeout} is a positive number of seconds the assertion runs under
+@code{call-with-timeout}: if it overruns its deadline its fiber is aborted and
+the assertion is reported as a failure (named after @var{name}) instead of
+hanging the whole run.  With @var{timeout} set to @code{#f}, the default,
+@var{assertion} is returned untouched.
+
+Only work that happens while the assertion runs is covered, so evaluate
+expensive setup lazily with the @code{comp} form (or inside the thunk of
+@code{assert-error}, @code{assert-no-error} and @code{assert-raises})."
+  (if (not timeout) assertion
+      (lambda (vc)
+        (call-with-timeout timeout
+                           (lambda ()
+                             (assertion vc))
+                           #:on-timeout (lambda ()
+                                          (let ((message (format #f
+                                                          "~a timed out after ~a seconds"
+                                                          (if name name
+                                                              "assertion")
+                                                          timeout)))
+                                            (log-fail vc message)
+                                            `((assertion-successful unquote #f)
+                                              (assertion-name unquote message))))))))
+
+(define* (assert #:key expect
+                 got
+                 compare
+                 name
+                 timeout)
   "Returns a function taking a @acronym{VC, veritas-context}
 that returns an assertion that two values are equal based on a given comparison procedure.
 This is the core assertion procedure that the other `assert-equal` variants
@@ -131,34 +162,38 @@ A doc string to identify the assertion in the logs.
 `((assertion-successful . #t)
   (assertion-name \"Ensuring addition works\"))
 @end example"
-  (lambda (vc)
-    (let* ((gott (if (and (list? got)
-                          (not (null? got))
-                          (or (equal? 'compute
-                                      (car got))
-                              (equal? 'comp
-                                      (car got))
-                              (equal? 'computare
-                                      (car got))))
-                     (begin
-                       (eval (cadr got)
-                             (interaction-environment))) got)))
-      (when name
-        (log-assert vc name))
-      (if (compare expect gott)
-          (begin
-            (log-pass vc
-                      (format #f "got: ~a" gott))
-            `((assertion-successful unquote #t)
-              (assertion-name unquote name)))
-          (begin
-            (log-fail vc
-                      (format #f "error, expect: ~a, got: ~a" expect gott))
-            `((assertion-successful unquote #f)
-              (assertion-name unquote name)))))))
+  (assertion-with-timeout timeout name
+                          (lambda (vc)
+                            (let* ((gott (if (and (list? got)
+                                                  (not (null? got))
+                                                  (or (equal? 'compute
+                                                              (car got))
+                                                      (equal? 'comp
+                                                              (car got))
+                                                      (equal? 'computare
+                                                              (car got))))
+                                             (begin
+                                               (eval (cadr got)
+                                                     (interaction-environment)))
+                                             got)))
+                              (when name
+                                (log-assert vc name))
+                              (if (compare expect gott)
+                                  (begin
+                                    (log-pass vc
+                                              (format #f "got: ~a" gott))
+                                    `((assertion-successful unquote #t)
+                                      (assertion-name unquote name)))
+                                  (begin
+                                    (log-fail vc
+                                              (format #f
+                                               "error, expect: ~a, got: ~a"
+                                               expect gott))
+                                    `((assertion-successful unquote #f)
+                                      (assertion-name unquote name))))))))
 
 (define* (assert-error thunk
-                       #:key name)
+                       #:key name timeout)
   "Returns a function taking a @acronym{VC, veritas-context}
 that returns an assertion that checks that a thunk
 (a procedure with no arguments) raises an error when called.
@@ -173,6 +208,9 @@ the assertion fails.
 A procedure of no arguments to be executed.
 @item name
 A string to identify the assertion in the logs.
+@item timeout
+A number of seconds the assertion may take before its fiber is aborted and the
+assertion is reported as a failure.  @code{#f} (the default) means no deadline.
 @end table
 
 @example
@@ -186,24 +224,27 @@ A string to identify the assertion in the logs.
 `((assertion-successful . #t)
   (assertion-name \"Should fail when list contains non-numbers\"))
 @end example"
-  (lambda (vc)
-    (when name
-      (log-assert vc name))
-    (catch #t
-           (lambda ()
-             (apply thunk
-                    '())
-             (log-fail vc "did not catch any error")
-             `((assertion-successful unquote #f)
-               (assertion-name unquote name)))
-           (lambda (key . args)
-             (log-pass vc
-                       (format #f "success catching error: ~a: ~a" key args))
-             `((assertion-successful unquote #t)
-               (assertion-name unquote name))))))
+  (assertion-with-timeout timeout name
+                          (lambda (vc)
+                            (when name
+                              (log-assert vc name))
+                            (catch #t
+                                   (lambda ()
+                                     (apply thunk
+                                            '())
+                                     (log-fail vc "did not catch any error")
+                                     `((assertion-successful unquote #f)
+                                       (assertion-name unquote name)))
+                                   (lambda (key . args)
+                                     (log-pass vc
+                                               (format #f
+                                                "success catching error: ~a: ~a"
+                                                key args))
+                                     `((assertion-successful unquote #t)
+                                       (assertion-name unquote name)))))))
 
 (define* (assert-no-error thunk
-                          #:key name)
+                          #:key name timeout)
   "Returns a function taking a @acronym{VC, veritas-context}
 that returns an assertion that checks that a thunk
 (a procedure with no arguments) does not raise an error when called.
@@ -218,6 +259,9 @@ the assertion fails.
 A procedure of no arguments to be executed.
 @item name
 A string to identify the assertion in the logs.
+@item timeout
+A number of seconds the assertion may take before its fiber is aborted and the
+assertion is reported as a failure.  @code{#f} (the default) means no deadline.
 @end table
 
 @example
@@ -228,23 +272,27 @@ A string to identify the assertion in the logs.
 ;; Upon applying vc to the procedure we will compute the assertion:
 `((assertion-successful . #f))
 @end example"
-  (lambda (vc)
-    (when name
-      (log-assert vc name))
-    (catch #t
-           (lambda ()
-             (apply thunk
-                    '())
-             (log-pass vc "success running without errors")
-             `((assertion-successful unquote #t)
-               (assertion-name unquote name)))
-           (lambda (key . args)
-             (log-fail vc
-                       (format #f "caught error: ~a: ~a" key args))
-             `((assertion-successful unquote #f)
-               (assertion-name unquote name))))))
+  (assertion-with-timeout timeout name
+                          (lambda (vc)
+                            (when name
+                              (log-assert vc name))
+                            (catch #t
+                                   (lambda ()
+                                     (apply thunk
+                                            '())
+                                     (log-pass vc
+                                      "success running without errors")
+                                     `((assertion-successful unquote #t)
+                                       (assertion-name unquote name)))
+                                   (lambda (key . args)
+                                     (log-fail vc
+                                               (format #f
+                                                       "caught error: ~a: ~a"
+                                                       key args))
+                                     `((assertion-successful unquote #f)
+                                       (assertion-name unquote name)))))))
 
-(define* (assert-equal #:key expect got name)
+(define* (assert-equal #:key expect got name timeout)
   "Returns a function taking a @acronym{VC, veritas-context}
 that returns an assertion checking that @var{expect}
 and @var{got} are structurally equal using @code{equal?} predicate.
@@ -261,6 +309,9 @@ The expected value.
 The value to compare against.
 @item name
 A string to identify the assertion in the logs.
+@item timeout
+A number of seconds the assertion may take before its fiber is aborted and the
+assertion is reported as a failure.  @code{#f} (the default) means no deadline.
 @end table
 
 @example
@@ -271,9 +322,10 @@ A string to identify the assertion in the logs.
   (assert #:expect expect
           #:got got
           #:compare equal?
-          #:name name))
+          #:name name
+          #:timeout timeout))
 
-(define* (assert-eqv #:key expect got name)
+(define* (assert-eqv #:key expect got name timeout)
   "Returns a function taking a @acronym{VC, veritas-context}
 that returns an assertion checking that @var{expect}
 and @var{got} are equivalent using @code{eqv?} predicate.
@@ -290,6 +342,9 @@ The expected value.
 The value to compare against.
 @item name
 A string to identify the assertion in the logs.
+@item timeout
+A number of seconds the assertion may take before its fiber is aborted and the
+assertion is reported as a failure.  @code{#f} (the default) means no deadline.
 @end table
 
 @example
@@ -299,9 +354,10 @@ A string to identify the assertion in the logs.
   (assert #:expect expect
           #:got got
           #:compare eqv?
-          #:name name))
+          #:name name
+          #:timeout timeout))
 
-(define* (assert-eq #:key expect got name)
+(define* (assert-eq #:key expect got name timeout)
   "Returns a function taking a @acronym{VC, veritas-context}
 that returns an assertion checking that @var{expect}
 and @var{got} are identical using @code{eq?}.
@@ -318,6 +374,9 @@ The expected value.
 The value to compare against.
 @item name
 A string to identify the assertion in the logs.
+@item timeout
+A number of seconds the assertion may take before its fiber is aborted and the
+assertion is reported as a failure.  @code{#f} (the default) means no deadline.
 @end table
 
 @example
@@ -327,9 +386,10 @@ A string to identify the assertion in the logs.
   (assert #:expect expect
           #:got got
           #:compare eq?
-          #:name name))
+          #:name name
+          #:timeout timeout))
 
-(define* (assert-not-eq #:key expect got name)
+(define* (assert-not-eq #:key expect got name timeout)
   "Returns a function taking a @acronym{VC, veritas-context}
 that returns an assertion checking that @var{expect}
 and @var{got} are not identical using @code{eq?}.
@@ -346,9 +406,10 @@ It is the inverse of @code{assert-eq}.
           #:got got
           #:compare (lambda (a b)
                       (not (eq? a b)))
-          #:name name))
+          #:name name
+          #:timeout timeout))
 
-(define* (assert-not-eqv #:key expect got name)
+(define* (assert-not-eqv #:key expect got name timeout)
   "Returns a function taking a @acronym{VC, veritas-context}
 that returns an assertion checking that @var{expect}
 and @var{got} are not equivalent using @code{eqv?}.
@@ -366,9 +427,10 @@ It is the inverse of @code{assert-eqv}.
           #:got got
           #:compare (lambda (a b)
                       (not (eqv? a b)))
-          #:name name))
+          #:name name
+          #:timeout timeout))
 
-(define* (assert-not-equal #:key expect got name)
+(define* (assert-not-equal #:key expect got name timeout)
   "Returns a function taking a @acronym{VC, veritas-context}
 that returns an assertion checking that @var{expect}
 and @var{got} are not structurally equal using @code{equal?}.
@@ -386,10 +448,11 @@ It is the inverse of @code{assert-equal}.
           #:got got
           #:compare (lambda (a b)
                       (not (equal? a b)))
-          #:name name))
+          #:name name
+          #:timeout timeout))
 
 (define* (assert-true x
-                      #:key name)
+                      #:key name timeout)
   "Returns a function taking a @acronym{VC, veritas-context}
 that returns an assertion checking that @var{x} is @code{#t}.
 
@@ -402,10 +465,11 @@ This is a convenience wrapper for boolean truth assertions.
   (assert #:got x
           #:expect #t
           #:compare eq?
-          #:name name))
+          #:name name
+          #:timeout timeout))
 
 (define* (assert-false x
-                       #:key name)
+                       #:key name timeout)
   "Returns a function taking a @acronym{VC, veritas-context}
 that returns an assertion checking that @var{x} is @code{#f}.
 
@@ -418,7 +482,8 @@ This is a convenience wrapper for boolean falsehood assertions.
   (assert #:got x
           #:expect #f
           #:compare eq?
-          #:name name))
+          #:name name
+          #:timeout timeout))
 
 (define* (is-approximate? a b
                           #:key epsilon)
@@ -444,7 +509,10 @@ The maximum allowed difference.
 @end example"
   (< (abs (- a b)) epsilon))
 
-(define* (assert-approximate #:key expect got name
+(define* (assert-approximate #:key expect
+                             got
+                             name
+                             timeout
                              (epsilon 1.0e-8))
   "Returns a function taking a @acronym{VC, veritas-context}
 that returns an assertion checking that @var{expect}
@@ -468,7 +536,10 @@ This is useful for floating-point computations.
                       (is-approximate? a b
                                        #:epsilon epsilon))))
 
-(define* (assert-not-approximate #:key expect got name
+(define* (assert-not-approximate #:key expect
+                                 got
+                                 name
+                                 timeout
                                  (epsilon 1.0e-8))
   "Returns a function taking a @acronym{VC, veritas-context}
 that returns an assertion checking that @var{expect}
@@ -542,7 +613,7 @@ Strings are searched for substrings, lists and vectors for an element
      (string=? x ""))
     (else #f)))
 
-(define* (assert-contains #:key expect got name)
+(define* (assert-contains #:key expect got name timeout)
   "Assert that the container @var{expect} contains @var{got}.
 
 Works for strings (substring), lists and vectors (membership) and hash tables
@@ -556,9 +627,10 @@ Works for strings (substring), lists and vectors (membership) and hash tables
           #:got got
           #:compare (lambda (container needle)
                       (contains-value? container needle))
-          #:name name))
+          #:name name
+          #:timeout timeout))
 
-(define* (assert-not-contains #:key expect got name)
+(define* (assert-not-contains #:key expect got name timeout)
   "Assert that the container @var{expect} does not contain @var{got}.
 
 Inverse of @code{assert-contains}."
@@ -566,9 +638,10 @@ Inverse of @code{assert-contains}."
           #:got got
           #:compare (lambda (container needle)
                       (not (contains-value? container needle)))
-          #:name name))
+          #:name name
+          #:timeout timeout))
 
-(define* (assert-matches #:key pattern got name)
+(define* (assert-matches #:key pattern got name timeout)
   "Assert that string @var{got} matches the regular expression @var{pattern}.
 
 @var{pattern} may be a compiled regexp or a string.
@@ -583,9 +656,10 @@ Inverse of @code{assert-contains}."
             #:compare (lambda (regexp value)
                         (and (string? value)
                              (regexp-exec regexp value) #t))
-            #:name name)))
+            #:name name
+            #:timeout timeout)))
 
-(define* (assert-not-matches #:key pattern got name)
+(define* (assert-not-matches #:key pattern got name timeout)
   "Assert that string @var{got} does not match regular expression @var{pattern}.
 
 Inverse of @code{assert-matches}."
@@ -596,10 +670,14 @@ Inverse of @code{assert-matches}."
             #:compare (lambda (regexp value)
                         (not (and (string? value)
                                   (regexp-exec regexp value))))
-            #:name name)))
+            #:name name
+            #:timeout timeout)))
 
 (define* (assert-raises thunk
-                        #:key (on #t) predicate name)
+                        #:key (on #t)
+                        predicate
+                        name
+                        timeout)
   "Assert that calling @var{thunk} raises an error.
 
 By default any error satisfies the assertion.  Pass @var{on} to require a
@@ -610,52 +688,61 @@ a procedure of @code{(key args)} returning @code{#t} for the expected error.
 (assert-raises (lambda () (/ 1 0)))
 (assert-raises (lambda () (+ 1 'a)) #:on 'wrong-type-arg)
 @end example"
-  (lambda (vc)
-    (when name
-      (log-assert vc name))
-    (let* ((raised? (catch #t
-                           (lambda ()
-                             (apply thunk
-                                    '()) #f)
-                           (lambda (key . args)
-                             (cond
-                               ;; An explicit predicate is authoritative: when supplied
-                               ;; it alone decides whether the error is expected.  It
-                               ;; must be checked before the default `on' of #t,
-                               ;; otherwise any error would satisfy the assertion and
-                               ;; the predicate would never be able to reject one.
-                               (predicate (and (predicate key args) #t))
-                               ((eq? on #t)
-                                #t)
-                               (else (and (equal? key on) #t)))))))
-      (if raised?
-          (begin
-            (log-pass vc "raised an error as expected")
-            `((assertion-successful unquote #t)
-              (assertion-name unquote name)))
-          (begin
-            (log-fail vc "did not raise an expected error")
-            `((assertion-successful unquote #f)
-              (assertion-name unquote name)))))))
+  (assertion-with-timeout timeout name
+                          (lambda (vc)
+                            (when name
+                              (log-assert vc name))
+                            (let* ((raised? (catch #t
+                                                   (lambda ()
+                                                     (apply thunk
+                                                            '()) #f)
+                                                   (lambda (key . args)
+                                                     (cond
+                                                       ;; An explicit predicate is authoritative: when supplied
+                                                       ;; it alone decides whether the error is expected.  It
+                                                       ;; must be checked before the default `on' of #t,
+                                                       ;; otherwise any error would satisfy the assertion and
+                                                       ;; the predicate would never be able to reject one.
+                                                       (predicate (and (predicate
+                                                                        key
+                                                                        args)
+                                                                       #t))
+                                                       ((eq? on #t)
+                                                        #t)
+                                                       (else (and (equal? key
+                                                                          on)
+                                                                  #t)))))))
+                              (if raised?
+                                  (begin
+                                    (log-pass vc "raised an error as expected")
+                                    `((assertion-successful unquote #t)
+                                      (assertion-name unquote name)))
+                                  (begin
+                                    (log-fail vc
+                                     "did not raise an expected error")
+                                    `((assertion-successful unquote #f)
+                                      (assertion-name unquote name))))))))
 
-(define* (assert-empty #:key got name)
+(define* (assert-empty #:key got name timeout)
   "Assert that @var{got} is an empty list, vector or string."
   (assert #:expect #t
           #:got got
           #:compare (lambda (_ value)
                       (empty-value? value))
-          #:name name))
+          #:name name
+          #:timeout timeout))
 
-(define* (assert-not-empty #:key got name)
+(define* (assert-not-empty #:key got name timeout)
   "Assert that @var{got} is a non-empty list, vector or string."
   (assert #:expect #t
           #:got got
           #:compare (lambda (_ value)
                       (and (length-of value)
                            (positive? (length-of value))))
-          #:name name))
+          #:name name
+          #:timeout timeout))
 
-(define* (assert-length #:key expect got name)
+(define* (assert-length #:key expect got name timeout)
   "Assert that @var{got} has @var{expect} elements (list, vector or string length)."
   (assert #:expect expect
           #:got got
@@ -663,9 +750,14 @@ a procedure of @code{(key args)} returning @code{#t} for the expected error.
                       (let ((len (length-of value)))
                         (and len
                              (= n len))))
-          #:name name))
+          #:name name
+          #:timeout timeout))
 
-(define* (assert-in-range #:key min max got name)
+(define* (assert-in-range #:key min
+                          max
+                          got
+                          name
+                          timeout)
   "Assert that @var{got} is within the inclusive range @var{min}--@var{max}."
   (assert #:expect (cons min max)
           #:got got
@@ -674,15 +766,17 @@ a procedure of @code{(key args)} returning @code{#t} for the expected error.
                                (car range))
                            (<= value
                                (cdr range))))
-          #:name name))
+          #:name name
+          #:timeout timeout))
 
-(define* (assert-one-of #:key expect got name)
+(define* (assert-one-of #:key expect got name timeout)
   "Assert that @var{got} is @code{equal?} to one of the elements of list @var{expect}."
   (assert #:expect expect
           #:got got
           #:compare (lambda (choices value)
                       (and (member value choices) #t))
-          #:name name))
+          #:name name
+          #:timeout timeout))
 
 ;;; ====== Latin aliases ======
 ;;
