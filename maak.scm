@@ -21,15 +21,15 @@
 
 ;; ====== Maak constants ======
 
-;; The URL for the CSS style-sheet used to style API documentation.
+;; Style sheet for the generated API docs.
 (define api-docs-css-url
   "https://jointhefreeworld.org/static/css/jointhefreeworld.css")
 
-;; The path to the directory where the API documentation will be deployed.
+;; Where the generated API docs are deployed.
 (define deploy-api-docs-dir
   "/srv/http/jointhefreeworld.org")
 
-;; The name of the project, represented as a symbol.
+;; Project name, as a symbol.
 (define project-name
   'veritas)
 
@@ -44,7 +44,7 @@
                                      "./src/**/*.scm")))
 
 (define (fmt)
-  "Format Scheme source code files according to the Guix style guide."
+  "Format the Scheme sources with `guix style'."
   ($ '("find . -maxdepth 8 -name '*.scm'" "-type f -exec guix style -f {} \\;")))
 
 (define (repl)
@@ -53,7 +53,7 @@
                                  "-c '((@ (ares server) run-nrepl-server))'")))
 
 (define (docs)
-  "Generate technical API documentation for Veritas."
+  "Generate the API documentation."
   (delete-file-recursively "doc")
   (time-machine-manifest-shell (list (~ "documenta api ./src/~a && "
                                         project-name)
@@ -64,7 +64,7 @@
   (mv "./index_html" "./doc/api-dist"))
 
 (define (deploy)
-  "Deploy the project's documentation."
+  "Publish the API docs."
   (docs)
   (remkdir-p (~ "~a/api-docs/~a" deploy-api-docs-dir project-name))
   (mv "doc/api-dist/*"
@@ -72,7 +72,7 @@
   (delete-file-recursively "doc"))
 
 (define (test)
-  "Run project's tests."
+  "Run the test suite."
   (delete-file-recursively "reports/lcov/coverage*"
                            #:verbose? #f)
   (delete-file-recursively "reports/html"
@@ -83,7 +83,7 @@
   (coverage-report))
 
 (define (coverage-report)
-  "Make test coverage report."
+  "Build the HTML coverage report."
   (catch #t
          (lambda ()
            ($ '("genhtml reports/lcov/*.info --output-directory reports/html &> /dev/null")))
@@ -91,13 +91,13 @@
            #f)))
 
 (define (validate)
-  "Format, compile and test."
+  "Format, compile and test, in that order."
   (fmt)
   (compile)
   (test))
 
 (define (hot-reload)
-  "Hot-reloading developer's setup."
+  "Rebuild and re-run the tests whenever a file changes."
   (time-machine-manifest-shell (list "watchexec 'maak test'"
                                      "--clear"
                                      (~ "--exts ~a"
@@ -109,13 +109,13 @@
                                      "--watch .")))
 
 (define (hr)
-  "Alias to hot-reloading."
+  "Short alias for `hot-reload'."
   (hot-reload))
 
 (define (dev)
-  "Developer's setup."
+  "Start the hot-reload loop."
   (hot-reload))
 
 (define (default)
-  "Default task to be run, list available tasks."
+  "List the available tasks."
   ($ '("maak --list")))

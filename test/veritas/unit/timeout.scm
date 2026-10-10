@@ -27,14 +27,13 @@
   #:use-module (veritas prelude)
   #:export (spec))
 
-;; The tests below check the `#:timeout' contract of `test', `suite',
-;; `benchmark' and the assertions: a unit that stays within its deadline is
-;; reported normally, a unit that overruns it is reported as a failure without
-;; hanging the run, and the fiber of an overrunning unit is really aborted.
+;; The `#:timeout' contract of `test', `suite', `benchmark' and the assertions: a
+;; unit inside its deadline is reported as usual, one that overruns it is a
+;; failure without a hang, and the fiber of an overrunning unit really is
+;; aborted.
 ;;
-;; The units are exercised by calling their closures directly instead of
-;; handing them to `veritas-run', because a timed out unit is *meant* to fail
-;; and `veritas-run' would (correctly) exit the process with a non-zero status.
+;; The units are called directly rather than through `veritas-run', because a
+;; timed out unit is *meant* to fail and `veritas-run' would exit the process.
 
 (define validation-client
   (list (cons 'reporter
@@ -120,8 +119,8 @@ settle well after the deadline itself."
 
 ;; ====== Units that overrun their deadline ======
 
-;; The lifecycle hook is a closure evaluated while the test runs, so it is the
-;; cleanest way to keep a *test* busy from the inside.
+;; A lifecycle hook runs while the test does, which is the simplest way to keep
+;; a *test* busy from the inside.
 (define overrunning-test
   (test "overrunning test"
         #:timeout 0.3
@@ -144,8 +143,8 @@ settle well after the deadline itself."
              #:thunk (lambda ()
                        (spin-forever))))
 
-;; Assertions only receive their payload as a lazy `comp' form, which is
-;; evaluated in the interaction environment, so it must be self contained.
+;; An assertion receives its payload as a lazy `comp' form, evaluated in the
+;; interaction environment, so it has to be self contained.
 ;; `assert-no-error' takes a real closure, which the counter can observe.
 (define overrunning-lazy-assertion
   (assert-equal #:expect 1
@@ -186,7 +185,7 @@ settle well after the deadline itself."
 
 (define (spec)
   (veritas-run #:debug? #f
-               ;; Every unit within its deadline behaves as before...
+               ;; Units within their deadline behave as before.
                (test "a test within its deadline passes"
                      (assert-equal #:expect '(#t #t)
                                    #:got (outcomes-of quick-test)))
@@ -201,8 +200,8 @@ settle well after the deadline itself."
                      (assert-equal #:expect '(#t)
                                    #:got (outcomes-of (test "no deadline here"
                                                        (assert-true #t)))))
-               ;; ... a unit that overruns it is a failure with an explanation
-               ;; ...
+               ;; A unit that overruns its deadline is a failure, and the message
+               ;; says so.
                (test "an overrunning test is reported as a failure"
                      (begin
                        (reset-spin!)
@@ -242,8 +241,8 @@ settle well after the deadline itself."
                            (assert-equal #:expect '(#f)
                                          #:got (outcomes-of
                                                 overrunning-benchmark)))))
-               ;; ... and the fibers of the overrunning units are aborted
-               ;; instead of being left spinning in the background.
+               ;; The fibers of overrunning units are aborted, not left spinning
+               ;; in the background.
                (test "the fiber of an overrunning test is aborted"
                      (begin
                        (reset-spin!)
@@ -263,16 +262,15 @@ settle well after the deadline itself."
                                           overrunning-thunk-assertion))
                        (assert-true (spin-settled?)
                                     #:name "the spin counter stopped growing")))
-               ;; A blocked unit must not make the caller wait for it; the
-               ;; deadline returns promptly and the pending fiber is dropped.
+               ;; A blocked unit must not make the caller wait: the deadline returns
+               ;; promptly and the pending fiber is dropped.
                (test "a blocked unit does not stall the run"
                      (let ((elapsed (seconds-elapsed (lambda ()
                                                        (outcomes-of
                                                         blocked-test)))))
                        (assert-true (< elapsed 5)
                                     #:name "the deadline returned promptly")))
-               ;; Timed units that raise still raise, exactly like untimed
-               ;; ones, instead of being reported as timeouts.
+               ;; Timed units that raise still raise, like untimed ones.
                (test "a unit that raises still raises"
                      (assert-error (lambda ()
                                      (run-quietly (lambda ()

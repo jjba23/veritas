@@ -122,7 +122,7 @@
                              ((assert-length #:expect 5 #:got "hello") vc)))
                (assert-false (assertion-succeeded?
                               ((assert-length #:expect 4 #:got "hello") vc))))
-         (test "length and emptiness fail gracefully on unsized values"
+         (test "length and emptiness of unsized values"
                (assert-false (assertion-succeeded?
                               ((assert-length #:expect 1 #:got 42) vc)))
                (assert-false (assertion-succeeded?

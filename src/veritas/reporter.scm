@@ -47,7 +47,7 @@
     (reset . "\x1b[0m")))
 
 (define-syntax-rule (log msg)
-  "Print @var{msg} preceded by a newline to the standard output port.
+  "Print @var{msg} on a line of its own.
 
 @example
 (log \"Hello World\")
@@ -56,18 +56,11 @@
   (format #t "\n~a" msg))
 
 (define (dispatch-log vc log-type msg)
-  "Route @var{msg} through the designated reporter strategy.
+  "Send @var{msg} to the reporter chosen in @var{vc}.
 
-Extracts the preferred reporter strategy type from the configuration client
-@var{vc} under the key @code{'reporter}, dynamically resolving it to one of:
-@itemize
-@item @code{monotone-reporter}
-@item @code{json-reporter}
-@item @code{emoji-reporter} (Default Fallback)
-@end itemize
-
-Once resolved, it executes the corresponding function mapping to @var{log-type}
-inside the reporter association list using @var{msg} as its argument."
+The client names one under the key @code{'reporter}; anything else falls back to
+@code{emoji-reporter}.  @var{log-type} picks the entry to call
+(@code{'log-pass}, @code{'log-fail}, and so on)."
   (let* ((reporter-sym (assoc-ref vc
                                   'reporter))
          (reporter-alist (cond
@@ -76,52 +69,52 @@ inside the reporter association list using @var{msg} as its argument."
                            ((equal? 'json-reporter reporter-sym)
                             json-reporter)
                            (else emoji-reporter))))
-
+    
     (apply (assoc-ref reporter-alist log-type)
            (list msg))))
 
 (define-syntax-rule (log-pass vc msg)
-  "Dispatch a successful validation log event with message @var{msg} via client @var{vc}."
+  "Report a passing check."
   (dispatch-log vc
                 'log-pass msg))
 
 (define-syntax-rule (log-fail vc msg)
-  "Dispatch a test failure log event with message @var{msg} via client @var{vc}."
+  "Report a failing check."
   (dispatch-log vc
                 'log-fail msg))
 
 (define-syntax-rule (log-error vc msg)
-  "Dispatch an execution runtime error log event with message @var{msg} via client @var{vc}."
+  "Report a runtime error."
   (dispatch-log vc
                 'log-error msg))
 
 (define-syntax-rule (log-assert vc msg)
-  "Dispatch a generalized assertion framework log event with message @var{msg} via client @var{vc}."
+  "Announce an assertion that is about to be checked, by name."
   (dispatch-log vc
                 'log-assert msg))
 
 (define-syntax-rule (log-test vc msg)
-  "Dispatch an isolated individual test block initialization log event via client @var{vc}."
+  "Announce a test by name."
   (dispatch-log vc
                 'log-test msg))
 
 (define-syntax-rule (log-suite vc msg)
-  "Dispatch a high-level test suite grouping boundary initialization log event via client @var{vc}."
+  "Announce a suite by name."
   (dispatch-log vc
                 'log-suite msg))
 
 (define-syntax-rule (log-debug vc msg)
-  "Dispatch a developer troubleshooting diagnostic log event with message @var{msg} via client @var{vc}."
+  "Log a message for debugging."
   (dispatch-log vc
                 'log-debug msg))
 
 (define-syntax-rule (log-info vc msg)
-  "Dispatch an operational informative status log event with message @var{msg} via client @var{vc}."
+  "Log an informational message."
   (dispatch-log vc
                 'log-info msg))
 
 (define-syntax-rule (log-benchmark vc msg)
-  "Dispatch performance runtime evaluation metrics data payload @var{msg} via client @var{vc}."
+  "Report benchmark results, given a @code{benchmark-result} record."
   (dispatch-log vc
                 'log-benchmark msg))
 
@@ -129,13 +122,13 @@ inside the reporter association list using @var{msg} as its argument."
   `((reporter-name . emoji-reporter) (log-pass unquote
                                                (lambda (msg)
                                                  (log (format #f
-                                                       "    ~a✅ ~a~a"
-                                                       (assoc-ref
-                                                        ansi-color-escapes
-                                                        'green) msg
-                                                       (assoc-ref
-                                                        ansi-color-escapes
-                                                        'reset)))))
+                                                              "    ~a✅ ~a~a"
+                                                              (assoc-ref
+                                                               ansi-color-escapes
+                                                               'green) msg
+                                                              (assoc-ref
+                                                               ansi-color-escapes
+                                                               'reset)))))
     (log-fail unquote
               (lambda (msg)
                 (log (format #f "    ~a❌ fail - ~a~a"
@@ -340,7 +333,7 @@ inside the reporter association list using @var{msg} as its argument."
                                                        (benchmark-result-name
                                                         msg)))))
                      (for-each (lambda (run)
-
+                                 
                                  (log (scm->json-string `((timestamp unquote
                                                                      (now))
                                                           (level . benchmark)

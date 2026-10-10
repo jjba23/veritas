@@ -9,15 +9,15 @@
 
 Unit, Integration and Black Box testing framework powered by Lisp (Guile Scheme)
 
-/Veritas helps you verify the correctness of software and explore its functioning and robustness. It achieves this by providing a clear structure for writing tests and producing easy-to-read feedback in various formats./
+/Veritas helps you check that your software is correct and see how it behaves. It gives tests a clear structure and reports what happened in a format you can read./
 
 The framework is built around the concepts of "suites," which group related "tests," and "assertions," which perform the actual checks. I'd encourage you to peruse the ~test/~ folder of this project to see real examples of how to use ~veritas~.
 
-The power of ~veritas~ lies in its simplicity, expressive embedded domain-specific language (EDSL), and some clever features that promote robust testing practices and correctness, like order randomization and concurrent testing.
+What makes ~veritas~ pleasant to use is the embedded domain-specific language: tests are ordinary Scheme, written with ~suite~, ~test~ and the ~assert-*~ procedures. Random order and concurrent runs come along for free.
 
 If you like my work, please support me by [[https://bmc.link/jjbigorra][buying me a cup of coffee ☕]] so I can continue with a lot of motivation.
 
-/An expressive, free (as in freedom), and extensible test framework is crucial for modern software engineering and is a great instrument to explore systems and algorithms/
+/An expressive, free and extensible test framework is a good instrument for exploring systems and algorithms/
 
 You can find out more by reading [[https://jointhefreeworld.org/api-docs/veritas/API.html][the full technical Guile Scheme API documentation for Veritas]]
 
@@ -61,8 +61,8 @@ We can then write a test suite:
          (test "delayed computation"
                (assert-equal #:expect 144
                              #:got `(comp (begin
-                                            ;; This block is evaluated by Veritas.
-                                            ;; Useful for setup or complex expressions.
+                                            ;; comp runs at test time, not while
+                                            ;; the file is loaded.
                                             (let ((x 12))
                                               (* x x))))
                              #:name "Complex computation inside an assertion"))))
@@ -99,26 +99,91 @@ Note: Veritas generally expects you to pass keyword arguments before variadic ar
 
 [[https://jointhefreeworld.org/static-assets/veritas/screen-2026-09-24-09-25-36.png]]
 
-Note: If one desires to delay execution of the ~#:got~ argument of the assertions, one can simply quote it and wrap it inside a block with ~compute~ as ~car~. You can use ~compute~, ~computare~, or ~comp~ as special keywords for lazy evaluation. This works for all assertions, except ~assert-error~ and related. See an example here:
+** Eager arguments and the lazy comp form
+
+A file of tests is *built* when Guile loads it and *run* afterwards, and that one fact accounts for most surprises in a Veritas file. ~test~, ~suite~ and every ~assert-*~ procedure are ordinary procedures, not special syntax: calling one builds a check and returns it. Scheme evaluates the arguments of that call before making it, so ~#:expect~, ~#:got~, test names and tags are already values by the time the runner starts - computed once, while the file loaded, in the order you wrote them. What the runner executes later is the check that was returned.
+
+The same assertion can therefore do its work at two very different moments:
 
 #+begin_src scheme
-;; got will evaluate eagerly
+;; printed while the file is loaded, once, before any test runs
 (assert-equal #:expect 1
-              #:got (+ 10 (- 0 9)))
+              #:got (begin (display "loading\n") 1))
 
-;; got will evaluate lazily, inside test context
+;; printed while the test runs, between its header and its result
 (assert-equal #:expect 1
-              #:got `(comp (begin
-                             (sleep 4)
-                             (+ 10 (- 0 9)))))
+              #:got `(comp (begin (display "running\n") 1)))
+#+end_src
 
+The first call computes ~(begin (display "loading\n") 1)~ as an argument and hands the *value* to a check that only compares. The second quotes its computation and wraps it in ~comp~, so the check receives a description of the work and performs it when the assertion runs.
+
+This table is the whole story: only what the right-hand column describes runs at run time.
+
+| written as                                                       | evaluated when                                  |
+|------------------------------------------------------------------+-------------------------------------------------|
+| any argument: ~#:expect~, ~#:got~, ~#:name~, ~#:tags~, ...        | the file loads, once, before the run begins     |
+| a ~comp~ payload in ~#:got~                                      | the assertion runs                              |
+| the thunk of ~assert-error~, ~assert-no-error~ or ~assert-raises~ | the assertion runs                              |
+| the body of a ~#:before~ or ~#:after~ hook                       | its test runs, around that test's cases         |
+| the body of a ~#:before-all~ or ~#:after-all~ hook               | its suite runs, around all of its children      |
+| a benchmark's ~#:thunk~                                          | once per ~#:runs~, while the benchmark runs     |
+
+Three things follow from that split.
+
+- An eager argument is computed once, while the file loads. If it raises, the file never finishes loading: you get a backtrace instead of a failing test, and no test in that file runs. Setup that can fail, or that has to happen at run time - creating a file, starting a container, mutating shared state - belongs in a hook or in a thunk.
+- An expectation cannot be delayed. Only ~#:got~ is inspected for a ~comp~ form; ~assert-true~ and ~assert-false~ pass their single value argument through as ~#:got~, so those can be delayed the same way. A ~comp~ list in ~#:expect~ is an ordinary list, and that list is what gets compared.
+- What you write top to bottom is not the order the work happens in: cases are shuffled, and a suite's tests run concurrently by default. Share state through a hook, never through evaluation order.
+
+*** Delaying an argument with comp
+
+Delay an argument by writing the computation as data: a quoted list starting with ~comp~.
+
+#+begin_src scheme
 (assert-equal #:expect 144
-              #:got `(comp (begin
-                             ;; This block is evaluated by Veritas at test-time.
-                             ;; Useful for setup or complex expressions.
-                             (let ((x 12))
-                               (* x x))))
-              #:name "Complex computation inside an assertion")
+              #:got `(comp (* 12 12)))
+#+end_src
+
+~compute~ and ~computare~ are aliases of ~comp~. The quote matters, since an unquoted ~(comp ...)~ would be a call to a procedure of that name. Nothing else is special, so an ordinary quoted list such as ~'(1 2 3)~ is still compared as a value.
+
+The payload is evaluated with ~eval~ in the interaction environment, and under the runner that environment is the bare top level: core Scheme is there, the imports and the definitions of your test file are not. ~(comp (my-helper))~ raises ~unbound-variable: my-helper~, and ~(comp (call-with-input-file "f" get-string-all))~ fails as well, even though the same file imports the module that provides ~get-string-all~. Either way the runner reports a task error rather than a failed assertion. Keep ~comp~ payloads to core Scheme - arithmetic, ~let~, ~sleep~ - and reach your own code by preparing state at test time instead.
+
+*** Preparing state at test time
+
+The thunk-based assertion runs at test time, with everything the module imported:
+
+#+begin_src scheme
+(test "writes and reads a file at test time"
+      (assert-no-error
+       (lambda ()
+         (call-with-output-file "greeting.txt"
+           (lambda (port) (display "hello" port)))
+         (let ((content (call-with-input-file "greeting.txt" get-string-all)))
+           (unless (equal? content "hello")
+             (error "expected hello, got ~a" content))))))
+#+end_src
+
+~assert-no-error~ only looks for an exception, and passes whatever the thunk returns, so the thunk does the comparing and calls ~error~ when it is wrong. ~assert-error~ is the mirror image, for the checks where raising is the expected outcome.
+
+When the comparison itself has to happen at run time, a case can be a lambda that applies the assertion to the client it is handed:
+
+#+begin_src scheme
+(test "reads the file it wrote"
+      (lambda (vc)
+        (call-with-output-file "total.txt"
+          (lambda (port) (display "6" port)))
+        ((assert-equal #:expect "6"
+                       #:got (call-with-input-file "total.txt" get-string-all))
+         vc)))
+#+end_src
+
+Hooks run at run time too, and they bracket the assertions: inside a test, the cases run after ~#:before~ and before ~#:after~; inside a suite, the children run after ~#:before-all~ and before ~#:after-all~. A hook body is a closure from your own file, so unlike a ~comp~ payload it may call anything the module defines.
+
+#+begin_src scheme
+(suite "with a fresh database"
+       #:before-all (lambda (vc) (create-tables!))
+       #:after-all (lambda (vc) (drop-tables!))
+       (test "the table starts empty"
+             (assert-equal #:expect 0 #:got (row-count))))
 #+end_src
 
 
@@ -128,24 +193,24 @@ Note: If one desires to delay execution of the ~#:got~ argument of the assertion
 
 /EX LABORE VENUSTAS/ - /from hard work, beauty/
 
-Due to its elegance, succinctness, and opinionated design, veritas has a really *low learning curve*, for beginners and seasoned hackers alike, great for onboarding too.
+~veritas~ is small and opinionated, which keeps the learning curve low, whether you are new to testing or have been at it for years.
 
-Tests are defined in plain Scheme code (Guile), allowing powerful abstractions, re-usability and customization to the user's neeed.
+Tests are plain Scheme (Guile) code, so you can abstract, reuse and customize them however you like.
 
 The hierarchy is defined as follows:
-- In your test file, define a no-argument function called ~spec~ which is the entry-point, and should contain your veritas-run and test statements and ensure that  ~spec~ it's exported/public. This is useful for when you use the built-in veritas test runner. Otherwise feel free to do this differently.
+- In a test file, define a no-argument function called ~spec~ and export it. It holds your ~veritas-run~ statements and is what the built-in runner calls. Run your tests another way and ~spec~ is not required.
 - ~veritas-run~ takes an arbitrary (variadic) amount of ~suite~ items, ~test~ items or ~benchmark~ items.
 - ~suite~ takes a variadic amount of ~test~ items, and may itself contain other suites. Suites and tests can therefore be nested to any depth; see the ~nesting~ unit tests for a five-level example.
 - ~test~ takes a variadic amount of assertions (~assert-equal~, ~assert-error~,  ~assert-true~, etc.)
 - ~benchmark~ takes a ~name~, a number of ~runs~ and a ~thunk~ to be measured. This is currently done by using ~statprof~.
 
-Instead of executing tests immediately, test and suite functions return anonymous functions (lambdas), and thunks (no argument lambdas). This helps "close over" environments and scopes, capturing all necessary information (like test name, input cases, debug flags) from where they were defined.
+~test~ and ~suite~ run nothing when you call them. They return closures, which close over their name, their cases and their flags from wherever you wrote them.
 
-This design enables delayed, "on-demand" execution, allowing Veritas to control the concurrency, parallelism, order (e.g., shuffling) and timing of test runs, as well as capturing their output efficiently using output ports.
+That is what lets the runner choose the order, the concurrency and the timing of a run, and capture each test's output on its own port.
 
-This allows entire tests or suites (your choice) to be run in parallel, significantly speeding up the overall testing process by leveraging cooperative concurrency, as well as ensuring correctness of your tests. Overall, the veritas testing framework leverages core Lisp features to provide a flexible and efficient testing solution.
+Tests, or whole suites, can then run in parallel over cooperative fibers, which cuts down the wall clock time of a run. Suites are concurrent by default; ~#:concurrent? #f~ serializes them.
 
-Refer to the Makefile to understand how to run this project and more.
+Refer to ~maak.scm~ for the tasks available in this project (compile, test, docs, deploy, and more).
 
 
 ----------------
@@ -177,7 +242,7 @@ ordinary failure instead of a run that never ends.
 
 (test "lazy payloads are covered too"
       (assert-equal #:expect '(1 2 3)
-                    #:got `(comp (fetch-remote-list))  ;; runs at test time
+                    #:got `(comp (fetch-remote-list))  ;; runs at test time, lazy evaluation
                     #:timeout 2))
 #+end_src
 
@@ -212,11 +277,9 @@ scheduler that owns it finishes.
   the computation of a lazy ~comp~ payload, or whatever the thunks passed to
   ~assert-error~, ~assert-no-error~ and ~assert-raises~ do when they are called.
 
-Remember that an assertion evaluates an eager ~#:got~ when the assertion is
-built - that is, when your test file is loaded - not when the test runs. Only
-work that happens at test time - the lazy ~comp~ form, the thunk assertions or
-the lifecycle hooks - can be bounded by a deadline. See the note in the
-assertions section above.
+An eager ~#:got~ is not covered by a deadline: it was computed while the file was
+loaded. Only work done at test time - a ~comp~ payload, a thunk assertion, a
+lifecycle hook - can be cut short. See [[*Eager arguments and the lazy comp form][Eager arguments and the lazy comp form]].
 
 Deadlines are read from a real clock, so fractional seconds are fine; a
 ~#:timeout~ of ~0.3~ is a useful smoke test when you are trying to reproduce a
@@ -262,15 +325,7 @@ Approximate (floating point) comparisons take an optional ~#:epsilon~:
 (assert-not-approximate #:expect 3.14 #:got 3.5 #:epsilon 0.01)
 #+end_src
 
-Any ~#:got~ value may be delayed and evaluated at test time by quoting it and wrapping the computation in ~comp~ (aliases: ~compute~, ~computare~):
-
-#+begin_src scheme
-(assert-equal #:expect 144
-              #:got `(comp (begin
-                             ;; evaluated by Veritas when the test runs
-                             (let ((x 12)) (* x x))))
-              #:name "Complex computation inside an assertion")
-#+end_src
+Any ~#:got~ can be delayed until the test runs by quoting it and wrapping the computation in ~comp~ (aliases: ~compute~ and ~computare~). What that covers, and where it stops, is in [[*Eager arguments and the lazy comp form][Eager arguments and the lazy comp form]].
 
 Error handling is first-class:
 
@@ -392,7 +447,7 @@ In the same spirit as the Latin BDD steps (see below), every assertion has a Lat
 
 /PROBATIO EX DATIS/ - a.k.a. table-driven testing
 
-This is made easy thanks to Lisp, with higher order functions, quasi-quoting and whatever you want to use. See a simple example here, using ~apply~. You can do this easily at the suite, test or assertion levels.
+Lisp makes this easy: higher order functions, quasi-quoting, ~apply~, whatever fits. The example below uses ~apply~, and the same trick works at the suite, test or assertion level.
 
 #+begin_src scheme
 (define log-level-suite
@@ -493,6 +548,19 @@ The scenario keyword is also available as ~feature~, ~story~, ~fabula~ and ~scae
       (assert-equal #:expect 30 #:got (+ 10 20)))))
 #+end_src
 
+The three main steps also have PascalCase aliases: ~Given~ (~given~), ~When~ (~when-step~) and ~Then~ (~then~). Being capitalised, they do not collide with Guile's lowercase ~when~, so the step can carry the name you expect to read:
+
+#+begin_src scheme
+(define pascal-scenario
+  (scenario "summing a list of numbers"
+    (Given "a list of three numbers"
+      (assert-equal #:expect 3 #:got (length '(1 2 3))))
+    (When "the numbers are summed"
+      (assert-equal #:expect 6 #:got (apply + '(1 2 3))))
+    (Then "the total is six"
+      (assert-equal #:expect 6 #:got (apply + '(1 2 3))))))
+#+end_src
+
 *Note:* passing several steps through a ~let~ closure as a single expression does not work the way it reads in Scheme, because a ~let~ body evaluates to a single value and only the last step would survive. Share setup through module-level bindings, ~#:before-all~, or the lazy ~comp~ form instead.
 
 
@@ -539,7 +607,7 @@ Containers are started with ~#:env~, ~#:ports~, ~#:volumes~ and ~#:extra-args~, 
 
 /AMBITUS PROBATIONIS CODICIS/: the testing scope of the code
 
-It's disabled by default per every run of ~veritas-run~ but you can opt-in, and reports are produced for every test file , ending up in ~./reports/lcov~ and ~./reports/html~. It's recommended to allow write permission and/or create these directories and to take care of removing them at every run (best done with automation, such as Maak file: see ~./maak.scm~
+It is off by default; pass ~#:with-coverage? #t~ to ~veritas-run~ to turn it on. Reports are written for each test file into ~./reports/lcov~ and ~./reports/html~. Make sure those directories are writable, and clear them before each run (the ~maak.scm~ task does that).
 
 We are in experimental phase still for this feature, using LCOV + HTML method, more improvements to come yet!
 
@@ -549,7 +617,7 @@ We are in experimental phase still for this feature, using LCOV + HTML method, m
 
 /GENERATORES DANT, GENERATORES AUFERUNT/ - the generators giveth, and the generators taketh away
 
-Veritas provides a powerful set of data generator combinators designed for property-based testing. All generators in Veritas compile down into a predictable closure contract matching a simplified signature:
+Veritas ships generator combinators for property-based testing. Every generator is a closure taking a random state:
 
 #+begin_src scheme
 (lambda (rand) ...)
@@ -567,12 +635,11 @@ Example usage:
 #+end_src
 
 - State-Driven properties, to yield a value, a generator closure must be invoked with an explicit Guile random state object (e.g., generated via =(random-state-from-platform)=).
-- By using the combinator pattern, generators can be nested seamlessly. For instance, passing =(generate-char)= into =(generate-list)= instantly creates a structured character-list generator.
+- Generators compose: passing =(generate-char)= into =(generate-list)= gives a generator of character lists.
 
 Veritas includes several out-of-the-box generators to construct your test cases. See [[https://jointhefreeworld.org/api-docs/veritas/API.html][the full technical Guile Scheme API documentation for Veritas]] for more.
 
-Also, you can learn more by reading the unit tests for veritas itself, at ~test/veritas/unit~
-Here a simple example:
+The unit tests under ~test/veritas/unit~ are the other good place to look. A simple example:
 
 #+begin_src scheme
 (define basic-generation-test
@@ -609,9 +676,9 @@ Some functionalities, including the runner, are configured via environment varia
 
 - ~VERITAS_RUN_BENCHMARKS~ defaults to ~true~ and determines whether benchmarks should be run.
 
-- ~VERITAS_ONLY_TEST~ is an optional variable you can pass to limit the execution to test cases whose name partially matches this variable.
+- ~VERITAS_ONLY_TEST~ limits the run to test cases whose name contains this string.
 
-- ~VERITAS_ONLY_SUITE~ is an optional variable you can pass to limit the execution to suites whose name partially matches this variable.
+- ~VERITAS_ONLY_SUITE~ limits the run to suites whose name contains this string.
 
 - ~VERITAS_ONLY_TAG~ is an optional variable you can pass to run only tests and suites carrying a matching tag (case-insensitive). Tags are declared with the ~#:tags~ keyword on ~test~ and ~suite~, for example ~(test "slow check" #:tags '(slow integration) ...)~.
 
@@ -626,11 +693,11 @@ Some functionalities, including the runner, are configured via environment varia
 
 /ARTIFEX EXPERIMENTI/ - /the master of the experiment/
 
-You can feel free to use ~veritas~ as you prefer, and dynamically run tests at your will. For ease-of-use, a runner with test auto-discovery is provided.
+You can call ~veritas-run~ yourself, or use the bundled runner that discovers test files for you.
 
 If you use this runner, without changing the defaults, place your unit test files at: ~./test/veritas/unit/*.scm~  and name your modules ~(veritas unit your-name)~ due to how Guile module loading works. This is configurable via environment variables.
 
-You can create sub-directories and nest as you please within the test path.
+Sub-directories under the test path are fine.
 
 All test files should contain a no-argument function ( called ~spec~  by default) which is the entry-point, and the place to add your ~veritas-run~ statements.
 
@@ -773,8 +840,8 @@ Alternatively, you can install it by downloading the source code files and addin
     (description
      "Veritas is a testing framework for Guile with an @acronym{EDSL,
 embedded domain specific language} to define test suites.  Emphasis is placed
-on legibility and maintainability of tests.  Veritas shuffles tests and
-runs them concurrently by default to ensure robust testing practices.")
+on legible, maintainable tests.  Veritas shuffles tests and runs them
+concurrently by default.")
     (license license:lgpl3+)))
 #+end_src
 

@@ -44,17 +44,12 @@
                                          make-timeout-assertion-result))
 
 (define-syntax-rule (evaluate-thunks-concurrently thunks)
-  "Evaluate a list of @var{thunks} concurrently using Guile Fibers.
+  "Run @var{thunks} concurrently in fibers and collect what they return.
 
-Each zero-argument procedure in the list @var{thunks} is spawned inside its own
-concurrent fiber thread. This macro blocks the execution of the calling fiber
-until all spawned thunks have reported their results back through a shared channel.
-
-Exceptions raised within individual fibers are caught safely to avoid hanging or
-silent termination, returning a formatted error string instead.
-
-Note: The output list order corresponds to the exact completion order of the
-fibers, meaning it is non-deterministic.
+Blocks until every thunk has reported back through a shared channel.  A thunk
+that raises sends a formatted error string instead of a value, so one failure
+cannot hang the run.  Results come back in completion order, which is not the
+order of @var{thunks}.
 
 @example
 (evaluate-thunks-concurrently
@@ -65,58 +60,39 @@ fibers, meaning it is non-deterministic.
   (let ((channel
           (make-channel)))
     (run-fibers (lambda ()
-                  ;; Spawn producers
                   (for-each (lambda (func)
                               (spawn-fiber (lambda ()
-                                             ;; Catch exceptions so the fiber doesn't die silently
+                                             ;; Report the exception instead of letting the
+                                             ;; fiber die without a word.
                                              (catch #t
                                                     (lambda ()
                                                       (let ((result (func)))
                                                         (put-message channel
                                                                      result)))
                                                     (lambda (key . args)
-                                                      ;; Send the error down the channel to prevent hanging
                                                       (put-message channel
                                                                    (format #f
                                                                     "~a: ~a"
                                                                     key args)))))))
                             thunks)
 
-                  ;; Consume messages INSIDE the run-fibers block
-                  ;;
-                  ;; Note: #:drain? #t is not needed because the `map` loop implicitly
-                  ;; blocks the main fiber until all thunks have reported back.
+                  ;; Consumed inside run-fibers: this map blocks the main fiber until
+                  ;; every thunk has reported, so no #:drain? is needed.
                   (map (lambda (_)
                          (get-message channel)) thunks)))))
 
 (define-syntax-rule (evaluate-thunks thunks)
-  "Evaluate a list of @var{thunks} sequentially.
+  "Evaluate @var{thunks} one after another, keeping their order.
 
-Applies each zero-argument procedure in the list @var{thunks} one after another
-in a synchronous manner.
-
-Returns a list containing the evaluation results of each thunk preserving the original
-order of the input list.
-
-@example
-(evaluate-thunks (list (lambda () (+ 1 1)) (lambda () (* 2 3))))
-@result{} (2 6)
-@end example"
+The result list lines up with the input list."
   (map (lambda (t)
          (apply t
                 '())) thunks))
 
 (define (flatten-list xs)
-  "Recursively flatten a nested list structure @var{xs}.
+  "Flatten @var{xs} into a single list, however deeply it nests.
 
-Traverses the given structure and flattens all nested sub-lists into a continuous,
-one-dimensional list of elements. If @var{xs} is empty, returns an empty list. If
-it is a non-list atom, returns it wrapped inside a single-element list.
-
-@example
-(flatten-list '((1 2) (3 (4 5)) 6))
-@result{} (1 2 3 4 5 6)
-@end example"
+An atom that is not a list comes back wrapped in a one-element list."
   (cond
     ((null? xs)
      '())
@@ -126,17 +102,11 @@ it is a non-list atom, returns it wrapped inside a single-element list.
     (else (list xs))))
 
 (define (collect-assertion-successful* xs)
-  "Recursive procedure to extract success values from test data @var{xs}.
+  "Return the assertion outcomes found inside @var{xs}.
 
-Dispatches dynamically on the type of @var{xs} to look for assertion results:
-@itemize
-@item If it is an assertion result, extracts its success state boolean.
-@item If it is a pre-test or test result, recursively extracts outcomes from internal fields.
-@item Nested lists are mapped over recursively.
-@item Unspecified values, benchmark results, and explicit @code{#t} values return empty lists.
-@end itemize
-
-Raises an error if an unknown object structure is encountered."
+Knows assertion, pre-test, test and suite results, and recurses into lists.
+Unspecified values, benchmarks and @code{#t} contribute nothing; an
+unrecognized type raises."
   (cond
     ((unspecified? xs)
      '())
@@ -166,24 +136,16 @@ Raises an error if an unknown object structure is encountered."
                   "could not read assertion success from unknown type: ~a" xs)))))
 
 (define (collect-assertion-successful xs)
-  "Collect and flatten all assertion success statuses found in @var{xs}.
+  "Return the outcome of every assertion in @var{xs} as a flat list.
 
-Processes the arbitrary test result tree or list structure @var{xs}, extracts all underlying
-assertion outcomes, and returns a flat list containing only booleans indicating success
-(@code{#t}) or failure (@code{#f}).
-
-@example
-(collect-assertion-successful my-test-suite-record)
-@result{} (#t #t #f #t)
-@end example"
+Booleans only: @code{#t} for a pass, @code{#f} for a failure."
   (flatten-list (collect-assertion-successful* xs)))
 
 (define (display-assertion-results assertion-results)
-  "Display the captured text outputs for a list of @var{assertion-results}.
+  "Print the captured output of each record in @var{assertion-results}.
 
-Iterates over @var{assertion-results}. For each item, validates that it is an assertion record
-and dumps its tracked standard output directly to the current output port. Errors during processing
-are safely intercepted and logged to stdout without crashing the reporter framework."
+A record that is not an assertion gets printed as an error instead of bringing
+down the reporter."
   (for-each (lambda (x)
               (catch #t
                      (lambda ()
@@ -195,17 +157,13 @@ are safely intercepted and logged to stdout without crashing the reporter framew
                                args)))) assertion-results))
 
 (define (display-test-results test-results)
-  "Display outputs and nested assertions for a list of @var{test-results}.
+  "Print the output and inner assertions of each record in @var{test-results}.
 
-Iterates through @var{test-results}. If an item is a valid test result, it prints the
-captured test output, and then processes its internal pre-test assertion data structures
-by forwarding them to @code{display-assertion-results}. Nested suites (including a
-suite nested inside a suite, which arrives wrapped in a @code{test-result}) are
-recursed into so their tests are reported as well.
+Walks into suites as well, including a suite that arrives wrapped in a
+@code{test-result}.
 
-This is a procedure, not a macro: the recursion happens while reporting at run
-time.  Expressing it as a macro would expand the recursive call again and again
-and never terminate, exhausting memory instead of printing the report."
+This has to stay a procedure.  As a macro it would re-expand the recursive call
+forever and eat memory instead of printing the report."
   (for-each (lambda (x)
               (cond
                 ((unspecified? x)
@@ -269,16 +227,10 @@ Throws an explicit error if an unrecognized result type is processed."
 
 (define* (getenv-or var
                     #:key (default #f))
-  "Lookup environment variable @var{var}, returning @var{default} if absent.
+  "Return environment variable @var{var}, or @var{default} when it is unset.
 
-Converts the symbol @var{var} into a string to query the operating system's environment.
-If the variable does not exist, or if an exception occurs during lookup, the specified
-@var{default} keyword value is returned.
-
-@example
-(getenv-or 'GUILE_LOAD_PATH #:default \"/usr/share/guile\")
-@result{} \"/usr/share/guile\"
-@end example"
+@var{var} is a symbol.  Anything that goes wrong while reading it yields
+@var{default} as well."
   (catch #t
          (lambda ()
            (let* ((v (getenv (symbol->string var))))
@@ -293,16 +245,10 @@ error: ~a: ~a"
                      args)) default)))
 
 (define* (capture-result-and-output thunk)
-  "Execute @var{thunk}, capturing both its return value and standard output.
+  "Call @var{thunk} and return a @code{result-and-output} record.
 
-Dynamically binds the standard output port to a string port while running @var{thunk}.
-Returns a custom @code{result-and-output} object record packing the thunk's evaluation value
-and any textual stdout written during runtime. Closes the internal string port safely upon completion.
-
-@example
-(capture-result-and-output (lambda () (display \"In execution...\") 100))
-@result{} #<result-and-output result: 100 output: \"In execution...\">
-@end example"
+The record holds what @var{thunk} returned together with everything it printed,
+so a test's output can be reported next to its result."
   (let* ((output-port (open-output-string))
          (result (with-output-to-port output-port thunk))
          (the-output (get-output-string output-port))
@@ -311,51 +257,44 @@ and any textual stdout written during runtime. Closes the internal string port s
 
 ;;; ====== Timeouts ======
 ;;
-;; A timeout turns a hanging test into a reported failure while making sure the
-;; concurrent machine that ran it does not keep running in the background.  The
-;; work happens in its own fiber; when the deadline passes a watchdog aborts
-;; that fiber, which unwinds it back to the prompt installed around the task.
+;; A timeout has to do two things: report a hung test, and stop it from running
+;; on in the background.  The test runs in its own fiber; when the deadline
+;; passes, a watchdog aborts that fiber, unwinding it back to the prompt around
+;; the test.
 ;;
-;; Two details are worth spelling out.
+;; The abort must come from outside the fiber.  A system async marked on the
+;; scheduler's kernel thread runs at the next safe point of whichever fiber is
+;; current, so a fiber marking itself would only interrupt itself.  The watchdog
+;; is therefore a plain kernel thread, and the marker it sends carries the
+;; test's prompt tag: %active-timeout makes the async a no-op unless it lands in
+;; the timed test, so no other fiber on the scheduler is disturbed.
 ;;
-;; First, the abort cannot be triggered from a fiber: a system async marked on
-;; the scheduler's kernel thread runs at the next safe point of whichever fiber
-;; is running, so a fiber that marks itself would only interrupt itself.  The
-;; watchdog is therefore a regular kernel thread, and the async it marks
-;; carries the task's prompt tag; `%active-timeout' makes the async a no-op
-;; unless it lands inside the timed task, so preemption of the other fibers in
-;; the same scheduler is never disturbed.
-;;
-;; Second, the caller does not wait on the task itself but on a channel with a
-;; deadline.  A task blocked in a syscall or suspended on a channel is never
-;; resumed by the abort, so waiting on it would reintroduce the very hang the
-;; timeout is meant to remove.
+;; The caller waits on a channel with a deadline, not on the test itself.  A test
+;; blocked in a syscall is never resumed by the abort, so waiting on it would
+;; bring back the hang the timeout exists to prevent.
 
 (define %active-timeout
-  ;; Bound (via `parameterize') to the prompt tag of the timed task while that
-  ;; task runs.  This is what makes the asynchronous abort safe.
+  ;; Parameterized to the prompt tag of the timed task while it runs.  That is
+  ;; what keeps the async abort from landing anywhere else.
   (make-parameter #f))
 
 (define %timeout-wait-interval-microseconds
-  ;; How often the watchdog checks the clock (and whether the task is done)
-  ;; while the deadline has not passed yet.  Guile threads have no reliable
-  ;; timed wait, so the deadline is polled for; the caller enforces its own
-  ;; deadline precisely and independently, this only bounds when the runaway
-  ;; fiber is aborted.
+  ;; How often the watchdog looks at the clock before the deadline.  Guile
+  ;; threads have no reliable timed wait, so it polls instead; the caller keeps
+  ;; its own precise deadline, this only decides when a runaway fiber is aborted.
   5000)
 
 (define %timeout-wait-interval-milliseconds
   5)
 
 (define %timeout-scan-interval-microseconds
-  ;; How often the watchdog retries the abort while the task has not finished.
-  ;; The retry matters when the first async is delivered to a sibling fiber
-  ;; (the timed one being suspended at the time).
+  ;; How often the watchdog retries the abort.  The first async can land on a
+  ;; sibling fiber while the timed one is suspended, so one try is not enough.
   10000)
 
 (define %timeout-scan-attempts
-  ;; Upper bound on those retries, so a task that never runs again cannot keep
-  ;; a watchdog thread alive forever.
+  ;; Cap on those retries, so a task that never runs again cannot keep a
+  ;; watchdog thread alive forever.
   100)
 
 (define* (call-with-timeout seconds thunk
@@ -468,12 +407,11 @@ returned.
                      (cdr outcome)))))))
 
 (define* (make-timeout-assertion-result #:key vc name timeout)
-  "Build a failing @code{assertion-result} describing a timeout.
+  "Build the failed @code{assertion-result} reported for a timeout.
 
-@var{name} is the timed task, @var{timeout} the seconds it was given, and
-@var{vc} the reporter client used to format the failure.  The result is
-reported like any other failed assertion, so a run in which a task exceeded its
-@code{#:timeout} exits with a non-zero status."
+@var{name} is the timed task, @var{timeout} the seconds it was given and
+@var{vc} the client used to report it.  A timeout fails the run exactly like any
+other failed assertion."
   (let ((message (format #f "~a timed out after ~a seconds"
                          (if name name "task") timeout)))
     (make-assertion-result 0

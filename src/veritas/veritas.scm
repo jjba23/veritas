@@ -84,7 +84,7 @@
                                 fisher-yates-shuffle)
   #:export (test veritas-run suite benchmark do-if-string-contained))
 
-;; ====== Parameters of Environment variables ======
+;; ====== Environment variables ======
 (define veritas-only-test
   (make-parameter (getenv-or 'VERITAS_ONLY_TEST
                              #:default #f)))
@@ -114,56 +114,46 @@ the test runs when any tag contains @var{restriction} (case-insensitively)."
                               (string-downcase restriction))) tags)))
 
 (define* (do-if-string-contained #:key name restriction result)
-  "Execute filtering on @var{name} against an execution substring @var{restriction}.
+  "Run @var{result} when @var{name} matches @var{restriction}.
 
-Performs a case-insensitive validation check. If @var{restriction} is specified
-and matched anywhere inside @var{name}, returns @var{result}. If no restriction filter
-is configured (@code{#f}), bypasses checks and cleanly forwards @var{result}.
-
-Otherwise, if a restriction is specified but not found inside the name string, returns @code{#f}.
-
-@example
-(do-if-string-contained #:name \"User Authentication Unit Spec\"
-                        #:restriction \"Auth\"
-                        #:result 'run-me)
-@result{} run-me
-@end example"
+The check is case-insensitive, and a restriction counts as a match when it
+appears anywhere in @var{name}.  A @code{#f} restriction accepts everything;
+one that does not appear gives @code{#f}."
   (if (not restriction) result
       (if (string-contains (string-downcase name)
                            (string-downcase restriction)) result #f)))
 
-(define (get-cases-for-test xs)
-  "Parse argument list @var{xs} to filter executable assertion case procedures.
+(define (drop-keyword-arguments xs)
+  "Return @var{xs} with its @code{#:keyword value} pairs removed.
 
-Iterates through trailing rest arguments from a @code{test} block initialization.
-Safely strips out embedded lifecycle keyword options (such as @code{#:before} or
-@code{#:after}) alongside their sequential parameter expressions, extracting a
-flat list containing purely test-case execution lambda functions.
-
-@example
-(get-cases-for-test (list #:before my-hook (lambda (vc) #t)))
-@result{} (#<procedure ...>)
-@end example"
+Guile's @code{#:rest} keeps the keyword arguments in the rest list alongside the
+positional ones, so a @code{test} or @code{suite} body arrives here carrying its
+flags, tags and lifecycle hooks.  Only the values that follow them matter
+anywhere else, and a hook is a procedure just like a case is, so the pairs have
+to go before the procedures can be picked out."
   (cond
     ((null? xs)
      '())
-    ((equal? #:before (car xs))
-     (get-cases-for-test (cdr (cdr xs))))
-    ((equal? #:after (car xs))
-     (get-cases-for-test (cdr (cdr xs))))
-    ((list? xs)
-     (filter procedure? xs))
-    (else xs)))
+    ((keyword? (car xs))
+     (drop-keyword-arguments (cddr xs)))
+    (else (cons (car xs)
+                (drop-keyword-arguments (cdr xs))))))
 
-;; ====== Core EDSL (embedded domain specific language) ======
+(define (get-cases-for-test xs)
+  "Return the assertion cases of a @code{test} body @var{xs}.
+
+Keyword arguments such as @code{#:before} and @code{#:after} are dropped along
+with the value that follows them, leaving only the cases."
+  (filter procedure?
+          (drop-keyword-arguments xs)))
+
+;; ====== Core DSL ======
 (define* (with-task-timeout timeout proc on-timeout)
-  "Wrap task procedure @var{proc} with an optional @var{timeout}.
+  "Return @var{proc} wrapped in a @var{timeout}, or untouched when @code{#f}.
 
-When @var{timeout} is a positive number of seconds the returned procedure runs
-@var{proc} under @code{call-with-timeout}: if the task overruns its deadline its
-fiber is aborted and @var{on-timeout} is called with the validation client to
-build the result to report.  When @var{timeout} is @code{#f} @var{proc} is
-returned untouched."
+A positive @var{timeout} runs @var{proc} under @code{call-with-timeout}; if the
+task overruns, its fiber is aborted and @var{on-timeout} builds the result that
+gets reported."
   (if (not timeout) proc
       (lambda (vc)
         (call-with-timeout timeout
@@ -202,21 +192,12 @@ returned untouched."
                (before #f)
                (after #f)
                #:rest cases)
-  "Construct an isolated, executable unit test block named @var{name}.
+  "Define a test named @var{name}.
 
-Defines individual specification properties via keyword parameters:
-@itemize
-@item @var{debug?}: When @code{#t}, prints raw assertion results dump structures directly to standard out.
-@item @var{shuffle?}: Instigates randomized execution ordering of internal cases via Fisher-Yates shuffle hooks.
-@item @var{skip?}: Completely aborts blocks from running when set to true.
-@item @var{timeout}: A number of seconds the whole test may take, including its @var{before} and @var{after} hooks, before its fiber is aborted and the test is reported as a failure.  @code{#f} (the default) means no deadline.
-@item @var{before}: A lifecycle function hook that accepts a validation client (@var{vc}) executed prior to evaluations.
-@item @var{after}: A lifecycle function hook that accepts a validation client (@var{vc}) executed post evaluations.
-@end itemize
-
-Returns an execution closure capturing the system context, which evaluates all internal
-assertion cases sequentially. Standard output written during assertion tracking is safely bound,
-captured, and returned inside an encapsulated @code{pre-test-result} data structure.
+The arguments that follow are the assertion cases.  @var{before} and @var{after}
+run around them, @var{timeout} caps the whole test in seconds, hooks included,
+@var{skip?} drops it from the run, @var{shuffle?} randomizes the case order and
+@var{tags} decide which filter may select it.
 
 @example
 (test \"Addition Validation\"
@@ -236,23 +217,25 @@ captured, and returned inside an encapsulated @code{pre-test-result} data struct
                         (assertion-thunks (map (lambda (indexed-case)
                                                  (let* ((idx (car indexed-case))
                                                         (assertion-proc (cadr
-                                                                         indexed-case))
-                                                        (result-and-output (capture-result-and-output (lambda ()
-                                                                                                        
-                                                                                                        
-                                                                                                        (assertion-proc
-                                                                                                         vc)))))
+                                                                         indexed-case)))
+                                                   ;; Capture when the thunk runs, so the
+                                                   ;; #:before hook has already run.
                                                    (lambda ()
-                                                     (make-assertion-result
-                                                      idx
-                                                      (result-and-output-output
-                                                       result-and-output)
-                                                      (assoc-ref (result-and-output-result
-                                                                  result-and-output)
-                                                                 'assertion-name)
-                                                      (assoc-ref (result-and-output-result
-                                                                  result-and-output)
-                                                                 'assertion-successful)))))
+                                                     (let ((result-and-output (capture-result-and-output (lambda ()
+                                                                                                           
+                                                                                                           
+                                                                                                           (assertion-proc
+                                                                                                            vc)))))
+                                                       (make-assertion-result
+                                                        idx
+                                                        (result-and-output-output
+                                                         result-and-output)
+                                                        (assoc-ref (result-and-output-result
+                                                                    result-and-output)
+                                                                   'assertion-name)
+                                                        (assoc-ref (result-and-output-result
+                                                                    result-and-output)
+                                                                   'assertion-successful))))))
                                                indexed-cases))
                         (_ (if (not before)
                                '()
@@ -280,26 +263,12 @@ captured, and returned inside an encapsulated @code{pre-test-result} data struct
                                                                    timeout))))))))
 
 (define (get-tests-for-suite xs)
-  "Parse trailing list elements @var{xs} to separate executable child components for suites.
+  "Return the child tests and suites of a @code{suite} body @var{xs}.
 
-Safely filters out global module setup keywords (such as @code{#:before-all} or
-@code{#:after-all}) along with their referenced functions, generating a list
-containing purely runnable internal @code{test} or macro-generated lambda definitions.
-
-@example
-(get-tests-for-suite (list #:before-all setup-proc (lambda (vc) 'test-proc)))
-@result{} (#<procedure ...>)
-@end example"
-  (cond
-    ((null? xs)
-     '())
-    ((equal? #:before-all (car xs))
-     (get-tests-for-suite (cdr (cdr xs))))
-    ((equal? #:after-all (car xs))
-     (get-tests-for-suite (cdr (cdr xs))))
-    ((list? xs)
-     (filter procedure? xs))
-    (else xs)))
+Keyword arguments such as @code{#:before-all} and @code{#:after-all} are dropped
+along with the value that follows them, leaving only the children."
+  (filter procedure?
+          (drop-keyword-arguments xs)))
 
 (define* (suite name
                 #:key (debug? #f)
@@ -311,21 +280,13 @@ containing purely runnable internal @code{test} or macro-generated lambda defini
                 (before-all #f)
                 (after-all #f)
                 #:rest tests)
-  "Aggregate multiple relevant test definitions inside a structured module container named @var{name}.
+  "Define a suite named @var{name} that groups the tests and suites after it.
 
-Supports high-level execution choreography parameters:
-@itemize
-@item @var{debug?}: Prints full suite compilation dumps directly to stdout when set to @code{#t}.
-@item @var{shuffle?}: Shuffles the sequential order of embedded child tests to isolate side effects.
-@item @var{skip?}: Inhibits execution of this suite block completely when evaluated as true.
-@item @var{timeout}: A number of seconds the suite may take, including its @var{before-all} and @var{after-all} hooks and every nested test, before its fiber is aborted and the suite is reported as a failure.  @code{#f} (the default) means no deadline.
-@item @var{concurrent?}: Controls concurrent scheduling. When @code{#t}, uses asynchronous Guile Fiber blocks to execute tests concurrently.
-@item @var{before-all}: A global hook procedure executed once prior to launching any child tests.
-@item @var{after-all}: A global hook procedure executed once following the completion of all nested tests.
-@end itemize
-
-Returns a composite function wrapper mapping across standard validation configurations.
-Captures and isolation-binds all textual test output streams inside a single consolidated @code{suite-result} signature record."
+Children run concurrently unless @var{concurrent?} is @code{#f}, and in shuffled
+order unless @var{shuffle?} is @code{#f}.  @var{before-all} and @var{after-all}
+run once around them, @var{timeout} caps the whole suite in seconds including
+those hooks, @var{skip?} drops it from the run and @var{tags} decide which filter
+may select it."
   (let* ((func (lambda (vc)
                  (let* ((procedure-tests (get-tests-for-suite tests))
                         (indexed-tests (map (lambda (test-proc i)
@@ -389,18 +350,11 @@ Captures and isolation-binds all textual test output streams inside a single con
                     runs
                     thunk
                     (timeout #f))
-  "Register a micro-benchmarking task block to assess execution latency characteristics.
+  "Define a benchmark named @var{name} that times @var{thunk} over @var{runs} runs.
 
-Accepts configuration settings:
-@itemize
-@item @var{skip?}: When true, prevents the execution loop of this benchmarking definition.
-@item @var{name}: Descriptive tracking label used for diagnostics reporting.
-@item @var{runs}: An integer count specifying how many consecutive times to invoke the execution routine.
-@item @var{thunk}: A zero-argument lambda wrap containing the code sequence targeted for optimization evaluation.
-@item @var{timeout}: A number of seconds all @var{runs} together may take before the benchmarking fiber is aborted and the benchmark is reported as a failure.  @code{#f} (the default) means no deadline.
-@end itemize
-
-Utilizes Guile's native statistical profiler engine (@code{statprof}) to capture performance statistics and call-stack diagnostics across loop evaluations. Returns a @code{benchmark-result} record mapping details for each index."
+Statistics come from Guile's @code{statprof}, so benchmarks are reported
+separately from tests.  @var{timeout} caps all the runs together in seconds and
+@var{skip?} drops the benchmark from the run."
 
   (let* ((func (lambda (vc)
                  (make-benchmark-result name
@@ -439,11 +393,11 @@ Utilizes Guile's native statistical profiler engine (@code{statprof}) to capture
                                 'veritas-task-type))))
 
 (define (%make-reporter dsl-input)
-  "Internal configuration resolution rule to identify and map reporter interfaces.
+  "Return the reporter to use for this run.
 
-Dynamically evaluates whether a logger definition override exists inside the environment data profiles
-via @code{VERITAS_REPORTER}. If found, converts it to a symbol configuration identifier; otherwise, defaults
-to falling back on the explicit runtime variable configuration provided by @var{dsl-input}."
+@var{dsl-input} wins when it is given (that is the @code{#:reporter} keyword of
+the run), otherwise @code{VERITAS_REPORTER} is read.  When neither is set the
+answer is @code{#f}, and @code{dispatch-log} falls back to the emoji reporter."
   (let* ((env-var (getenv-or 'VERITAS_REPORTER
                              #:default #f)))
     (cond
@@ -454,11 +408,10 @@ to falling back on the explicit runtime variable configuration provided by @var{
       (else dsl-input))))
 
 (define (%prepare-task-thunks tasks shuffle? vc)
-  "Filter and orchestrate user positional @var{tasks} into execution thunks.
+  "Turn @var{tasks} into a flat list of ready-to-run thunks.
 
-Captures all nested trace output blocks written during module tests to standard out
-and saves them cleanly back inside structural results configurations. Returns a
-sequential flat list containing purely ready-to-run thunk closures."
+Nothing runs here yet: each task is only wrapped so that its output can be
+captured later."
   (let* ((valid-tasks (filter procedure? tasks))
          (ordered-tasks (if shuffle?
                             (fisher-yates-shuffle valid-tasks) valid-tasks)))
@@ -476,30 +429,23 @@ sequential flat list containing purely ready-to-run thunk closures."
                    (else '())) result)))) ordered-tasks)))
 
 (define (%execute-tasks regular-thunks benchmark-thunks concurrent?)
-  "Execute compiled @var{regular-thunks} and @var{benchmark-thunks} with explicit VM orchestration.
+  "Run @var{regular-thunks} and @var{benchmark-thunks}, returning the raw results.
 
-Regular test/suite @var{regular-thunks} respect @var{concurrent?} by spreading
-evaluations over Fibers setups or running single-threaded execution stacks.
-
-Benchmark thunks, however, are *always* run sequentially: Guile's @code{statprof}
-uses a process-global @code{SIGPROF} handler, so benchmarking concurrently with
-other tasks corrupts the profiler state and produces spurious failures.  Running
-them serially also keeps benchmark timings meaningful (no CPU contention from
-sibling fibers).
-
-Returns the aggregated raw execution results collection."
+Regular thunks follow @var{concurrent?} and are spread over fibers, or run one
+after another.  Benchmarks always run sequentially: @code{statprof} uses a
+process-wide @code{SIGPROF} handler, so running them next to other tasks corrupts
+the profile, and a timing measured under CPU contention means nothing anyway."
   (append (if concurrent?
               (evaluate-thunks-concurrently regular-thunks)
               (evaluate-thunks regular-thunks))
           (evaluate-thunks benchmark-thunks)))
 
 (define (%extract-test-results all-results)
-  "Recursively normalize mixed-type results arrays into sequential flat test sheets.
+  "Flatten the raw @var{all-results} into a list of test results.
 
-A thunk running inside a fiber may fail; @code{evaluate-thunks-concurrently}
-captures the exception and reports it as a string.  Instead of aborting with a
-confusing @code{Unknown evaluation structure} error, such entries are surfaced as
-failed assertions so the run reports the real failure and exits non-zero."
+A thunk that failed inside a fiber shows up here as a string.  It becomes a
+failed assertion, so the run reports the real error and exits non-zero instead of
+dying on an \"unknown evaluation structure\"."
   (map (lambda (sr)
          (cond
            ((suite-result? sr)
@@ -518,7 +464,9 @@ failed assertions so the run reports the real failure and exits non-zero."
                                          sr) #f)))) all-results))
 
 (define (%write-coverage-report coverage-data vc)
-  "Write internal compiled VM @var{coverage-data} records safely into an LCOV trace file."
+  "Write the VM @var{coverage-data} to an LCOV trace file.
+
+@var{vc} is used to log where the report was written."
   (let* ((t (gettimeofday))
          (report-name (string-append "reports/lcov/coverage-"
                                      (format #f "~a-~a"
@@ -532,7 +480,7 @@ failed assertions so the run reports the real failure and exits non-zero."
 
 (define (%process-execution-lifecycle vc all-results task-count start-time
                                       debug?)
-  "Gather execution metrics, print logger telemetry dashboards, and handle failure states."
+  "Print the report for @var{all-results} and exit 1 if anything failed."
   (let* ((test-results (%extract-test-results all-results))
          (assertion-results (collect-assertion-successful test-results))
          (end-time (gettimeofday))
@@ -561,16 +509,12 @@ failed assertions so the run reports the real failure and exits non-zero."
                       (reporter #f)
                       (with-coverage? #f)
                       #:rest tasks)
-  "Top-level execution runtime wrapper engine designed to orchestrate test execution runs.
+  "Run @var{tasks}, the top-level tests, suites and benchmarks.
 
-Evaluates positional task variables sequentially or concurrently, providing orchestration hooks:
-@itemize
-@item @var{shuffle?}: Shuffles top-level block entry components randomly before runner routing.
-@item @var{concurrent?}: Runs distinct suite closures asynchronously using lightweight concurrent fibers.
-@item @var{debug?}: Provides developer trace visibility parameters to stdout streams.
-@item @var{reporter}: Selects the designated printing formatter design structure.
-@item @var{with-coverage?}: Whether to measure test code coverage and produce an LCOV report.
-@end itemize"
+@var{shuffle?} randomizes the order of the tasks and @var{concurrent?} runs them
+in parallel fibers.  @var{reporter} names a reporter, otherwise
+@code{VERITAS_REPORTER} decides.  @var{with-coverage?} writes an LCOV report and
+@var{debug?} prints the raw results."
   (let* ((start-time (gettimeofday))
          (made-reporter (%make-reporter reporter))
          (vc (list (cons 'reporter made-reporter)))

@@ -17,13 +17,11 @@
 
 ;;; Commentary:
 ;;
-;; This module implements data generator combinators for the Veritas
-;; property-based testing sub-system. All generators compile down into a
-;; predictable closure contract matching the simplified signature: (lambda (rand) ...)
-;;
-;; This simplified architecture automatically selects a random size internally,
-;; removing the need to track sizing down through the generator pipeline manually.
-;;
+;; Generator combinators for the property-based testing subsystem.  Every
+;; generator is a closure taking a random state, so the calling convention is
+;; always: (lambda (rand) ...).  Sizes are picked inside the generator, which
+;; saves threading a size argument through the pipeline by hand.
+
 ;;; Code:
 
 (define-module (veritas generator)
@@ -32,16 +30,13 @@
                              generate-string))
 
 (define* (generate-integer #:key (max-bound 8192))
-  "Create a generator closure that yields pseudo-random integers.
+  "Return a generator of integers between 1 and @var{max-bound} (inclusive).
 
-Returns a generator procedure accepting an explicit random rand object.
-The random upper boundary is selected internally up to @var{max-bound}.
+Call the generator with a random state:
 
 @example
 (define gen (generate-integer #:max-bound 100))
 (gen (seed->random-state 42))
-;; or (gen (random-state-from-platform))
-@result{} 42
 @end example"
   (lambda (rand)
     (let* ((random-size (+ 1
@@ -50,35 +45,16 @@ The random upper boundary is selected internally up to @var{max-bound}.
       (random bound rand))))
 
 (define (generate-char)
-  "Create a generator closure that yields random printable characters.
-
-Returns a generator procedure accepting an explicit random rand object.
-The returned character falls within the printable ASCII range (32 to 126).
-
-@example
-(define gen (generate-char))
-(gen (seed->random-state 42))
-;; or (gen (random-state-from-platform))
-@result{} #\\A
-@end example"
+  "Return a generator of printable ASCII characters, 32 to 126."
   (lambda (rand)
     (integer->char (+ 32
                       (random 95 rand)))))
 
 (define* (generate-symbol #:key (min-len 1)
                           (max-len #f))
-  "Create a generator closure that yields random Scheme symbols.
+  "Return a generator of lowercase symbols, @var{min-len} to @var{max-len} long.
 
-Returns a generator procedure accepting an explicit random rand object. Yields
-valid, unescaped Scheme symbols with a length constrained between @var{min-len}
-and @var{max-len}. Characters are limited to lowercase alphabetical letters (@code{a-z}).
-
-@example
-(define gen (generate-symbol #:min-len 3 #:max-len 6))
-(gen (seed->random-state 42))
-;; or (gen (random-state-from-platform))
-@result{} veritas
-@end example"
+Symbols stay unescaped because the characters are always @code{a-z}."
   (let* ((generate-symbol-char (lambda (rand)
                                  (integer->char (+ 97
                                                    (random 26 rand)))))
@@ -90,18 +66,9 @@ and @var{max-len}. Characters are limited to lowercase alphabetical letters (@co
 
 (define* (generate-string #:key (min-len 0)
                           (max-len #f))
-  "Create a generator closure that yields a random string.
+  "Return a generator of printable-ASCII strings.
 
-Returns a generator procedure accepting an explicit random rand object.
-Builds a string composed of random printable ASCII characters with an overall
-length constrained between @var{min-len} and @var{max-len}.
-
-@example
-(define gen (generate-string #:min-len 5 #:max-len 10))
-(gen (seed->random-state 42))
-;; or (gen (random-state-from-platform))
-@result{} \"lorem\"
-@end example"
+Strings are @var{min-len} to @var{max-len} characters long."
   (let ((list-gen (generate-list (generate-char)
                                  #:min-len min-len
                                  #:max-len max-len)))
@@ -111,20 +78,9 @@ length constrained between @var{min-len} and @var{max-len}.
 (define* (generate-list elem-generator
                         #:key (min-len 0)
                         (max-len #f))
-  "Create a generator closure that yields a list of randomly generated elements.
+  "Return a generator of lists whose elements come from @var{elem-generator}.
 
-Returns a generator procedure accepting an explicit random rand object. Leverages
-the internal mapping configurations of @var{elem-generator} to compile a list
-with a structured size constrained between @var{min-len} and @var{max-len}.
-
-@example
-(define gen (generate-list (generate-integer #:max-bound 10)
-                           #:min-len 2
-                           #:max-len 4))
-(gen (seed->random-state 42))
-;; or (gen (random-state-from-platform))
-@result{} (7 2 9)
-@end example"
+Lists are @var{min-len} to @var{max-len} long."
   (lambda (rand)
     (let* ((random-size (+ 1
                            (random 100 rand)))

@@ -46,8 +46,8 @@
                              #:got (* 1 1 1 1 0))
                (assert-equal #:expect 1
                              #:got `(comp (begin
-                                            ;; computations can be done here
-                                            ;; (sleep 5)
+                                            ;; comp runs at test time, so slow
+                                            ;; work could go here
                                             (+ 10
                                                (- 0 9))))))))
 

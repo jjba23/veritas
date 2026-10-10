@@ -93,6 +93,16 @@
                          (equal? (reverse bdd-trace)
                                  '(before-all given when then)))))))
 
+;; The PascalCase aliases must behave exactly like their lowercase counterparts.
+(define pascal-scenario
+  (scenario "a scenario written with PascalCase steps"
+    (Given "a list of two numbers"
+      (assert-equal #:expect 2 #:got (length '(10 20))))
+    (When "the numbers are summed"
+      (assert-equal #:expect 30 #:got (+ 10 20)))
+    (Then "the total is thirty"
+      (assert-equal #:expect 30 #:got (+ 10 20)))))
+
 ;; A scenario is a suite, so scenarios compose: an inner scenario can appear as
 ;; a step of an outer one and is nested in the report.
 (define nested-scenario
@@ -111,4 +121,5 @@
                ordered-scenario
                latin-scenario
                ordered-steps-scenario
+               pascal-scenario
                nested-scenario))

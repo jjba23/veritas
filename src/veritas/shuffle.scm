@@ -20,39 +20,26 @@
   #:export (fisher-yates-shuffle))
 
 (define (fisher-yates-shuffle xs)
-  "Return a new list containing the elements of @var{xs} in a randomized permutation.
+  "Return the elements of @var{xs} in random order (Fisher-Yates).
 
-Implements the modern Fisher–Yates (also known as the Knuth) shuffle algorithm.
-To ensure optimal performance, the input list @var{xs} is copied into an internal
-vector to leverage O(1) random access and mutation. The elements are shuffled
-in-place within the vector before being converted back into a standard Scheme list.
-
-Every invocation automatically re-initializes Guile's internal @code{*random-state*}
-variable using system entropy via @code{random-state-from-platform} to ensure high-quality
-pseudo-random distribution.
-
-If @var{xs} is empty or contains only a single element, it is returned unmodified.
-
-@example
-(fisher-yates-shuffle '(1 2 3 4 5))
-@result{} (4 1 5 3 2)  ; Note: Output is randomized and non-deterministic
-@end example"
+Shuffling happens on a vector copy, so @var{xs} is left alone.  A new seed is
+pulled from @code{random-state-from-platform} on every call, which means two
+calls on the same list differ.  Lists of one element or fewer come back as they
+are."
   (set! *random-state*
         (random-state-from-platform))
   (if (or (null? xs)
           (null? (cdr xs))) xs
       (let* ((vec (list->vector xs))
              (len (vector-length vec)))
-        ;; Loop from the last element down to the second element.
+        ;; Walk backwards from the end, swapping each slot with a random slot
+        ;; before it.
         (do ((i (- len 1)
                 (- i 1)))
             ((< i 1))
-            ;; Pick a random index j from 0 to i (inclusive).
             (let* ((j (random (1+ i)))
-                   ;; Swap the elements at positions i and j.
                    (temp (vector-ref vec i)))
               (vector-set! vec i
                            (vector-ref vec j))
               (vector-set! vec j temp)))
-        ;; Convert the shuffled vector back to a list.
         (vector->list vec))))

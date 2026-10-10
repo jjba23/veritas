@@ -17,10 +17,10 @@
 
 ;;; Commentary:
 ;;
-;; Table-driven (parameterized) tests, in the spirit of pytest's
-;; `parametrize', JUnit's @ParameterizedTest and Go's idiomatic table tests.
-;; A single test definition is expanded over a list of cases and each case is
-;; reported as its own test, so failures point at the exact input.
+;; Table-driven tests, in the spirit of pytest's parametrize, JUnit's
+;; parameterized tests and Go's table tests.  One test definition is expanded
+;; over a list of cases and each case is reported as its own test, so a failure
+;; points at the exact input.
 
 ;;; Code:
 
@@ -32,14 +32,9 @@
   #:export (test-each suite-each cases->table))
 
 (define (cases->table cases key)
-  "Index @var{cases} by @var{key}, returning an alist of key to case list.
+  "Index @var{cases} by @var{key}, giving an alist of key to case.
 
-Useful to build readable tables with named columns.
-
-@example
-(cases->table '((:a 1) (:b 2)) car)
-@result{} ((:a (:a 1)) (:b (:b 2)))
-@end example"
+Handy for tables with named columns."
   (map (lambda (case )
          (cons (key case) case)) cases))
 
@@ -48,10 +43,9 @@ Useful to build readable tables with named columns.
                     case->test
                     #:key (shuffle? #t)
                     (concurrent? #f))
-  "Expand @var{cases} into a suite of tests named @var{group-name}.
+  "Expand @var{cases} into one test per case, under a suite named @var{group-name}.
 
-@var{case->test} is a procedure that receives one case and must return a
-@code{test}.  Cases run in order by default, so table tests read top to bottom.
+@var{case->test} takes one case and returns a @code{test}:
 
 @example
 (test-each \"integer addition\"
@@ -74,10 +68,9 @@ Useful to build readable tables with named columns.
                      case->suite
                      #:key (shuffle? #t)
                      (concurrent? #f))
-  "Expand @var{cases} into nested suites under @var{group-name}.
+  "Like @code{test-each}, but @var{case->suite} returns a @code{suite}.
 
-Like @code{test-each} but @var{case->suite} returns a @code{suite} instead of
-a single test, which is handy for grouping several assertions per case."
+Use it when one case needs several tests rather than one."
   (apply suite
          group-name
          #:shuffle? shuffle?

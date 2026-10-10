@@ -41,6 +41,9 @@
 ;; scenario, dato for given, quando for when, tunc for then, etiam for and,
 ;; and sed for but.
 ;;
+;; The three steps also have PascalCase aliases -- Given, When and Then -- for
+;; readers who expect the keywords to look like the Cucumber ones.
+;;
 ;; The When step is called `when-step' rather than `when' because Guile's core
 ;; `when' is a syntax keyword and importing a conflicting binding would break
 ;; `(when ...)' for every module that imports Veritas BDD.  The Latin `quando'
@@ -59,6 +62,9 @@
                      then
                      and-step
                      but-step
+                     Given
+                     When
+                     Then
                      fabula
                      scaena
                      dato
@@ -82,10 +88,9 @@
                    #:rest steps)
   "Define a Given/When/Then scenario named @var{name}.
 
-A scenario is a suite whose steps execute in declaration order.  All step
-arguments are forwarded to @code{suite}; steps are normally created with
-@code{given}, @code{when-step}, @code{then}, @code{and-step} and
-@code{but-step}.
+A scenario is a suite, so its steps run in declaration order.  Keywords are
+forwarded to @code{suite}, and steps come from @code{given}, @code{when-step},
+@code{then}, @code{and-step} and @code{but-step}.
 
 @var{timeout}, when given, caps the whole scenario in seconds, exactly like
 @code{suite}; a step can carry its own @code{#:timeout} as well, since steps
@@ -112,35 +117,45 @@ are ordinary tests.
 
 (define* (given name
                 #:rest cases)
-  "Define a Given setup step named @var{name} holding assertion @var{cases}."
+  "Define a Given (setup) step named @var{name}."
   (apply test
          (labeled "Given" name) cases))
 
 (define* (when-step name
                     #:rest cases)
-  "Define a When action step named @var{name} holding assertion @var{cases}.
+  "Define a When (action) step named @var{name}.
 
-Named @code{when-step} to avoid shadowing Guile's core @code{when} syntax."
+Called @code{when-step} rather than @code{when} so it does not shadow Guile's
+@code{when} syntax."
   (apply test
          (labeled "When" name) cases))
 
 (define* (then name
                #:rest cases)
-  "Define a Then outcome step named @var{name} holding assertion @var{cases}."
+  "Define a Then (outcome) step named @var{name}."
   (apply test
          (labeled "Then" name) cases))
 
 (define* (and-step name
                    #:rest cases)
-  "Define an And continuation step named @var{name} holding assertion @var{cases}."
+  "Define an And (continuation) step named @var{name}."
   (apply test
          (labeled "And" name) cases))
 
 (define* (but-step name
                    #:rest cases)
-  "Define a But continuation step named @var{name} holding assertion @var{cases}."
+  "Define a But (continuation) step named @var{name}."
   (apply test
          (labeled "But" name) cases))
+
+;; ====== PascalCase aliases ======
+
+(define Given
+  given)
+(define When
+  when-step)
+(define Then
+  then)
 
 ;; ====== Latin aliases ======
 

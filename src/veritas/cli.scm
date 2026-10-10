@@ -52,9 +52,9 @@
 
 ;; ====== Option grammar ======
 ;;
-;; Names and defaults deliberately mirror the environment variables listed in
-;; the README.  Boolean switches come in positive/negative pairs because
-;; Guile's getopt-long does not support "--flag=no".
+;; Names and defaults mirror the environment variables listed in the README.
+;; Boolean switches come in positive/negative pairs because Guile's getopt-long
+;; has no "--flag=no".
 
 (define veritas-option-grammar
   '((scan-dir (single-char #\d)

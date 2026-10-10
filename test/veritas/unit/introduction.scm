@@ -21,19 +21,14 @@
   #:use-module (ice-9 textual-ports)
   #:export (spec))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; SECTION 1: Functions to be Tested ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; ====== Functions under test ======
 
-;; A simple string manipulation function.
 (define (create-greeting person)
   (string-append "Hello, " person "!"))
 
-;; A function to sum the numbers in a list.
 (define (sum-list-elements lst)
   (apply + lst))
 
-;; A function that classifies a number.
 (define (classify-number n)
   (cond
     ((> n 0)
@@ -42,9 +37,7 @@
      'negative)
     (else 'zero)))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; SECTION 2: Test Suites ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; ====== Suites ======
 
 (define basics-suite
   (suite "Getting Started with Assertions"
@@ -148,6 +141,46 @@
                                               (* x x))))
                              #:name "Complex computation inside an assertion"))))
 
+;; A test's #:before hook has to run before that test's own assertions, and
+;; #:after after them, so state prepared in the hook is visible to the cases it
+;; brackets.  This suite records the order the hooks actually fire in.  The
+;; checks read ~hook-observations~ from inside a case lambda, because a #:got
+;; written directly would be computed while this file loads, before any hook
+;; has fired.
+(define hook-observations
+  '())
+
+(define (note-hook! tag)
+  (set! hook-observations
+        (append hook-observations
+                (list tag))))
+
+(define lifecycle-hook-suite
+  (suite "Lifecycle hooks bracket their assertions"
+         #:concurrent? #f
+         #:shuffle? #f
+         #:before-all (lambda (vc)
+                        (note-hook! 'suite-before-all))
+         #:after-all (lambda (vc)
+                       (note-hook! 'suite-after-all))
+         (test "a #:before hook prepares state its own cases can see"
+               #:shuffle? #f
+               #:before (lambda (vc)
+                          (note-hook! 'test-before))
+               #:after (lambda (vc)
+                         (note-hook! 'test-after))
+               (lambda (vc)
+                 ((assert-equal #:expect '(suite-before-all test-before)
+                                #:got hook-observations
+                                #:name "#:before has already run")
+                  vc)))
+         (test "the #:after of the test before it already ran"
+               (lambda (vc)
+                 ((assert-equal #:expect '(suite-before-all test-before
+                                                            test-after)
+                                #:got hook-observations)
+                  vc)))))
+
 (define (factorial n)
   (if (= n 0) 1
       (* n
@@ -159,18 +192,13 @@
              #:thunk (lambda ()
                        (factorial 10000))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; SECTION 3: Test Runner  ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; ====== Runner ======
 
-;; The main function that Veritas will call to
-;; run all tests in this file.
 (define (spec)
   (veritas-run #:debug? #f
-               ;; Add all suites, individual tests,
-               ;; and benchmarks to the runner.
                basics-suite
                logic-and-lists-suite
                error-handling-suite
                advanced-features-suite
+               lifecycle-hook-suite
                simple-factorial-benchmark))

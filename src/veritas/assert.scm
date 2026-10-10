@@ -17,18 +17,12 @@
 
 ;;; Commentary:
 ;;
-;; This module is a Scheme testing library that provides a comprehensive set
-;; of assertion functions. At its core is the assert procedure,
-;; a flexible and powerful tool for comparing an expected value against a result.
+;; Assertions for Veritas.  The core procedure is `assert', which compares a
+;; value against an expected one using whatever predicate you give it.  The
+;; assert-* procedures below are thin wrappers around it, together with a few
+;; helpers for checking error handling.
 ;;
-;; Beyond simple value comparison, the module offers a set of tools for
-;; testing program behavior related to error handling.
-;;
-;; These functions provide a complete assertion toolkit, enabling developers
-;; to write robust tests that cover both expected outcomes and predictable
-;; failures, thereby improving the reliability and quality of their Scheme code.
-;;
-;; Every assertion also has a Latin alias, mirroring the Latin naming already
+;; Every assertion also has a Latin alias, following the Latin naming already
 ;; used by the BDD helpers (dato, quando, tunc, ...): (proba ...) is (assert
 ;; ...), aequalis is assert-equal, verus is assert-true, continet is
 ;; assert-contains, and so on.  An alias is the exact same procedure object as
@@ -95,17 +89,17 @@
                          unus-ex))
 
 (define* (assertion-with-timeout timeout name assertion)
-  "Wrap assertion procedure @var{assertion} with an optional @var{timeout}.
+  "Wrap @var{assertion}, a procedure of one validation client, with a @var{timeout}.
 
-When @var{timeout} is a positive number of seconds the assertion runs under
-@code{call-with-timeout}: if it overruns its deadline its fiber is aborted and
-the assertion is reported as a failure (named after @var{name}) instead of
-hanging the whole run.  With @var{timeout} set to @code{#f}, the default,
-@var{assertion} is returned untouched.
+With a positive @var{timeout} the assertion runs under @code{call-with-timeout}:
+if it overruns, its fiber is aborted and a failure named after @var{name} is
+reported instead of hanging the run.  @code{#f}, the default, returns
+@var{assertion} untouched.
 
-Only work that happens while the assertion runs is covered, so evaluate
-expensive setup lazily with the @code{comp} form (or inside the thunk of
-@code{assert-error}, @code{assert-no-error} and @code{assert-raises})."
+Only work done while the assertion runs is covered, so keep expensive setup in a
+@var{comp} form or inside the thunk passed to @code{assert-error}.  A fiber
+suspended in a blocking wait cannot be unwound; there the run stops waiting and
+the fiber is dropped with its scheduler."
   (if (not timeout) assertion
       (lambda (vc)
         (call-with-timeout timeout
@@ -126,41 +120,23 @@ expensive setup lazily with the @code{comp} form (or inside the thunk of
                  compare
                  name
                  timeout)
-  "Returns a function taking a @acronym{VC, veritas-context}
-that returns an assertion that two values are equal based on a given comparison procedure.
-This is the core assertion procedure that the other `assert-equal` variants
-are built upon. It's used to compare an expected value with a computed value.
+  "Return an assertion comparing @var{got} with @var{expect} using @var{compare},
+a two-argument predicate such as @code{equal?}.
 
-The @var{got} parameter can be a value or a special list to compute a value
-dynamically. If @var{got} is a list starting with @code{compute},
-@code{comp}, or @code{computare}, the second element of the list is
-evaluated to get the actual value for comparison.
+The @code{assert-*} wrappers below are built on this one.  @var{got} is usually
+a plain value, but a list starting with @code{compute}, @code{comp} or
+@code{computare} is evaluated when the assertion runs instead:
+@code{(assert #:got '(comp (+ 1 1)) ...)} compares against @code{2}.  Deferring
+work that way is what makes it something a @var{timeout} can actually catch.
 
-For example, @code{(assert #:got '(compute (+ 1 1)) ...)}
-would evaluate @code{(+ 1 1)} to @code{2} before the comparison.
-
-@table @var
-@item expect
-The expected value.
-@item got
-The value to compare against, or a list to be computed.
-@item compare
-The comparison procedure, the predicate, which should be a function of two
- arguments, e.g., `equal?`, `eqv?`, or `eq?`.
-@item name
-A doc string to identify the assertion in the logs.
-@end table
+@var{name} labels the assertion in the report.  @var{timeout} caps it in
+seconds; @code{#f}, the default, means no deadline.
 
 @example
 (assert #:expect 3
-               #:got (+ 1 1 1)
-               #:compare equal?
-               #:name \"Ensuring addition works\")
-@result{} #<procedure 7f58ec5ce390 at veritas/assert.scm:69:2 (vc)>
-
-;; Upon applying vc to the procedure we will compute the assertion:
-`((assertion-successful . #t)
-  (assertion-name \"Ensuring addition works\"))
+        #:got (+ 1 1 1)
+        #:compare equal?
+        #:name \"Ensuring addition works\")
 @end example"
   (assertion-with-timeout timeout name
                           (lambda (vc)
@@ -194,35 +170,14 @@ A doc string to identify the assertion in the logs.
 
 (define* (assert-error thunk
                        #:key name timeout)
-  "Returns a function taking a @acronym{VC, veritas-context}
-that returns an assertion that checks that a thunk
-(a procedure with no arguments) raises an error when called.
+  "Return an assertion that @var{thunk} raises.
 
-This is a crucial function for testing error-handling logic. It attempts
-to execute the provided @var{thunk}. If an error is caught during its execution,
-the assertion passes. If the @var{thunk} completes without raising an error,
-the assertion fails.
-
-@table @var
-@item thunk
-A procedure of no arguments to be executed.
-@item name
-A string to identify the assertion in the logs.
-@item timeout
-A number of seconds the assertion may take before its fiber is aborted and the
-assertion is reported as a failure.  @code{#f} (the default) means no deadline.
-@end table
+It fails if @var{thunk} returns normally.  @var{name} labels it in the report
+and @var{timeout} caps it in seconds, as in @code{assert}.
 
 @example
-(assert-error (lambda ()
-                      (sum-list-elements '(1 2 \"a\" 4)))
-                    #:name
-                    \"Should fail when list contains non-numbers\")
-@result{} #<procedure 8f58ec5ce390 at veritas/assert.scm:69:2 (vc)>
-
-;; Upon applying vc to the procedure we will compute the assertion:
-`((assertion-successful . #t)
-  (assertion-name \"Should fail when list contains non-numbers\"))
+(assert-error (lambda () (sum-list-elements '(1 2 \"a\" 4)))
+              #:name \"Should fail when list contains non-numbers\")
 @end example"
   (assertion-with-timeout timeout name
                           (lambda (vc)
@@ -245,33 +200,10 @@ assertion is reported as a failure.  @code{#f} (the default) means no deadline.
 
 (define* (assert-no-error thunk
                           #:key name timeout)
-  "Returns a function taking a @acronym{VC, veritas-context}
-that returns an assertion that checks that a thunk
-(a procedure with no arguments) does not raise an error when called.
+  "Return an assertion that @var{thunk} does not raise.
 
-This is a crucial function for testing error-handling logic. It attempts
-to execute the provided @var{thunk}. If no error is caught during its execution,
-the assertion passes. If the @var{thunk} raises an error,
-the assertion fails.
-
-@table @var
-@item thunk
-A procedure of no arguments to be executed.
-@item name
-A string to identify the assertion in the logs.
-@item timeout
-A number of seconds the assertion may take before its fiber is aborted and the
-assertion is reported as a failure.  @code{#f} (the default) means no deadline.
-@end table
-
-@example
-(assert-no-error (lambda ()
-                      (sum-list-elements '(1 2 \"a\" 4))))
-@result{} #<procedure 8f58ec5ce390 at veritas/assert.scm:69:2 (vc)>
-
-;; Upon applying vc to the procedure we will compute the assertion:
-`((assertion-successful . #f))
-@end example"
+It fails if @var{thunk} raises.  @var{name} labels it in the report and
+@var{timeout} caps it in seconds, as in @code{assert}."
   (assertion-with-timeout timeout name
                           (lambda (vc)
                             (when name
@@ -293,32 +225,9 @@ assertion is reported as a failure.  @code{#f} (the default) means no deadline.
                                        (assertion-name unquote name)))))))
 
 (define* (assert-equal #:key expect got name timeout)
-  "Returns a function taking a @acronym{VC, veritas-context}
-that returns an assertion checking that @var{expect}
-and @var{got} are structurally equal using @code{equal?} predicate.
+  "Assert that @var{got} is @code{equal?} to @var{expect}.
 
-This is the standard assertion for comparing lists, strings,
-vectors, and other compound data structures.
-
-It is a convenience wrapper around @code{assert}.
-
-@table @var
-@item expect
-The expected value.
-@item got
-The value to compare against.
-@item name
-A string to identify the assertion in the logs.
-@item timeout
-A number of seconds the assertion may take before its fiber is aborted and the
-assertion is reported as a failure.  @code{#f} (the default) means no deadline.
-@end table
-
-@example
-(assert-equal #:expect '(1 2 3)
-              #:got '(1 2 3)
-              #:name \"Lists should match\")
-@end example"
+The usual choice for lists, strings, vectors and other compound values."
   (assert #:expect expect
           #:got got
           #:compare equal?
@@ -326,31 +235,10 @@ assertion is reported as a failure.  @code{#f} (the default) means no deadline.
           #:timeout timeout))
 
 (define* (assert-eqv #:key expect got name timeout)
-  "Returns a function taking a @acronym{VC, veritas-context}
-that returns an assertion checking that @var{expect}
-and @var{got} are equivalent using @code{eqv?} predicate.
+  "Assert that @var{got} is @code{eqv?} to @var{expect}.
 
-This is useful for comparing numbers, characters, and symbols
-where value equivalence matters.
-
-It is a convenience wrapper around @code{assert}.
-
-@table @var
-@item expect
-The expected value.
-@item got
-The value to compare against.
-@item name
-A string to identify the assertion in the logs.
-@item timeout
-A number of seconds the assertion may take before its fiber is aborted and the
-assertion is reported as a failure.  @code{#f} (the default) means no deadline.
-@end table
-
-@example
-(assert-eqv #:expect 42
-            #:got (+ 40 2))
-@end example"
+Good for numbers, characters and symbols, where value equivalence is what
+matters."
   (assert #:expect expect
           #:got got
           #:compare eqv?
@@ -358,31 +246,10 @@ assertion is reported as a failure.  @code{#f} (the default) means no deadline.
           #:timeout timeout))
 
 (define* (assert-eq #:key expect got name timeout)
-  "Returns a function taking a @acronym{VC, veritas-context}
-that returns an assertion checking that @var{expect}
-and @var{got} are identical using @code{eq?}.
+  "Assert that @var{got} is @code{eq?} to @var{expect}.
 
-This is the strictest equality assertion and is typically used
-for symbols, booleans, and identity-sensitive comparisons.
-
-It is a convenience wrapper around @code{assert}.
-
-@table @var
-@item expect
-The expected value.
-@item got
-The value to compare against.
-@item name
-A string to identify the assertion in the logs.
-@item timeout
-A number of seconds the assertion may take before its fiber is aborted and the
-assertion is reported as a failure.  @code{#f} (the default) means no deadline.
-@end table
-
-@example
-(assert-eq #:expect 'foo
-           #:got 'foo)
-@end example"
+The strictest of the equality assertions; use it for symbols, booleans and
+anything compared by identity."
   (assert #:expect expect
           #:got got
           #:compare eq?
@@ -390,18 +257,9 @@ assertion is reported as a failure.  @code{#f} (the default) means no deadline.
           #:timeout timeout))
 
 (define* (assert-not-eq #:key expect got name timeout)
-  "Returns a function taking a @acronym{VC, veritas-context}
-that returns an assertion checking that @var{expect}
-and @var{got} are not identical using @code{eq?}.
+  "Assert that @var{got} is not @code{eq?} to @var{expect}.
 
-This assertion passes when the two values do not share identity.
-
-It is the inverse of @code{assert-eq}.
-
-@example
-(assert-not-eq #:expect '(1 2)
-               #:got '(1 2))
-@end example"
+Inverse of @code{assert-eq}."
   (assert #:expect expect
           #:got got
           #:compare (lambda (a b)
@@ -410,19 +268,9 @@ It is the inverse of @code{assert-eq}.
           #:timeout timeout))
 
 (define* (assert-not-eqv #:key expect got name timeout)
-  "Returns a function taking a @acronym{VC, veritas-context}
-that returns an assertion checking that @var{expect}
-and @var{got} are not equivalent using @code{eqv?}.
+  "Assert that @var{got} is not @code{eqv?} to @var{expect}.
 
-This assertion is useful when values should differ in meaning
-or representation.
-
-It is the inverse of @code{assert-eqv}.
-
-@example
-(assert-not-eqv #:expect 1
-                #:got 2)
-@end example"
+Inverse of @code{assert-eqv}."
   (assert #:expect expect
           #:got got
           #:compare (lambda (a b)
@@ -431,19 +279,9 @@ It is the inverse of @code{assert-eqv}.
           #:timeout timeout))
 
 (define* (assert-not-equal #:key expect got name timeout)
-  "Returns a function taking a @acronym{VC, veritas-context}
-that returns an assertion checking that @var{expect}
-and @var{got} are not structurally equal using @code{equal?}.
+  "Assert that @var{got} is not @code{equal?} to @var{expect}.
 
-This assertion is useful when testing for inequality
-of compound values.
-
-It is the inverse of @code{assert-equal}.
-
-@example
-(assert-not-equal #:expect '(1 2 3)
-                  #:got '(1 2 4))
-@end example"
+Inverse of @code{assert-equal}."
   (assert #:expect expect
           #:got got
           #:compare (lambda (a b)
@@ -453,15 +291,7 @@ It is the inverse of @code{assert-equal}.
 
 (define* (assert-true x
                       #:key name timeout)
-  "Returns a function taking a @acronym{VC, veritas-context}
-that returns an assertion checking that @var{x} is @code{#t}.
-
-This is a convenience wrapper for boolean truth assertions.
-
-@example
-(assert-true (> 5 2)
-             #:name \"5 is greater than 2\")
-@end example"
+  "Assert that @var{x} is @code{#t}."
   (assert #:got x
           #:expect #t
           #:compare eq?
@@ -470,15 +300,7 @@ This is a convenience wrapper for boolean truth assertions.
 
 (define* (assert-false x
                        #:key name timeout)
-  "Returns a function taking a @acronym{VC, veritas-context}
-that returns an assertion checking that @var{x} is @code{#f}.
-
-This is a convenience wrapper for boolean falsehood assertions.
-
-@example
-(assert-false (< 5 2)
-              #:name \"5 is not less than 2\")
-@end example"
+  "Assert that @var{x} is @code{#f}."
   (assert #:got x
           #:expect #f
           #:compare eq?
@@ -487,26 +309,9 @@ This is a convenience wrapper for boolean falsehood assertions.
 
 (define* (is-approximate? a b
                           #:key epsilon)
-  "Returns @code{#t} if the absolute difference between
-@var{a} and @var{b} is smaller than @var{epsilon}.
+  "Return @code{#t} when @var{a} and @var{b} differ by less than @var{epsilon}.
 
-This is useful for comparing floating-point values where
-exact equality may not be reliable.
-
-@table @var
-@item a
-The first numeric value.
-@item b
-The second numeric value.
-@item epsilon
-The maximum allowed difference.
-@end table
-
-@example
-(is-approximate? 3.14159 3.14160
-                 #:epsilon 0.0001)
-@result{} #t
-@end example"
+Useful for floating point, where exact equality rarely holds."
   (< (abs (- a b)) epsilon))
 
 (define* (assert-approximate #:key expect
@@ -514,20 +319,9 @@ The maximum allowed difference.
                              name
                              timeout
                              (epsilon 1.0e-8))
-  "Returns a function taking a @acronym{VC, veritas-context}
-that returns an assertion checking that @var{expect}
-and @var{got} are approximately equal.
+  "Assert that @var{got} is within @var{epsilon} of @var{expect}.
 
-Two values are considered approximately equal if their
-difference is smaller than @var{epsilon}.
-
-This is useful for floating-point computations.
-
-@example
-(assert-approximate #:expect 3.14
-                    #:got 3.141
-                    #:epsilon 0.01)
-@end example"
+The default @var{epsilon} is @code{1.0e-8}."
 
   (assert #:expect expect
           #:got got
@@ -541,20 +335,9 @@ This is useful for floating-point computations.
                                  name
                                  timeout
                                  (epsilon 1.0e-8))
-  "Returns a function taking a @acronym{VC, veritas-context}
-that returns an assertion checking that @var{expect}
-and @var{got} are not approximately equal.
+  "Assert that @var{got} differs from @var{expect} by at least @var{epsilon}.
 
-This assertion passes when the difference between the values
-is greater than or equal to @var{epsilon}.
-
-It is the inverse of @code{assert-approximate}.
-
-@example
-(assert-not-approximate #:expect 3.14
-                        #:got 3.5
-                        #:epsilon 0.01)
-@end example"
+Inverse of @code{assert-approximate}."
   (assert #:expect expect
           #:got got
           #:name name
@@ -562,7 +345,7 @@ It is the inverse of @code{assert-approximate}.
                       (not (is-approximate? a b
                                             #:epsilon epsilon)))))
 
-;;; ====== Rich matchers ======
+;; ====== Rich matchers ======
 ;;
 ;; The predicates below back a small family of higher-level assertions in the
 ;; spirit of RSpec matchers, Jest's expect and AssertJ.  They are intentionally
@@ -642,12 +425,12 @@ Inverse of @code{assert-contains}."
           #:timeout timeout))
 
 (define* (assert-matches #:key pattern got name timeout)
-  "Assert that string @var{got} matches the regular expression @var{pattern}.
+  "Assert that the string @var{got} matches @var{pattern}.
 
-@var{pattern} may be a compiled regexp or a string.
+@var{pattern} is a string or a compiled regexp.
 
 @example
-(assert-matches #:pattern \"^[a-z]+@[a-z]+$\" #:got \"user@host\")
+(assert-matches #:pattern \"^veri.*s$\" #:got \"veritas\")
 @end example"
   (let ((rx (if (regexp? pattern) pattern
                 (make-regexp pattern))))
@@ -778,7 +561,7 @@ a procedure of @code{(key args)} returning @code{#t} for the expected error.
           #:name name
           #:timeout timeout))
 
-;;; ====== Latin aliases ======
+;; ====== Latin aliases ======
 ;;
 ;; Every assertion has a Latin alias, in the same spirit as the BDD step
 ;; aliases (dato, quando, tunc, etiam, sed).  Each alias is bound to the very
