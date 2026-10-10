@@ -17,17 +17,34 @@
 
 (define-module (veritas shuffle)
   #:declarative? #t
-  #:export (fisher-yates-shuffle))
+  #:export (fisher-yates-shuffle fresh-seed))
 
-(define (fisher-yates-shuffle xs)
+(define (fresh-seed)
+  "Return a new seed for a shuffle, drawn from the platform's entropy source.
+
+Report the seed of a shuffled run and the run can be replayed: the same seed and
+the same list always produce the same order."
+  (random 1000000000
+          (random-state-from-platform)))
+
+(define* (fisher-yates-shuffle xs #:key seed)
   "Return the elements of @var{xs} in random order (Fisher-Yates).
 
-Shuffling happens on a vector copy, so @var{xs} is left alone.  A new seed is
-pulled from @code{random-state-from-platform} on every call, which means two
+Shuffling happens on a vector copy, so @var{xs} is left alone.  @var{seed} makes
+the order reproducible, which is how a failing order is replayed; without it a
+fresh seed is pulled from @code{random-state-from-platform} on every call, so two
 calls on the same list differ.  Lists of one element or fewer come back as they
-are."
+are.
+
+@example
+(equal? (fisher-yates-shuffle '(1 2 3) #:seed 7)
+        (fisher-yates-shuffle '(1 2 3) #:seed 7))
+@result{} #t
+@end example"
   (set! *random-state*
-        (random-state-from-platform))
+        (if seed
+            (seed->random-state seed)
+            (random-state-from-platform)))
   (if (or (null? xs)
           (null? (cdr xs))) xs
       (let* ((vec (list->vector xs))

@@ -72,6 +72,12 @@
     (only-test (value #t))
     (only-suite (value #t))
     (only-tag (value #t))
+    (only-failed (value #f))
+    (no-only-failed (value #f))
+    (seed (value #t))
+    (partition (value #t))
+    (jobs (single-char #\j)
+          (value #t))
     (shuffle (single-char #\s)
              (value #f))
     (no-shuffle (value #f))
@@ -113,15 +119,33 @@
 "
    "  -m, --test-module NAME   top level module prefix of the tests (VERITAS_TEST_MODULE)
 "
-   "  -r, --reporter NAME      reporter to use, e.g. emoji-reporter or
+   "  -r, --reporter NAME      reporter to use, e.g. emoji-reporter,
 "
-   "                           monotone-reporter or json-reporter (VERITAS_REPORTER)
+   "                           monotone-reporter, json-reporter or
+"
+   "                           junit-reporter (VERITAS_REPORTER)
 "
    "      --only-test SUBSTR   only run tests whose name contains SUBSTR (VERITAS_ONLY_TEST)
 "
    "      --only-suite SUBSTR  only run suites whose name contains SUBSTR (VERITAS_ONLY_SUITE)
 "
    "      --only-tag TAG       only run tests/suites carrying TAG (VERITAS_ONLY_TAG)
+"
+   "      --only-failed        rerun only what failed in the previous run
+"
+   "                           (VERITAS_ONLY_FAILED)
+"
+   "      --no-only-failed     ignore the recorded failures (the default)
+"
+   "      --seed N             seed every shuffle of this run (VERITAS_SEED)
+"
+   "      --partition I/T      run slice I of the T slices of the test files
+"
+   "                           (VERITAS_PARTITION)
+"
+   "  -j, --jobs N             run the test files in N worker processes, one
+"
+   "                           file per process (VERITAS_JOBS)
 "
    "  -s, --shuffle            shuffle the order of discovered files (default)
 "
@@ -157,7 +181,25 @@
 "
    "  VERITAS_ONLY_TAG          optional tag filter
 "
+   "  VERITAS_ONLY_FAILED       \"true\" to rerun only the tests that failed last time
+"
    "  VERITAS_REPORTER          reporter symbol, defaults to emoji-reporter
+"
+   "  VERITAS_SEED              seed for every shuffle, printed by a shuffled run
+"
+   "  VERITAS_PARTITION         \"INDEX/TOTAL\" slice of the discovered test files
+"
+   "  VERITAS_JOBS              whole number of worker processes for the files,
+"
+   "                            defaults to 1 and then they run in this process
+"
+   "  VERITAS_LAST_FAILED_PATH  where the failing names are recorded, defaults
+"
+   "                            to reports/last-failed.scm
+"
+   "  VERITAS_JUNIT_PATH        where junit-reporter writes, defaults to
+"
+   "                            reports/junit/veritas-junit.xml
 "
    "\n"
    "examples:\n"
@@ -172,6 +214,16 @@
    "  veritas --only-tag slow          run only tests/suites tagged \"slow\"
 "
    "  veritas --no-benchmarks          fast feedback loop, skip benchmarks
+"
+   "  veritas --only-failed            rerun what failed in the previous run
+"
+   "  veritas --seed 42                repeat a shuffled order exactly
+"
+   "  veritas --partition 1/3          run one third of the test files
+"
+   "  veritas --jobs 4                 run the files in four worker processes
+"
+   "  veritas --reporter junit-reporter  write a JUnit XML report
 "
    "\n"
    "interactive use:\n"
@@ -226,6 +278,15 @@ switch is present @var{default} is used."
                       'only-suite "VERITAS_ONLY_SUITE")
   (setenv-if-present! opts
                       'only-tag "VERITAS_ONLY_TAG")
+  (setenv-if-present! opts
+                      'seed "VERITAS_SEED")
+  (setenv-if-present! opts
+                      'partition "VERITAS_PARTITION")
+  (setenv-if-present! opts
+                      'jobs "VERITAS_JOBS")
+  (setenv-boolean! opts
+                   'only-failed
+                   'no-only-failed "VERITAS_ONLY_FAILED" #f)
   (setenv-boolean! opts
                    'shuffle
                    'no-shuffle "VERITAS_SHUFFLE_FILES" #f)

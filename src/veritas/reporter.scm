@@ -20,11 +20,20 @@
   #:use-module (srfi srfi-1)
   #:use-module (json)
   #:use-module (ice-9 format)
+  #:use-module (ice-9 regex)
   #:use-module (veritas model)
   #:export (emoji-reporter log
                            ansi-color-escapes
                            json-reporter
                            monotone-reporter
+                           junit-reporter
+                           write-junit-report
+                           junit-report-data
+                           write-junit-document
+                           merge-junit-data
+                           write-junit-data
+                           read-junit-data
+                           ensure-parent-directories
                            log-debug
                            log-pass
                            log-fail
@@ -68,6 +77,8 @@ The client names one under the key @code{'reporter}; anything else falls back to
                             monotone-reporter)
                            ((equal? 'json-reporter reporter-sym)
                             json-reporter)
+                           ((equal? 'junit-reporter reporter-sym)
+                            junit-reporter)
                            (else emoji-reporter))))
     
     (apply (assoc-ref reporter-alist log-type)
@@ -375,3 +386,332 @@ The client names one under the key @code{'reporter}; anything else falls back to
                                                       (now))
                                            (level . assert)
                                            (message unquote msg))))))))
+
+;; ====== JUnit XML ======
+;;
+;; The XML is a document about the whole run rather than a stream of lines, so
+;; the reporter keeps quiet (failures and the summary aside) and the document is
+;; written from the result tree once the run is over.  Walking the tree instead
+;; of the log stream is what keeps suite names and nesting right; the price is
+;; that per-test timing is not recorded, because the result records do not
+;; carry it.
+
+(define ansi-escape-regexp
+  (make-regexp "\x1b\\[[0-9;]*[A-Za-z]"))
+
+(define (strip-ansi s)
+  "Return @var{s} without the terminal colour escapes a reporter writes."
+  (regexp-substitute/global #f ansi-escape-regexp s 'pre "" 'post))
+
+(define (xml-escape s)
+  "Escape @var{s} for XML, dropping the characters XML forbids.
+
+Captured test output can hold colour escapes and other control characters; they
+are removed rather than escaped, because XML 1.0 has no representation for most
+of them."
+  (let loop ((i 0) (out '()))
+    (if (= i (string-length s))
+        (apply string-append (reverse out))
+        (let* ((c (string-ref s i))
+               (code (char->integer c))
+               (piece (cond ((char=? c #\&) "&amp;")
+                            ((char=? c #\<) "&lt;")
+                            ((char=? c #\>) "&gt;")
+                            ((char=? c #\") "&quot;")
+                            ((char=? c #\') "&apos;")
+                            ((or (= code 9)
+                                 (= code 10)
+                                 (= code 13)) (string c))
+                            ((< code 32) "")
+                            (else (string c)))))
+          (loop (+ i 1) (cons piece out))))))
+
+(define (ensure-parent-directories path)
+  "Create every directory in front of @var{path}, ignoring ones that exist."
+  (let* ((dir (dirname path))
+         (absolute? (string-prefix? "/" dir))
+         (parts (remove string-null? (string-split dir #\/))))
+    (let loop ((ps parts)
+               (so-far (if absolute? "/" "")))
+      (unless (null? ps)
+        (let ((next (cond ((string=? so-far "") (car ps))
+                          ((string=? so-far "/") (string-append "/" (car ps)))
+                          (else (string-append so-far "/" (car ps))))))
+          (catch #t (lambda () (mkdir next)) (lambda (key . args) #f))
+          (loop (cdr ps) next))))))
+
+(define (join-with separator parts)
+  "Join @var{parts} with @var{separator} between them."
+  (cond ((null? parts) "")
+        ((null? (cdr parts)) (car parts))
+        (else (string-append (car parts)
+                             separator
+                             (join-with separator (cdr parts))))))
+
+(define (junit-classname path)
+  "Return the class name of a test reached through the suite names @var{path}."
+  (if (null? path)
+      "veritas"
+      (join-with " > " path)))
+
+(define (case-failures c)
+  (assoc-ref c 'failures))
+
+(define (case-skipped? c)
+  (assoc-ref c 'skipped?))
+
+(define (junit-case name classname assertions output)
+  "Return one test as a JUnit case alist, from its assertions and output.
+
+@var{output} is what the test printed - including the reporter's own failure
+lines - and becomes the body of the first failure, so a CI log shows why the
+test failed without a rerun."
+  (let* ((failing (filter (lambda (a)
+                            (and (assertion-result? a)
+                                 (not (assertion-result-successful a))))
+                          assertions))
+         (detail (strip-ansi (format #f "~a" output)))
+         (failures (let loop ((fs failing)
+                              (first? #t)
+                              (acc '()))
+                     (if (null? fs)
+                         (reverse acc)
+                         (let* ((a (car fs))
+                                (own (strip-ansi (format #f "~a"
+                                                         (assertion-result-output
+                                                          a))))
+                                (body (cond ((not (string=? own ""))
+                                             (string-append own detail))
+                                            (first? detail)
+                                            (else ""))))
+                           (loop (cdr fs) #f
+                                 (cons (list (cons 'message
+                                                   (or (assertion-result-name a)
+                                                       "assertion failed"))
+                                             (cons 'body body))
+                                       acc)))))))
+    (list (cons 'name name)
+          (cons 'classname classname)
+          (cons 'failures failures)
+          (cons 'skipped? #f)
+          (cons 'error? #f))))
+
+(define (junit-cases result path output)
+  "Flatten @var{result} into JUnit cases, under the suite names in @var{path}.
+
+@var{output} travels down with the result, because a test's own output lives on
+its @code{test-result} parent rather than on the @code{pre-test-result} itself."
+  (cond
+    ((suite-result? result)
+     (append-map (lambda (child)
+                   (junit-cases child
+                                (append path
+                                        (list (suite-result-name result))) ""))
+                 (suite-result-test-results result)))
+    ;; A test result wraps one child result, not a list of them.
+    ((test-result? result)
+     (junit-cases (test-result-results result)
+                  path (test-result-output result)))
+    ((pre-test-result? result)
+     (list (junit-case (pre-test-result-name result)
+                       (junit-classname path)
+                       (pre-test-result-results result) output)))
+    ((benchmark-result? result)
+     (list (list (cons 'name (benchmark-result-name result))
+                 (cons 'classname (junit-classname path))
+                 (cons 'failures '())
+                 (cons 'skipped? #t)
+                 (cons 'error? #f)
+                 (cons 'message "benchmark, not an assertion"))))
+    ;; A task that raised inside a fiber arrives as the error string itself.
+    ((string? result)
+     (list (list (cons 'name (junit-classname path))
+                 (cons 'classname (junit-classname path))
+                 (cons 'failures (list (cons 'message (strip-ansi result))
+                                       (cons 'body "")))
+                 (cons 'skipped? #f)
+                 (cons 'error? #t))))
+    (else '())))
+
+(define (write-junit-case port c)
+  "Write one JUnit @code{testcase} element for the case alist @var{c}."
+  (format port "<testcase name=\"~a\" classname=\"~a\""
+          (xml-escape (format #f "~a" (assoc-ref c 'name)))
+          (xml-escape (assoc-ref c 'classname)))
+  (cond
+    ((case-skipped? c)
+     (format port ">~%")
+     (let ((message (assoc-ref c 'message)))
+       (if message
+           (format port "<skipped message=\"~a\"/>~%" (xml-escape message))
+           (format port "<skipped/>~%")))
+     (format port "</testcase>~%"))
+    ((null? (case-failures c)) (format port "/>~%"))
+    (else
+     (format port ">~%")
+     (let ((tag (if (assoc-ref c 'error?) "error" "failure")))
+       (for-each (lambda (f)
+                   (let ((message (xml-escape (assoc-ref f 'message)))
+                         (body (assoc-ref f 'body)))
+                     (if (string-null? body)
+                         (format port "<~a message=\"~a\"/>~%" tag message)
+                         (begin
+                           (format port "<~a message=\"~a\">~%" tag message)
+                           (format port "~a~%" (xml-escape body))
+                           (format port "</~a>~%" tag)))))
+                 (case-failures c)))
+     (format port "</testcase>~%"))))
+
+(define (write-junit-suite port name cases)
+  "Write one JUnit @code{testsuite} element holding @var{cases}."
+  (let* ((errors (length (filter (lambda (c) (assoc-ref c 'error?)) cases)))
+         (skipped (length (filter case-skipped? cases)))
+         (failures (length (filter (lambda (c)
+                                     (and (not (case-skipped? c))
+                                          (not (assoc-ref c 'error?))
+                                          (not (null? (case-failures c)))))
+                                   cases))))
+    (format port
+            "<testsuite name=\"~a\" tests=\"~a\" failures=\"~a\" errors=\"~a\" skipped=\"~a\">~%"
+            (xml-escape name) (length cases) failures errors skipped)
+    (for-each (lambda (c) (write-junit-case port c)) cases)
+    (format port "</testsuite>~%")))
+
+
+
+(define* (junit-report-data all-results #:key (seconds 0))
+  "Return the JUnit report of @var{all-results} as data rather than a file.
+
+The result is an alist holding the numbers a @code{testsuites} element needs -
+@code{tests}, @code{failures}, @code{errors} and @code{skipped} - and @code{xml},
+the @code{testsuite} elements themselves as a string.  Writing the file is
+@code{write-junit-document}'s job; a separate process can be handed this alist
+and its run joined to others with @code{merge-junit-data}, which is how one
+document is made out of the parallel runs of @code{--jobs}."
+  (let* ((cases (append-map (lambda (result)
+                              (junit-cases result '() "")) all-results))
+         (classes (delete-duplicates (map (lambda (c) (assoc-ref c 'classname))
+                                          cases)))
+         (errors (length (filter (lambda (c) (assoc-ref c 'error?)) cases)))
+         (skipped (length (filter case-skipped? cases)))
+         (failures (length (filter (lambda (c)
+                                     (and (not (case-skipped? c))
+                                          (not (assoc-ref c 'error?))
+                                          (not (null? (case-failures c)))))
+                                   cases)))
+         (xml (with-output-to-string (lambda ()
+                                       (for-each (lambda (class)
+                                                   (write-junit-suite (current-output-port)
+                                                                      class
+                                                                      (filter (lambda (c)
+                                                                                (equal? (assoc-ref c
+                                                                                                   'classname)
+                                                                                        class))
+                                                                              cases)))
+                                                 classes)))))
+    (list (cons 'tests (length cases))
+          (cons 'failures failures)
+          (cons 'errors errors)
+          (cons 'skipped skipped)
+          (cons 'xml xml))))
+
+(define* (write-junit-document data
+                               #:key (seconds 0)
+                               (path "reports/junit/veritas-junit.xml"))
+  "Write JUnit @var{data}, as made by @code{junit-report-data}, to @var{path}.
+
+@var{seconds} is the wall clock of the run and becomes the document's total
+time; for a run split over worker processes it is the wall clock of the whole
+parallel run, not the sum of the workers.  Returns @var{path}.
+
+@code{testcase} elements carry no @code{time} attribute: the result records do
+not keep per-test timings."
+  (ensure-parent-directories path)
+  (call-with-output-file path
+    (lambda (port)
+      (format port "<?xml version=\"1.0\" encoding=\"UTF-8\"?>~%")
+      (format port
+              "<testsuites name=\"veritas\" tests=\"~a\" failures=\"~a\" errors=\"~a\" skipped=\"~a\" time=\"~a\">~%"
+              (assoc-ref data 'tests) (assoc-ref data 'failures)
+              (assoc-ref data 'errors) (assoc-ref data 'skipped) seconds)
+      (display (assoc-ref data 'xml) port)
+      (format port "</testsuites>~%")))
+  path)
+
+(define (merge-junit-data datas)
+  "Combine the JUnit data of several runs into one.
+
+The counts are summed and the @code{testsuite} elements are concatenated in the
+order given, so the merged document keeps the order the runs were scheduled in."
+  (list (cons 'tests (apply + (map (lambda (d) (assoc-ref d 'tests)) datas)))
+        (cons 'failures (apply + (map (lambda (d) (assoc-ref d 'failures)) datas)))
+        (cons 'errors (apply + (map (lambda (d) (assoc-ref d 'errors)) datas)))
+        (cons 'skipped (apply + (map (lambda (d) (assoc-ref d 'skipped)) datas)))
+        (cons 'xml (apply string-append
+                          (map (lambda (d) (assoc-ref d 'xml)) datas)))))
+
+(define* (write-junit-data data #:key (path "reports/junit/veritas-junit-data.scm"))
+  "Write JUnit @var{data} to @var{path} so another process can read it back.
+
+An alist is plain Scheme data, so @code{read} restores it exactly: this is how a
+worker process hands its report to the process that merges them.  Returns
+@var{path}."
+  (ensure-parent-directories path)
+  (call-with-output-file path
+    (lambda (port)
+      (write data port)
+      (newline port)))
+  path)
+
+(define (read-junit-data path)
+  "Return the JUnit data recorded at @var{path}, or @code{#f}.
+
+@code{#f} means there is nothing to merge: the file is missing, unreadable or
+not the alist @code{write-junit-data} writes."
+  (if (file-exists? path)
+      (catch #t
+             (lambda ()
+               (let ((data (call-with-input-file path read)))
+                 (if (and (list? data)
+                          (assoc-ref data 'xml))
+                     data #f)))
+             (lambda (key . args) #f))
+      #f))
+
+(define* (write-junit-report all-results
+                             #:key (seconds 0)
+                             (path "reports/junit/veritas-junit.xml"))
+  "Write @var{all-results} to @var{path} as one JUnit XML document.
+
+@var{seconds} is the wall clock of the run and becomes the document's total
+time.  Every test becomes a @code{testcase} inside a @code{testsuite} named
+after the suites it sits in; loose tests land in a suite called @code{veritas}.
+A benchmark is reported as skipped, because it measures instead of asserting,
+and a task that raised is reported as an @code{error} rather than a failure.
+Returns @var{path}.
+
+@code{testcase} elements carry no @code{time} attribute: the result records do
+not keep per-test timings."
+  (write-junit-document (junit-report-data all-results #:seconds seconds)
+                        #:seconds seconds #:path path))
+
+(define (junit-quiet msg)
+  "Ignore a log message: the XML document is written at the end of the run."
+  (if #f #f))
+
+(define junit-reporter
+  `((reporter-name . junit-reporter) (log-pass unquote junit-quiet)
+    (log-assert unquote junit-quiet)
+    (log-test unquote junit-quiet)
+    (log-suite unquote junit-quiet)
+    (log-debug unquote junit-quiet)
+    (log-benchmark unquote junit-quiet)
+    (log-fail unquote
+              (lambda (msg)
+                (log (format #f "    [fail] ~a" msg))))
+    (log-error unquote
+               (lambda (msg)
+                 (log (format #f "\n[error] ~a\n" msg))))
+    (log-info unquote
+              (lambda (msg)
+                (log (format #f "[info] ~a" msg))))))

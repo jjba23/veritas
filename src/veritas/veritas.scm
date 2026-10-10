@@ -81,8 +81,21 @@
                                 evaluate-thunks-concurrently
                                 collect-assertion-successful
                                 call-with-timeout
-                                fisher-yates-shuffle)
-  #:export (test veritas-run suite benchmark do-if-string-contained))
+                                fisher-yates-shuffle
+                                fresh-seed)
+  #:export (test veritas-run suite benchmark do-if-string-contained
+                  current-seed
+                  seeded-shuffle
+                  failed-test-names
+                  failed-test-wanted?
+                  read-last-failed
+                  write-last-failed!
+                  veritas-only-failed
+                  veritas-last-failed-path
+                  write-last-failed-names!
+                  merge-failed-names
+                  veritas-rerun-all-marker
+                  veritas-junit-data-path))
 
 ;; ====== Environment variables ======
 (define veritas-only-test
@@ -102,6 +115,194 @@
                                                #:default "true")))
                     (or (equal? "true" should-run)
                         (equal? "1" should-run)))))
+
+(define (seed-from value)
+  "Coerce @var{value} into a seed, or return @code{#f} when there is none.
+
+A keyword argument arrives as a number and an environment variable as a string,
+so both are accepted."
+  (cond
+    ((not value) #f)
+    ((number? value) (inexact->exact (truncate value)))
+    ((string? value) (let ((n (string->number value)))
+                       (and n (inexact->exact (truncate n)))))
+    (else #f)))
+
+(define veritas-seed
+  (make-parameter (seed-from (getenv-or 'VERITAS_SEED
+                                        #:default #f))))
+
+(define* (current-seed #:key seed)
+  "Return the seed this run shuffles with, choosing one when none was set.
+
+@var{seed} (a number or a numeric string) wins when given, otherwise the value
+of @code{VERITAS_SEED} is used, and when neither is set a fresh seed is drawn
+from the platform.  The chosen seed is remembered, so the order the runner
+gives the test files and every order chosen here come from one seed, and the run
+can be replayed by setting @code{VERITAS_SEED} to the seed that was reported.
+
+@example
+(current-seed #:seed 7)
+@result{} 7
+@end example"
+  (let ((chosen (or (seed-from seed)
+                    (veritas-seed)
+                    (fresh-seed))))
+    (veritas-seed chosen)
+    chosen))
+
+(define (seeded-shuffle xs)
+  "Return @var{xs} in the order this run's seed prescribes.
+
+Both the runner, which shuffles test files, and @code{veritas-run}, which
+shuffles tasks, tests and cases, shuffle through this, so a single seed
+reproduces a whole run."
+  (fisher-yates-shuffle xs
+                        #:seed (current-seed)))
+
+;; ====== Rerunning what failed ======
+;;
+;; The names that failed are written next to the other reports, and read back
+;; when VERITAS_ONLY_FAILED is set, so a failing test can be rerun on its own.
+
+(define veritas-last-failed-path
+  (make-parameter (getenv-or 'VERITAS_LAST_FAILED_PATH
+                             #:default "reports/last-failed.scm")))
+
+(define veritas-rerun-all-marker
+  "#all")
+
+(define* (read-last-failed #:key (path (veritas-last-failed-path)))
+  "Return the test names recorded as failing at @var{path}, or @code{#f}.
+
+@var{path} defaults to the record of the whole run.  @code{#f} means there is no
+record of a previous run: the file is missing or unreadable, and nothing is
+filtered."
+  (if (file-exists? path)
+      (catch #t
+             (lambda ()
+               (call-with-input-file path read))
+             (lambda (key . args) #f))
+      #f))
+
+(define veritas-only-failed
+  (make-parameter (let ((flag (getenv-or 'VERITAS_ONLY_FAILED
+                                         #:default #f)))
+                    (and (or (equal? "true" flag)
+                             (equal? "1" flag))
+                         (read-last-failed)))))
+
+;; Set (in a worker process, after the fork) when the run is one of several and
+;; the report is to be handed to the process that merges them.  It holds the
+;; path to write the JUnit data to instead of the document.
+
+(define veritas-junit-data-path
+  (make-parameter #f))
+
+(define* (failed-test-wanted? name #:key (only (veritas-only-failed)))
+  "Return @code{#t} when @var{name} should run in a last-failed rerun.
+
+@var{only} is the record of failing names to honour; it defaults to the one read
+from @code{reports/last-failed.scm} when @code{VERITAS_ONLY_FAILED} asked for a
+rerun.  @code{#f} means there is no record, so everything runs; an empty list
+means the last run passed, so nothing does."
+  ;; A boolean, not the match `member' happens to return.
+  (if (or (not only)
+          (member name only)
+          (member veritas-rerun-all-marker only))
+      #t #f))
+
+(define (result-failed? result)
+  "Return @code{#t} when @var{result} records a failure, at any depth."
+  (cond
+    ((assertion-result? result) (not (assertion-result-successful result)))
+    ((pre-test-result? result)
+     (any result-failed? (pre-test-result-results result)))
+    ;; A test result holds one child result, not a list of them.
+    ((test-result? result) (result-failed? (test-result-results result)))
+    ((suite-result? result)
+     (any result-failed? (suite-result-test-results result)))
+    ((string? result) #t)
+    (else #f)))
+
+(define (test-names-under result)
+  "Return the name of every test recorded under @var{result}, at any depth."
+  (cond
+    ((pre-test-result? result) (list (pre-test-result-name result)))
+    ((test-result? result) (test-names-under (test-result-results result)))
+    ((suite-result? result) (append-map test-names-under
+                                        (suite-result-test-results result)))
+    (else '())))
+
+(define (failed-names-of result)
+  "Return the rerunnable names that failed under @var{result}."
+  (cond
+    ;; A task that raised carries no test name, so the only safe rerun is
+    ;; every test there is.
+    ((string? result) (list veritas-rerun-all-marker))
+    ((suite-result? result)
+     (let ((children (append-map failed-names-of
+                                 (suite-result-test-results result))))
+       (if (and (null? children) (result-failed? result))
+           (test-names-under result) children)))
+    ((test-result? result) (failed-names-of (test-result-results result)))
+    ((pre-test-result? result)
+     (if (result-failed? result) (list (pre-test-result-name result)) '()))
+    (else '())))
+
+(define (failed-test-names all-results)
+  "Return the names that failed in @var{all-results}, for a last-failed rerun.
+
+Every test whose assertions failed is named.  A suite that failed as a whole,
+through its own deadline for instance, contributes the names of the tests it
+holds, because a suite name is not something a rerun can select.  A failure with
+no test name attached at all contributes @code{#all}, which makes the next run
+run everything rather than silently run nothing.  Names come back in the order
+recorded, without duplicates."
+  (delete-duplicates (append-map failed-names-of all-results)))
+
+(define* (write-last-failed-names! names #:key (path (veritas-last-failed-path)))
+  "Record @var{names} at @var{path} as the tests a rerun should select.
+
+An empty list is written when everything passed, which is what makes the next
+@code{VERITAS_ONLY_FAILED} run do nothing instead of rerunning the world.  A
+trouble with the file is swallowed: the run has already happened."
+  (catch #t
+         (lambda ()
+           (ensure-parent-directories path)
+           (call-with-output-file path
+             (lambda (port)
+               (write names port)
+               (newline port)))
+           names)
+         ;; Recording what failed is a convenience: an unwritable report
+         ;; directory must not take down a run that has already happened.
+         (lambda (key . args) '())))
+
+(define (write-last-failed! all-results)
+  "Record the names that failed, so the next run can rerun just those.
+
+Each worker process writes its own record - the path is a parameter - and the
+@code{--jobs} parent merges them into the run's, which is why the writing and the
+merging are separate."
+  (catch #t
+         (lambda ()
+           (write-last-failed-names! (failed-test-names all-results)))
+         (lambda (key . args) '())))
+
+(define (merge-failed-names records)
+  "Combine what several runs recorded as failing into one record.
+
+@var{records} holds one record per run: a list of names, or @code{#f} when a run
+left no record at all.  When every run recorded an empty list the result is an
+empty list, so a parallel run that passed does not look like a run to rerun.
+When no run left a record the result is @code{#f}, which stands for no
+information rather than for nothing having failed.  Names are deduplicated and
+keep the order they were found in."
+  (let ((known (filter list? records)))
+    (if (null? known)
+        #f
+        (delete-duplicates (append-map (lambda (names) names) known)))))
 
 (define* (tag-matches? #:key tags restriction)
   "Return @code{#t} when @var{tags} satisfies the tag @var{restriction}.
@@ -251,7 +452,8 @@ run around them, @var{timeout} caps the whole test in seconds, hooks included,
                      (newline))
 
                    (make-pre-test-result name test-results)))))
-    (if skip? #f
+    (if (or skip?
+            (not (failed-test-wanted? name))) #f
         (if (not (tag-matches? #:tags tags
                                #:restriction (veritas-only-tag))) #f
             (do-if-string-contained #:name name
@@ -414,7 +616,7 @@ Nothing runs here yet: each task is only wrapped so that its output can be
 captured later."
   (let* ((valid-tasks (filter procedure? tasks))
          (ordered-tasks (if shuffle?
-                            (fisher-yates-shuffle valid-tasks) valid-tasks)))
+                            (seeded-shuffle valid-tasks) valid-tasks)))
     (map (lambda (task-proc)
            (let* ((output-port (open-output-string)))
              (lambda ()
@@ -490,6 +692,27 @@ dying on an \"unknown evaluation structure\"."
                                   (cdr start-time))))
     
     (display-all-results vc all-results)
+    (when (equal? 'junit-reporter
+                  (assoc-ref vc 'reporter))
+      (let ((data-path (veritas-junit-data-path)))
+        (if data-path
+            ;; A worker process: hand the report to the process that runs the
+            ;; other files, so one document can be merged out of them all.
+            (write-junit-data (junit-report-data all-results
+                                                 #:seconds (+ seconds-elapsed
+                                                              (/ microseconds-elapsed
+                                                                 1000000.0)))
+                              #:path data-path)
+            (let ((path (getenv-or 'VERITAS_JUNIT_PATH
+                                   #:default "reports/junit/veritas-junit.xml")))
+              (write-junit-report all-results
+                                  #:seconds (+ seconds-elapsed
+                                               (/ microseconds-elapsed 1000000.0))
+                                  #:path path)
+              (log-info vc
+                        (format #f "JUnit XML report written to ~a" path))))))
+    ;; Leaving the failures on disk is what lets the next run rerun just those.
+    (write-last-failed! all-results)
     (log-info vc
               (format #f "ran ~a tasks in: ~a seconds, ~a microseconds"
                       task-count seconds-elapsed microseconds-elapsed))
@@ -508,16 +731,23 @@ dying on an \"unknown evaluation structure\"."
                       (debug? #f)
                       (reporter #f)
                       (with-coverage? #f)
+                      (seed #f)
                       #:rest tasks)
   "Run @var{tasks}, the top-level tests, suites and benchmarks.
 
 @var{shuffle?} randomizes the order of the tasks and @var{concurrent?} runs them
 in parallel fibers.  @var{reporter} names a reporter, otherwise
-@code{VERITAS_REPORTER} decides.  @var{with-coverage?} writes an LCOV report and
-@var{debug?} prints the raw results."
+@code{VERITAS_REPORTER} decides.  @var{seed} makes the shuffle reproducible, and
+the seed actually used is reported, so a failing order can be replayed by
+setting @code{VERITAS_SEED} to it.  @var{with-coverage?} writes an LCOV report
+and @var{debug?} prints the raw results."
   (let* ((start-time (gettimeofday))
          (made-reporter (%make-reporter reporter))
          (vc (list (cons 'reporter made-reporter)))
+         ;; One seed for the whole run: the runner remembers it too, so the order
+         ;; of the test files and the order within them come from the same seed.
+         (run-seed (and shuffle?
+                        (current-seed #:seed seed)))
          (valid-tasks (filter procedure? tasks))
          ;; Benchmarks are kept apart from regular tasks so they can be run
          ;; sequentially (see %execute-tasks).
@@ -533,6 +763,11 @@ in parallel fibers.  @var{reporter} names a reporter, otherwise
              (mkdir "reports/lcov"))
            (lambda (key . args)
              #f))
+    (when run-seed
+      (log-info vc
+                (format #f
+                        "shuffled with seed ~a (replay with VERITAS_SEED=~a)"
+                        run-seed run-seed)))
     (call-with-values (lambda ()
                         (if with-coverage?
                             (with-code-coverage (lambda ()

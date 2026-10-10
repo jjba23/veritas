@@ -222,9 +222,9 @@ Refer to ~maak.scm~ for the tasks available in this project (compile, test, docs
 
 Veritas is small, but it is a whole runner rather than a core plus an ecosystem
 of plugins: assertions, timeouts, coverage, benchmarks, BDD scenarios, tag
-filters, table-driven tests and reporters all live in this one Guile dependency
-tree, so none of them has to be installed, configured or version-matched
-separately. The tables below put that next to the runners most projects already
+filters, table-driven tests, test doubles, snapshots and reporters all live in
+this one Guile dependency tree, so none of them has to be installed, configured
+or version-matched separately. The tables below put that next to the runners most projects already
 use.
 
 *●* built in  *○* needs a plugin or library (named in the cell)  *◐* partial  *—* no such feature
@@ -234,10 +234,12 @@ use.
 | capability                  | veritas                                     | pytest            | RSpec                            | Jest                     | Vitest                        | go test                                | JUnit 5                            | ExUnit              |
 |-----------------------------+---------------------------------------------+-------------------+----------------------------------+--------------------------+-------------------------------+----------------------------------------+------------------------------------+---------------------|
 | per-unit timeouts           | ● test, suite, benchmark or a single assertion | ○ pytest-timeout | —                                | ● ~testTimeout~         | ● ~testTimeout~              | ◐ one -timeout for the whole package   | ● ~@Timeout~                      | ● ~@tag timeout:~  |
-| reproducible random order   | ◐ shuffled by default, no seed flag yet     | ○ pytest-randomly | ● ~--seed~                     | ● ~--randomize --seed~   | ● ~sequence.shuffle~ + seed   | ● ~-shuffle~                           | ● ~MethodOrderer.Random~ (per class) | ● ~--seed~         |
-| parallel execution          | ● suites and cases over fibers, one process | ○ pytest-xdist    | ○ parallel_tests                 | ● worker pool            | ● test files in parallel      | ● ~t.Parallel~                         | ● opt-in                           | ● ~async: true~     |
+| reproducible random order   | ● shuffled by default; --seed replays the order the run reported | ○ pytest-randomly | ● ~--seed~                     | ● ~--randomize --seed~   | ● ~sequence.shuffle~ + seed   | ● ~-shuffle~                           | ● ~MethodOrderer.Random~ (per class) | ● ~--seed~         |
+| parallel execution          | ● files in worker processes (~--jobs~); cases over fibers | ○ pytest-xdist    | ○ parallel_tests                 | ● worker pool            | ● test files in parallel      | ● ~t.Parallel~                         | ● opt-in                           | ● ~async: true~     |
+| shard a run across machines | ● ~--partition 2/4~, the same seed on every slice | ○ pytest-split (~--splits~/~--group~) | ○ parallel_tests ~--only-group~ | ● ~--shard~             | ● ~--shard~                  | — (no index flag)                      | — (no index flag)                    | ● ~mix test --partitions~ |
 | code coverage               | ● LCOV from ~#:with-coverage? #t~, HTML via the project tasks | ○ pytest-cov | ○ SimpleCov                    | ● built in               | ○ ~@vitest/coverage-v8~       | ● ~-cover~                             | ○ JaCoCo                           | ● ~mix test --cover~ |
 | benchmarks                  | ● ~#:runs~, statistics from statprof        | ○ pytest-benchmark | ○ rspec-benchmark               | —                        | ● ~vitest bench~              | ● ~go test -bench~                     | — (JMH is separate)                | ○ Benchee          |
+| JUnit XML report            | ● junit-reporter, ~VERITAS_JUNIT_PATH~          | ● ~--junitxml~    | ○ rspec_junit_formatter          | ○ jest-junit             | ● ~--reporter=junit~          | ○ gotestsum                            | ● Surefire and Gradle write it     | ○ junit_formatter   |
 
 ** Writing tests
 
@@ -245,16 +247,18 @@ use.
 |---------------------------+--------------------------------------------------------------+-------------------------------+---------------------------+-----------------------+-----------------------+---------------------------------+--------------------------------------+-------------------------|
 | built-in assertions       | ● 24 matchers, plus Latin aliases (proba, aequalis, ...)      | ● ~assert~, ~pytest.raises~   | ● rspec-expectations      | ● ~expect~            | ● ~expect~            | — (Error/Fatal only)            | ● Assertions                         | ● ~assert~, ~refute~    |
 | BDD / Given-When-Then     | ● scenario, given, when-step, then (+ Given/When/Then, Latin) | ○ pytest-bdd                  | ○ Cucumber                | ○ jest-cucumber       | ○ vitest-cucumber     | ○ Godog                         | ○ cucumber-junit-platform-engine     | ○ WhiteBread            |
-| filter tests by tag       | ● ~#:tags~ with --only-tag, --only-test, --only-suite        | ● ~-m~ markers                | ● ~--tag~                 | — (name patterns)     | — (name patterns)     | — (~-run~ names)                | ● ~@Tag~                             | ● --include/--exclude   |
+| filter tests by tag       | ◐ ~#:tags~ with --only-tag; matched per unit, not inherited | ● ~-m~ markers                | ● ~--tag~                 | — (name patterns)     | — (name patterns)     | — (~-run~ names)                | ● ~@Tag~                             | ● --include/--exclude   |
 | table-driven tests        | ● test-each, suite-each, cases->table                        | ● parametrize                 | ● shared examples         | ● ~test.each~         | ● ~test.each~         | ● table tests + subtests        | ● ~@ParameterizedTest~               | ● generated tests       |
-| mocking / test doubles    | —                                                            | ● monkeypatch + unittest.mock | ● rspec-mocks             | ● jest.fn, module mocks | ● vi.fn, vi.mock      | — (testify/mock)                | ○ Mockito                            | ○ Mox                   |
-| snapshot testing          | —                                                            | —                             | —                         | ● toMatchSnapshot     | ● toMatchSnapshot     | —                               | —                                    | —                       |
-| rerun only what failed    | —                                                            | ● ~--lf~                      | ● ~--only-failures~       | ● ~--onlyFailures~    | — (retry during a run) | —                              | ○ Surefire/Gradle retry              | ● ~mix test --failed~
+| mocking / test doubles    | ● ~(veritas mock)~: spies, stubs, temporary bindings                                                            | ● monkeypatch + unittest.mock | ● rspec-mocks             | ● jest.fn, module mocks | ● vi.fn, vi.mock      | — (testify/mock)                | ○ Mockito                            | ○ Mox                   |
+| snapshot testing          | ● ~(veritas snapshot)~: any value Guile can read back                                                            | —                             | —                         | ● toMatchSnapshot     | ● toMatchSnapshot     | —                               | —                                    | —                       |
+| rerun only what failed    | ● ~--only-failed~, applied to reports/last-failed.scm                                                            | ● ~--lf~                      | ● ~--only-failures~       | ● ~--onlyFailures~    | — (retry during a run) | —                              | ○ Surefire/Gradle retry              | ● ~mix test --failed~    |
 
-Two footnotes for the tables: RSpec and ExUnit reach the table-driven row
+Three footnotes for the tables: RSpec and ExUnit reach the table-driven row
 through composition rather than a dedicated API (shared examples in RSpec;
-test-generating macros in ExUnit), and Mocha is left out only to keep the
-tables narrow - it is the closest JavaScript ancestor of this design.
+test-generating macros in ExUnit); Mocha is left out only to keep the tables
+narrow - it is the closest JavaScript ancestor of this design; and the sharding
+row is an em dash for Go and JUnit 5 because neither ships a numbered slice of
+its own, leaving that split to test selection and build tooling.
 
 ** What the Veritas column buys
 
@@ -271,6 +275,19 @@ tables narrow - it is the closest JavaScript ancestor of this design.
   function, not a plugin against an extension API.
 - *One vocabulary, three spellings.* ~given~, ~Given~ and ~dato~ are the same
   procedure, as are ~then~/~Then~/~tunc~ and the twenty-four assertion aliases.
+- *Replay, rerun, shard.* A shuffled run reports the seed it used, ~--seed~
+  runs that order again, ~--only-failed~ runs just the tests the previous run
+  recorded as failing, and ~--partition 2/4~ runs one slice of the files with
+  every slice seeded the same way.
+- *Doubles and snapshots, also without a dependency.* ~(veritas mock)~ records
+  what a procedure was called with and swaps a module binding for the length of
+  a test; ~(veritas snapshot)~ compares any value Scheme can read back, writing
+  it on the first run and rewriting it when ~VERITAS_UPDATE_SNAPSHOTS=true~.
+- *A JUnit XML report for the dashboard CI already has.* ~junit-reporter~
+  writes it, failure text included, so no converter package is needed.
+- *Several cores without a plugin.* ~--jobs 4~ runs four test files at once in
+  four processes and merges what they printed, what they recorded as failing and
+  their JUnit reports; combine it with ~--partition~ to fill a CI matrix.
 
 
 
@@ -663,6 +680,91 @@ The ~(veritas container)~ module provides Docker/Podman helpers for integration 
 Containers are started with ~#:env~, ~#:ports~, ~#:volumes~ and ~#:extra-args~, so images can be wired up like ~docker run~. The ~container~ unit tests drive the whole module against a fake runtime, so they pass without any daemon.
 
 
+----------------
+
+* Test doubles
+
+/PRO PERSONA/ - /standing in for the role/
+
+Scheme needs less of a mocking library than most languages do: a procedure can be
+passed in, so a fake is often just a lambda. What is worth having is a record of
+what was called, and ~(veritas mock)~ keeps it.
+
+~make-spy~ wraps a procedure and records every call and every result, read back
+with ~spy-calls~, ~spy-results~, ~spy-call-count~ and ~spy-called-with?~.
+~make-stub~ is a spy that ignores its arguments and returns a fixed value. A spy
+is an ordinary procedure, so it can be passed, stored and mapped like the thing
+it replaces.
+
+#+begin_src scheme
+(use-modules (veritas mock))
+
+(test "the receipt is sent once"
+      (lambda (vc)
+        (let ((send (make-spy (lambda (who what) (list who what)))))
+          (send "ada" "thanks")
+          ((assert-called-with send '("ada" "thanks")) vc)
+          ((assert-call-count send #:expect 1) vc))))
+#+end_src
+
+The assertions read the spy when they run rather than when they are built, which
+is why they are written as a case lambda: a spy's calls are test-time state.
+
+~with-temporary-binding~ swaps a module binding for the length of a thunk and
+puts the original back even when the thunk raises:
+
+#+begin_src scheme
+(use-modules (veritas mock))
+
+(define module (resolve-module '(my app)))
+
+(with-temporary-binding module 'now
+                        (lambda () 0)
+                        (lambda () (module-ref module 'now)))   ;; => 0
+#+end_src
+
+One honest limit, measured on Guile 3.0: Guile resolves a call to a known
+procedure while it compiles, so a call site inside a module declared
+~#:declarative? #t~ (the default) keeps calling the original procedure even while
+the binding is changed. Code that reads the binding while running sees the
+substitution instead: ~module-ref~, anything passed to ~eval~, and call sites in
+a module declared ~#:declarative? #f~. That is why the ordinary Scheme answer
+comes first - pass the dependency in, or hand the caller a spy.
+
+
+----------------
+
+* Snapshots
+
+/IMAGO VERITATIS/ - /an image of the truth/
+
+~(veritas snapshot)~ compares a value with the one recorded the first time the
+check ran. A missing snapshot is written and the check passes, so a new test does
+not fail merely for being new; a mismatch fails and shows both sides.
+
+#+begin_src scheme
+(use-modules (veritas snapshot))
+
+(test "the cart summary"
+      (assert-snapshot #:name "the cart summary"
+                       #:got (lambda () (list 'cart 2 1999))))
+#+end_src
+
+~#:got~ may be a procedure, in which case it is called when the assertion runs,
+so state that only exists at test time can be snapshotted.
+
+Snapshots are Scheme data, read back with ~read~: lists, vectors, strings,
+numbers, symbols and alists travel exactly. Procedures, records and ports do not,
+so snapshot the string they print instead.
+
+The file lives under ~VERITAS_SNAPSHOT_DIR~ (default ~test/snapshots~), named
+after ~#:name~: the name is lower-cased, everything outside ~a-z0-9~ becomes a
+dash and runs of dashes collapse, and the result gets a ~.snap~ suffix. A
+snapshot that cannot be read is reported as a failed assertion rather than
+silently rewritten, and ~VERITAS_UPDATE_SNAPSHOTS=true~ accepts the current value
+of every snapshot the run reaches.
+
+
 --------------
 
 * Code coverage
@@ -742,11 +844,23 @@ Some functionalities, including the runner, are configured via environment varia
 
 - ~VERITAS_ONLY_SUITE~ limits the run to suites whose name contains this string.
 
-- ~VERITAS_ONLY_TAG~ is an optional variable you can pass to run only tests and suites carrying a matching tag (case-insensitive). Tags are declared with the ~#:tags~ keyword on ~test~ and ~suite~, for example ~(test "slow check" #:tags '(slow integration) ...)~.
+- ~VERITAS_ONLY_TAG~ is an optional variable you can pass to run only tests and suites carrying a matching tag (case-insensitive). Tags are declared with the ~#:tags~ keyword on ~test~ and ~suite~, for example ~(test "slow check" #:tags '(slow integration) ...)~. Matching happens per unit rather than by inheritance: a suite runs when it carries the tag, and each test inside it runs when it does too, so selecting a whole suite together with its tests means putting the tag on both.
+
+- ~VERITAS_ONLY_FAILED~ set to ~true~ limits the run to the tests the previous run recorded as failing. The names are read back from ~reports/last-failed.scm~, which every run writes, so a failing run leaves behind exactly what the next one needs. A failure with no test name attached records ~#all~, which reruns everything rather than nothing.
+
+- ~VERITAS_SEED~ fixes the seed of every shuffle in the run. Without it a fresh seed is drawn and a shuffled run prints the seed it used, so passing that value back to ~VERITAS_SEED~ replays the order of a failing run.
+
+- ~VERITAS_JOBS~ is the number of worker processes the runner uses for the discovered files (default ~1~, which runs them in this process). Set it to ~2~ or more and the files are spread over that many processes, one file each; the output is printed in file order and the record of failures and the JUnit report are merged. ~--jobs 2 --partition 1/2~ is the combination a CI matrix wants: half the files, two at a time.
+
+- ~VERITAS_LAST_FAILED_PATH~ is where a run records the names that failed (default ~reports/last-failed.scm~). A worker process writes its own record and the parent merges them, so the path is mostly interesting when you want the record somewhere else.
+
+- ~VERITAS_PARTITION~ takes ~INDEX/TOTAL~ (for example ~2/3~) and runs only that slice of the discovered test files, which is how a suite is split across machines. The files are sorted first and split round-robin, so the slices are deterministic, disjoint and complete; a malformed or impossible value is an error instead of a silent full run.
+
+- ~VERITAS_SNAPSHOT_DIR~ defaults to ~test/snapshots~ and names the directory snapshots are written to and read from. ~VERITAS_UPDATE_SNAPSHOTS~ set to ~true~ accepts the current value of every snapshot the run reaches.
 
 - ~VERITAS_CONTAINER_RUNTIME~ is an optional variable that forces the executable used by the container helpers (for example ~podman~ or ~docker~). When unset, Podman is preferred and Docker is used as a fallback.
 
-- ~VERITAS_REPORTER~ is an optional variable, interpreted as symbol in Lisp, by default ~emoji-reporter~, other choices are ~monotone-reporter~
+- ~VERITAS_REPORTER~ is an optional variable, interpreted as symbol in Lisp, by default ~emoji-reporter~. Other choices are ~monotone-reporter~, ~json-reporter~ and ~junit-reporter~, the last of which writes a JUnit XML report to ~VERITAS_JUNIT_PATH~ (default ~reports/junit/veritas-junit.xml~) when the run finishes.
 
 
 ----------------------
@@ -769,9 +883,17 @@ Then you can run with for example:
 VERITAS_TEST_TYPE=unit \
     guix shell -m manifest.scm -- \
     guile --fresh-auto-compile -L ./src \
-		-L ./test \
-		-c '((@ (veritas runner) run-tests))'
+		-L ./test \    -c '((@ (veritas runner) run-tests))'
 #+end_src
+
+What the runner does with those files:
+
+- Shuffles them, unless ~VERITAS_SHUFFLE_FILES=false~, and prints the seed it used so the order can be replayed with ~VERITAS_SEED~.
+- Runs them one file at a time in a single process; inside a file, suites and tests run concurrently over fibers, and benchmarks stay sequential so the profiler measures soundly.
+- Runs the files in worker processes when ~VERITAS_JOBS~ is more than one: one file per process, at most that many at a time, so the files really are on several cores. The captures are printed in file order, the records of what failed and the JUnit reports are merged, and a file that fails exits only its own worker, which means every file still runs and the runner reports all the failures instead of stopping at the first one. The run exits 1 when any file failed, exactly as a single-process run does.
+- Runs only one slice of them when ~VERITAS_PARTITION~ is set, after sorting the list so every machine splits it the same way and the slices stay disjoint.
+- Every ~veritas-run~ records the names that failed in ~reports/last-failed.scm~ (an empty list when everything passed), which is what ~VERITAS_ONLY_FAILED=true~ reads on the next run to rerun just those.
+- With ~VERITAS_REPORTER=junit-reporter~, aggregates the run into one JUnit XML document at ~VERITAS_JUNIT_PATH~, failures and their output included.
 
 
 ------------------------
@@ -814,6 +936,11 @@ path automatically, so no ~-L ./test~ is needed.
 - ~-r, --reporter NAME~ maps to ~VERITAS_REPORTER~
 - ~--only-test SUBSTR~ maps to ~VERITAS_ONLY_TEST~
 - ~--only-suite SUBSTR~ maps to ~VERITAS_ONLY_SUITE~
+- ~--only-tag TAG~ maps to ~VERITAS_ONLY_TAG~
+- ~--only-failed~ / ~--no-only-failed~ map to ~VERITAS_ONLY_FAILED~
+- ~--seed N~ maps to ~VERITAS_SEED~
+- ~--partition I/T~ maps to ~VERITAS_PARTITION~
+- ~-j, --jobs N~ maps to ~VERITAS_JOBS~
 - ~-s, --shuffle~ / ~--no-shuffle~ map to ~VERITAS_SHUFFLE_FILES~
 - ~-b, --benchmarks~ / ~--no-benchmarks~ map to ~VERITAS_RUN_BENCHMARKS~
 - ~-h, --help~ prints the help page

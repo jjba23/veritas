@@ -50,16 +50,21 @@
                      '("--scan-dir" "--test-top-dir" "--test-type"
                        "--entrypoint" "--test-module" "--reporter"
                        "--only-test" "--only-suite" "--only-tag"
-                       "--shuffle" "--no-shuffle" "--benchmarks"
-                       "--no-benchmarks" "--help" "--version")))
+                       "--only-failed" "--no-only-failed"
+                       "--seed" "--partition" "--jobs"
+                       "--shuffle" "--no-shuffle"
+                       "--benchmarks" "--no-benchmarks" "--help"
+                       "--version")))
          (apply test "option grammar declares the expected options"
                 (map (lambda (option)
                        (assert-true (and (assq option veritas-option-grammar) #t)
                                     #:name (format #f "~a is a known option"
                                                    option)))
                      '(scan-dir test-top-dir test-type entrypoint test-module
-                                reporter only-test only-suite only-tag shuffle
-                                no-shuffle benchmarks no-benchmarks help version)))))
+                                reporter only-test only-suite only-tag
+                                only-failed no-only-failed seed partition jobs
+                                shuffle no-shuffle benchmarks no-benchmarks help
+                                version)))))
 
 (define driver-suite
   (suite "CLI driver"
