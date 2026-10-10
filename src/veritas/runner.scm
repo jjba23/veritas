@@ -120,6 +120,9 @@ why a failure cannot stop the files scheduled after it."
             (veritas-junit-data-path junit-path)
             (dup2 (fileno port) 1)
             (dup2 (fileno port) 2)
+            ;; Line buffering, so the parent following this file sees each line
+            ;; as it is written instead of in blocks when the child exits.
+            (setvbuf (current-output-port) 'line)
             (catch #t
                    (lambda ()
                      (run-test-file #:test-file file
@@ -182,16 +185,61 @@ reporter looks like."
                            indexes)))
     (if (null? datas) #f (merge-junit-data datas))))
 
-(define (print-worker-capture index)
-  "Print what the worker at @var{index} wrote, in place, as if it had run here."
-  (let ((capture (worker-path index ".out")))
-    (if (file-exists? capture)
-        (let ((text (call-with-input-file capture get-string-all)))
-          (if (string-null? text)
-              (display (format #f "\nthe worker for file ~a produced no output\n"
-                               index))
-              (display text)))
-        (display (format #f "\nthe worker for file ~a left no output\n" index)))))
+(define worker-poll-microseconds
+  ;; How often the parent looks at the capture it is following.  Short enough
+  ;; that a line shows up as it is written, long enough not to cost anything.
+  20000)
+
+(define (tail-from path offset)
+  "Return @code{(text . offset)}: what @var{path} holds after byte @var{offset}.
+
+The empty string comes back when there is nothing new, and also when the capture
+cannot be read at all - a worker whose capture is not there yet has simply not
+written anything.  The offset returned is in bytes, so a file whose output holds
+multi-byte characters is still followed exactly."
+  (if (file-exists? path)
+      (catch #t
+             (lambda ()
+               (call-with-input-file path
+                 (lambda (port)
+                   (seek port offset SEEK_SET)
+                   (let ((text (get-string-all port)))
+                     (cons text (ftell port))))))
+             (lambda (key . args) (cons "" offset)))
+      (cons "" offset)))
+
+(define (pump-worker-output index offsets)
+  "Print whatever the worker at @var{index} has written since it was last read.
+
+@var{offsets} remembers how far each worker has been printed, so the same bytes
+are never shown twice and none are skipped."
+  (let* ((read (tail-from (worker-path index ".out")
+                          (vector-ref offsets index)))
+         (text (car read)))
+    (vector-set! offsets index (cdr read))
+    (unless (string-null? text)
+      (display text)
+      ;; Unbuffered, or the parent would hold the run's own progress back.
+      (force-output (current-output-port)))))
+
+(define (follow-workers! count statuses offsets)
+  "Print the workers' output in file order, streaming whatever is ready.
+
+The earliest file that has not been printed in full is the only one whose output
+is shown, which is what keeps the log reading exactly as a sequential run's log
+would.  While that worker runs, its capture is followed, so its lines arrive as
+it writes them; the next file is taken up the moment that worker is finished,
+which is what makes the output arrive during the run instead of at the end.
+
+A file that is finished without ever having printed anything gets a line of its
+own: a worker that died before it printed looks the same otherwise."
+  (let loop ((i 0))
+    (when (< i count)
+      (pump-worker-output i offsets)
+      (when (vector-ref statuses i)
+        (when (zero? (vector-ref offsets i))
+          (display (format #f "\nthe worker for file ~a produced no output\n" i)))
+        (loop (+ i 1))))))
 
 (define (clear-worker-directory)
   "Remove the worker captures and records once they have been merged."
@@ -211,13 +259,19 @@ reporter looks like."
 
 One file per process, so the files really do run on several cores and a file
 that exits the run - which is how a failing file reports itself - exits only its
-own worker.  The parent waits for a worker before starting the next file, prints
-the captures in the order the files were scheduled, merges what the workers
-recorded as failing and their JUnit reports, and exits 1 when any worker failed."
+own worker.
+
+The output is streamed rather than collected: each worker writes to a capture of
+its own and the parent follows the earliest file it has not printed in full, so
+the log arrives while the run is going and still reads in file order.  The
+merging of what the workers recorded as failing and of their JUnit reports
+happens once the last worker is in, and the run exits 1 if any worker failed."
   (make-directory! "reports")
   (make-directory! worker-directory)
   (let* ((indexed (map cons files (iota (length files))))
-         (statuses (make-vector (length files) #f))
+         (count (length files))
+         (statuses (make-vector count #f))
+         (offsets (make-vector count 0))
          (start-time (gettimeofday)))
     (let loop ((remaining indexed)
                (in-flight '()))
@@ -232,15 +286,26 @@ recorded as failing and their JUnit reports, and exits 1 when any worker failed.
                                          #:entrypoint-function entrypoint-function)))
            (loop (cdr remaining) (append in-flight (list (cons pid index))))))
         (else
-         ;; Wait for whichever worker finishes first, not for the oldest one:
-         ;; a slow file must not hold up the queue behind it.
-         (let* ((waited (waitpid -1))
-                (pid (car waited))
-                (status (cdr waited))
-                (entry (assq pid in-flight)))
-           (when entry
-             (vector-set! statuses (cdr entry) status))
-           (loop remaining (remove (lambda (p) (= (car p) pid)) in-flight))))))
+         ;; Waiting for whichever worker finishes first rather than for the
+         ;; oldest one stops a slow file holding up the queue behind it.  The
+         ;; wait is polled so that the file being followed can be streamed while
+         ;; the others run; a blocking wait would show nothing until it returned.
+         (let* ((waited (waitpid -1 WNOHANG))
+                (pid (car waited)))
+           (if (zero? pid)
+               (begin (follow-workers! count statuses offsets)
+                      (usleep worker-poll-microseconds)
+                      (loop remaining in-flight))
+               (let ((entry (assq pid in-flight)))
+                 (when entry
+                   ;; `WNOHANG' reports no status for a child that has not
+                   ;; finished, hence the check on the pid above.
+                   (vector-set! statuses (cdr entry) (cdr waited)))
+                 (follow-workers! count statuses offsets)
+                 (loop remaining
+                       (remove (lambda (p) (= (car p) pid)) in-flight))))))))
+    ;; Everything has been reaped; this drains the last file's last bytes.
+    (follow-workers! count statuses offsets)
     (let* ((indexes (map cdr indexed))
            (failed? (lambda (i) (worker-failed? (vector-ref statuses i))))
            (failures (filter failed? indexes))
@@ -252,7 +317,6 @@ recorded as failing and their JUnit reports, and exits 1 when any worker failed.
            ;; belongs in the report and in the JUnit document's total time.
            (seconds (+ (- (car end-time) (car start-time))
                        (/ (- (cdr end-time) (cdr start-time)) 1000000.0))))
-      (for-each print-worker-capture indexes)
       ;; The reports go down before the exit status, so a failed run leaves the
       ;; record a rerun and a CI dashboard need.
       (cond ((list? names) (write-last-failed-names! names))

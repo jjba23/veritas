@@ -112,8 +112,10 @@ slices of the discovered test files
 .BR \-j ", " \-\-jobs " " N
 Run the discovered test files in
 .I N
-worker processes, one file per process.  Their output is printed in file order,
-and their records of failures and their JUnit reports are merged
+worker processes, one file per process.  Their output is streamed in file order
+as it is written - the earliest file that has not been printed in full is the
+only one shown, so the log reads as a single-process run's would - and their
+records of failures and their JUnit reports are merged
 .RB ( VERITAS_JOBS ).
 .TP
 .BR \-s ", " \-\-shuffle

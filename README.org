@@ -850,7 +850,7 @@ Some functionalities, including the runner, are configured via environment varia
 
 - ~VERITAS_SEED~ fixes the seed of every shuffle in the run. Without it a fresh seed is drawn and a shuffled run prints the seed it used, so passing that value back to ~VERITAS_SEED~ replays the order of a failing run.
 
-- ~VERITAS_JOBS~ is the number of worker processes the runner uses for the discovered files (default ~1~, which runs them in this process). Set it to ~2~ or more and the files are spread over that many processes, one file each; the output is printed in file order and the record of failures and the JUnit report are merged. ~--jobs 2 --partition 1/2~ is the combination a CI matrix wants: half the files, two at a time.
+- ~VERITAS_JOBS~ is the number of worker processes the runner uses for the discovered files (default ~1~, which runs them in this process). Set it to ~2~ or more and the files are spread over that many processes, one file each; the output is streamed in file order as it is written, and the record of failures and the JUnit report are merged. ~--jobs 2 --partition 1/2~ is the combination a CI matrix wants: half the files, two at a time.
 
 - ~VERITAS_LAST_FAILED_PATH~ is where a run records the names that failed (default ~reports/last-failed.scm~). A worker process writes its own record and the parent merges them, so the path is mostly interesting when you want the record somewhere else.
 
@@ -890,7 +890,7 @@ What the runner does with those files:
 
 - Shuffles them, unless ~VERITAS_SHUFFLE_FILES=false~, and prints the seed it used so the order can be replayed with ~VERITAS_SEED~.
 - Runs them one file at a time in a single process; inside a file, suites and tests run concurrently over fibers, and benchmarks stay sequential so the profiler measures soundly.
-- Runs the files in worker processes when ~VERITAS_JOBS~ is more than one: one file per process, at most that many at a time, so the files really are on several cores. The captures are printed in file order, the records of what failed and the JUnit reports are merged, and a file that fails exits only its own worker, which means every file still runs and the runner reports all the failures instead of stopping at the first one. The run exits 1 when any file failed, exactly as a single-process run does.
+- Runs the files in worker processes when ~VERITAS_JOBS~ is more than one: one file per process, at most that many at a time, so the files really are on several cores. The output is streamed in file order - each worker writes to a capture of its own and the parent follows the earliest file it has not printed in full - so the log arrives while the run is going and still reads exactly as a single-process run's log would. The records of what failed and the JUnit reports are merged, and a file that fails exits only its own worker, which means every file still runs and the runner reports all the failures instead of stopping at the first one. The run exits 1 when any file failed, exactly as a single-process run does.
 - Runs only one slice of them when ~VERITAS_PARTITION~ is set, after sorting the list so every machine splits it the same way and the slices stay disjoint.
 - Every ~veritas-run~ records the names that failed in ~reports/last-failed.scm~ (an empty list when everything passed), which is what ~VERITAS_ONLY_FAILED=true~ reads on the next run to rerun just those.
 - With ~VERITAS_REPORTER=junit-reporter~, aggregates the run into one JUnit XML document at ~VERITAS_JUNIT_PATH~, failures and their output included.
