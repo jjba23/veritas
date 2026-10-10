@@ -216,6 +216,68 @@ Refer to ~maak.scm~ for the tasks available in this project (compile, test, docs
 ----------------
 
 
+* How Veritas compares
+
+/SUI GENERIS/ - /of its own kind/
+
+Veritas is small, but it is a whole runner rather than a core plus an ecosystem
+of plugins: assertions, timeouts, coverage, benchmarks, BDD scenarios, tag
+filters, table-driven tests and reporters all live in this one Guile dependency
+tree, so none of them has to be installed, configured or version-matched
+separately. The tables below put that next to the runners most projects already
+use.
+
+*●* built in  *○* needs a plugin or library (named in the cell)  *◐* partial  *—* no such feature
+
+** Running tests
+
+| capability                  | veritas                                     | pytest            | RSpec                            | Jest                     | Vitest                        | go test                                | JUnit 5                            | ExUnit              |
+|-----------------------------+---------------------------------------------+-------------------+----------------------------------+--------------------------+-------------------------------+----------------------------------------+------------------------------------+---------------------|
+| per-unit timeouts           | ● test, suite, benchmark or a single assertion | ○ pytest-timeout | —                                | ● ~testTimeout~         | ● ~testTimeout~              | ◐ one -timeout for the whole package   | ● ~@Timeout~                      | ● ~@tag timeout:~  |
+| reproducible random order   | ◐ shuffled by default, no seed flag yet     | ○ pytest-randomly | ● ~--seed~                     | ● ~--randomize --seed~   | ● ~sequence.shuffle~ + seed   | ● ~-shuffle~                           | ● ~MethodOrderer.Random~ (per class) | ● ~--seed~         |
+| parallel execution          | ● suites and cases over fibers, one process | ○ pytest-xdist    | ○ parallel_tests                 | ● worker pool            | ● test files in parallel      | ● ~t.Parallel~                         | ● opt-in                           | ● ~async: true~     |
+| code coverage               | ● LCOV from ~#:with-coverage? #t~, HTML via the project tasks | ○ pytest-cov | ○ SimpleCov                    | ● built in               | ○ ~@vitest/coverage-v8~       | ● ~-cover~                             | ○ JaCoCo                           | ● ~mix test --cover~ |
+| benchmarks                  | ● ~#:runs~, statistics from statprof        | ○ pytest-benchmark | ○ rspec-benchmark               | —                        | ● ~vitest bench~              | ● ~go test -bench~                     | — (JMH is separate)                | ○ Benchee          |
+
+** Writing tests
+
+| capability                | veritas                                                      | pytest                        | RSpec                     | Jest                  | Vitest                | go test                          | JUnit 5                              | ExUnit                  |
+|---------------------------+--------------------------------------------------------------+-------------------------------+---------------------------+-----------------------+-----------------------+---------------------------------+--------------------------------------+-------------------------|
+| built-in assertions       | ● 24 matchers, plus Latin aliases (proba, aequalis, ...)      | ● ~assert~, ~pytest.raises~   | ● rspec-expectations      | ● ~expect~            | ● ~expect~            | — (Error/Fatal only)            | ● Assertions                         | ● ~assert~, ~refute~    |
+| BDD / Given-When-Then     | ● scenario, given, when-step, then (+ Given/When/Then, Latin) | ○ pytest-bdd                  | ○ Cucumber                | ○ jest-cucumber       | ○ vitest-cucumber     | ○ Godog                         | ○ cucumber-junit-platform-engine     | ○ WhiteBread            |
+| filter tests by tag       | ● ~#:tags~ with --only-tag, --only-test, --only-suite        | ● ~-m~ markers                | ● ~--tag~                 | — (name patterns)     | — (name patterns)     | — (~-run~ names)                | ● ~@Tag~                             | ● --include/--exclude   |
+| table-driven tests        | ● test-each, suite-each, cases->table                        | ● parametrize                 | ● shared examples         | ● ~test.each~         | ● ~test.each~         | ● table tests + subtests        | ● ~@ParameterizedTest~               | ● generated tests       |
+| mocking / test doubles    | —                                                            | ● monkeypatch + unittest.mock | ● rspec-mocks             | ● jest.fn, module mocks | ● vi.fn, vi.mock      | — (testify/mock)                | ○ Mockito                            | ○ Mox                   |
+| snapshot testing          | —                                                            | —                             | —                         | ● toMatchSnapshot     | ● toMatchSnapshot     | —                               | —                                    | —                       |
+| rerun only what failed    | —                                                            | ● ~--lf~                      | ● ~--only-failures~       | ● ~--onlyFailures~    | — (retry during a run) | —                              | ○ Surefire/Gradle retry              | ● ~mix test --failed~
+
+Two footnotes for the tables: RSpec and ExUnit reach the table-driven row
+through composition rather than a dedicated API (shared examples in RSpec;
+test-generating macros in ExUnit), and Mocha is left out only to keep the
+tables narrow - it is the closest JavaScript ancestor of this design.
+
+** What the Veritas column buys
+
+- *Nothing to add and nothing to wire up.* Every ● above arrives with the runner:
+  one manifest, no plugins, no configuration file, no compatibility matrix.
+- *Timeouts at four granularities.* A deadline can belong to a single assertion,
+  one test, a whole suite or a benchmark, and an overrun is reported as a failed
+  assertion with the unit named, not a hung CI job.
+- *Measurement beside the tests it measures.* A benchmark is a declaration next
+  to the assertions, run with the suite and reported separately; coverage is one
+  keyword. Neither needs a second harness or an out-of-band command.
+- *Extend it in the language you test in.* Assertions, reporters and data
+  generators are ordinary Guile procedures, so a project-specific matcher is a
+  function, not a plugin against an extension API.
+- *One vocabulary, three spellings.* ~given~, ~Given~ and ~dato~ are the same
+  procedure, as are ~then~/~Then~/~tunc~ and the twenty-four assertion aliases.
+
+
+
+
+----------------
+
+
 * Timeouts
 
 /FESTINA LENTE/ - /make haste slowly/
