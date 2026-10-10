@@ -33,6 +33,8 @@
 (define-module (veritas assert)
   #:declarative? #t
   #:use-module (ice-9 format)
+  #:use-module (ice-9 regex)
+  #:use-module (srfi srfi-1)
   #:use-module (veritas reporter)
   #:use-module (veritas prelude)
   #:export (assert-equal assert-eq
@@ -47,7 +49,17 @@
                          assert-not-eqv
                          is-approximate?
                          assert-approximate
-                         assert-not-approximate))
+                         assert-not-approximate
+                         assert-contains
+                         assert-not-contains
+                         assert-matches
+                         assert-not-matches
+                         assert-raises
+                         assert-empty
+                         assert-not-empty
+                         assert-length
+                         assert-in-range
+                         assert-one-of))
 
 (define* (assert #:key expect got compare name)
   "Returns a function taking a @acronym{VC, veritas-context}
@@ -445,3 +457,190 @@ It is the inverse of @code{assert-approximate}.
           #:compare (lambda (a b)
                       (not (is-approximate? a b
                                             #:epsilon epsilon)))))
+
+;;; ====== Rich matchers ======
+;;
+;; The predicates below back a small family of higher-level assertions in the
+;; spirit of RSpec matchers, Jest's expect and AssertJ.  They are intentionally
+;; expressed through the core `assert' combinator so that reporting stays
+;; uniform.
+
+(define (length-of x)
+  "Return the number of elements in list, vector or string @var{x}.
+
+Returns @code{#f} for other types."
+  (cond
+    ((list? x)
+     (length x))
+    ((vector? x)
+     (vector-length x))
+    ((string? x)
+     (string-length x))
+    (else #f)))
+
+(define (contains-value? container needle)
+  "Return @code{#t} when @var{container} contains @var{needle}.
+
+Strings are searched for substrings, lists and vectors for an element
+@code{equal?} to @var{needle}, and hash tables for a key @code{equal?} to
+@var{needle}."
+  (cond
+    ((string? container)
+     (and (string? needle)
+          (string-contains container needle)
+          #t))
+    ((list? container)
+     (and (member needle container) #t))
+    ((vector? container)
+     (and (any (lambda (x) (equal? x needle))
+               (vector->list container))
+          #t))
+    ((hash-table? container)
+     (and (hash-get-handle container needle) #t))
+    (else #f)))
+
+(define (empty-value? x)
+  "Return @code{#t} when @var{x} is an empty list, vector or string."
+  (cond
+    ((null? x)
+     #t)
+    ((vector? x)
+     (zero? (vector-length x)))
+    ((string? x)
+     (string=? x ""))
+    (else #f)))
+
+(define* (assert-contains #:key expect got name)
+  "Assert that the container @var{expect} contains @var{got}.
+
+Works for strings (substring), lists and vectors (membership) and hash tables
+(key membership).
+
+@example
+(assert-contains #:expect '(1 2 3) #:got 2)
+(assert-contains #:expect \"hello world\" #:got \"world\")
+@end example"
+  (assert #:expect expect #:got got
+          #:compare (lambda (container needle)
+                      (contains-value? container needle))
+          #:name name))
+
+(define* (assert-not-contains #:key expect got name)
+  "Assert that the container @var{expect} does not contain @var{got}.
+
+Inverse of @code{assert-contains}."
+  (assert #:expect expect #:got got
+          #:compare (lambda (container needle)
+                      (not (contains-value? container needle)))
+          #:name name))
+
+(define* (assert-matches #:key pattern got name)
+  "Assert that string @var{got} matches the regular expression @var{pattern}.
+
+@var{pattern} may be a compiled regexp or a string.
+
+@example
+(assert-matches #:pattern \"^[a-z]+@[a-z]+$\" #:got \"user@host\")
+@end example"
+  (let ((rx (if (regexp? pattern) pattern (make-regexp pattern))))
+    (assert #:expect rx #:got got
+            #:compare (lambda (regexp value)
+                        (and (string? value)
+                             (regexp-exec regexp value)
+                             #t))
+            #:name name)))
+
+(define* (assert-not-matches #:key pattern got name)
+  "Assert that string @var{got} does not match regular expression @var{pattern}.
+
+Inverse of @code{assert-matches}."
+  (let ((rx (if (regexp? pattern) pattern (make-regexp pattern))))
+    (assert #:expect rx #:got got
+            #:compare (lambda (regexp value)
+                        (not (and (string? value)
+                                  (regexp-exec regexp value))))
+            #:name name)))
+
+(define* (assert-raises thunk
+                        #:key (on #t) predicate name)
+  "Assert that calling @var{thunk} raises an error.
+
+By default any error satisfies the assertion.  Pass @var{on} to require a
+specific error key (for example @code{'wrong-type-arg}), or @var{predicate},
+a procedure of @code{(key args)} returning @code{#t} for the expected error.
+
+@example
+(assert-raises (lambda () (/ 1 0)))
+(assert-raises (lambda () (+ 1 'a)) #:on 'wrong-type-arg)
+@end example"
+  (lambda (vc)
+    (when name
+      (log-assert vc name))
+    (let* ((raised?
+            (catch #t
+                   (lambda ()
+                     (apply thunk
+                            '())
+                     #f)
+                   (lambda (key . args)
+                     (cond
+                       ;; An explicit predicate is authoritative: when supplied
+                       ;; it alone decides whether the error is expected.  It
+                       ;; must be checked before the default `on' of #t,
+                       ;; otherwise any error would satisfy the assertion and
+                       ;; the predicate would never be able to reject one.
+                       (predicate
+                        (and (predicate key args)
+                             #t))
+                       ((eq? on #t)
+                        #t)
+                       (else (and (equal? key on)
+                                  #t)))))))
+      (if raised?
+          (begin
+            (log-pass vc "raised an error as expected")
+            `((assertion-successful unquote #t)
+              (assertion-name unquote name)))
+          (begin
+            (log-fail vc "did not raise an expected error")
+            `((assertion-successful unquote #f)
+              (assertion-name unquote name)))))))
+
+(define* (assert-empty #:key got name)
+  "Assert that @var{got} is an empty list, vector or string."
+  (assert #:expect #t #:got got
+          #:compare (lambda (_ value) (empty-value? value))
+          #:name name))
+
+(define* (assert-not-empty #:key got name)
+  "Assert that @var{got} is a non-empty list, vector or string."
+  (assert #:expect #t #:got got
+          #:compare (lambda (_ value)
+                      (and (length-of value)
+                           (positive? (length-of value))))
+          #:name name))
+
+(define* (assert-length #:key expect got name)
+  "Assert that @var{got} has @var{expect} elements (list, vector or string length)."
+  (assert #:expect expect #:got got
+          #:compare (lambda (n value)
+                      (let ((len (length-of value)))
+                        (and len
+                             (= n len))))
+          #:name name))
+
+(define* (assert-in-range #:key min max got name)
+  "Assert that @var{got} is within the inclusive range @var{min}--@var{max}."
+  (assert #:expect (cons min max) #:got got
+          #:compare (lambda (range value)
+                      (and (>= value (car range))
+                           (<= value (cdr range))))
+          #:name name))
+
+(define* (assert-one-of #:key expect got name)
+  "Assert that @var{got} is @code{equal?} to one of the elements of list @var{expect}."
+  (assert #:expect expect #:got got
+          #:compare (lambda (choices value)
+                      (and (member value choices)
+                           #t))
+          #:name name))

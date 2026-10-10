@@ -32,6 +32,7 @@
                                 generate-symbol
                                 generate-string
                                 assert-equal
+                                assert-eq
                                 assert-eqv
                                 assert-true
                                 assert-false
@@ -42,6 +43,16 @@
                                 assert-not-eq
                                 assert-not-eqv
                                 assert-not-equal
+                                assert-contains
+                                assert-not-contains
+                                assert-matches
+                                assert-not-matches
+                                assert-raises
+                                assert-empty
+                                assert-not-empty
+                                assert-length
+                                assert-in-range
+                                assert-one-of
                                 is-approximate?
                                 evaluate-thunks-concurrently
                                 collect-assertion-successful
@@ -57,11 +68,26 @@
   (make-parameter (getenv-or 'VERITAS_ONLY_SUITE
                              #:default #f)))
 
+(define veritas-only-tag
+  (make-parameter (getenv-or 'VERITAS_ONLY_TAG
+                             #:default #f)))
+
 (define veritas-run-benchmarks?
   (make-parameter (let ((should-run (getenv-or 'VERITAS_RUN_BENCHMARKS
                                                #:default "true")))
                     (or (equal? "true" should-run)
                         (equal? "1" should-run)))))
+
+(define* (tag-matches? #:key tags restriction)
+  "Return @code{#t} when @var{tags} satisfies the tag @var{restriction}.
+
+When @var{restriction} is @code{#f} every set of tags is accepted.  Otherwise
+the test runs when any tag contains @var{restriction} (case-insensitively)."
+  (or (not restriction)
+      (any (lambda (tag)
+             (string-contains (string-downcase (format #f "~a" tag))
+                              (string-downcase restriction)))
+           tags)))
 
 (define* (do-if-string-contained #:key name restriction result)
   "Execute filtering on @var{name} against an execution substring @var{restriction}.
@@ -110,6 +136,7 @@ flat list containing purely test-case execution lambda functions.
                #:key (debug? #f)
                (shuffle? #t)
                (skip? #f)
+               (tags '())
                (before #f)
                (after #f)
                #:rest cases)
@@ -179,9 +206,11 @@ captured, and returned inside an encapsulated @code{pre-test-result} data struct
 
                    (make-pre-test-result name test-results)))))
     (if skip? #f
-        (do-if-string-contained #:name name
-                                #:restriction (veritas-only-test)
-                                #:result func))))
+        (if (not (tag-matches? #:tags tags #:restriction (veritas-only-tag)))
+            #f
+            (do-if-string-contained #:name name
+                                    #:restriction (veritas-only-test)
+                                    #:result func)))))
 
 (define (get-tests-for-suite xs)
   "Parse trailing list elements @var{xs} to separate executable child components for suites.
@@ -209,6 +238,7 @@ containing purely runnable internal @code{test} or macro-generated lambda defini
                 #:key (debug? #f)
                 (shuffle? #t)
                 (skip? #f)
+                (tags '())
                 (concurrent? #t)
                 (before-all #f)
                 (after-all #f)
@@ -275,9 +305,11 @@ Captures and isolation-binds all textual test output streams inside a single con
                      (write final-suite-data)
                      (newline)) final-suite-data))))
     (if skip? #f
-        (do-if-string-contained #:name name
-                                #:restriction (veritas-only-suite)
-                                #:result func))))
+        (if (not (tag-matches? #:tags tags #:restriction (veritas-only-tag)))
+            #f
+            (do-if-string-contained #:name name
+                                    #:restriction (veritas-only-suite)
+                                    #:result func)))))
 
 (define* (benchmark #:key (skip? #f) name runs thunk)
   "Register a micro-benchmarking task block to assess execution latency characteristics.
@@ -306,8 +338,23 @@ Utilizes Guile's native statistical profiler engine (@code{statprof}) to capture
                                                  `((run-index unquote i)
                                                    (run-details unquote sp))))
                                              (iota runs))))))
+    ;; Tag the closure so the runner can recognize benchmarks and execute
+    ;; them outside of the concurrent fiber scheduler.  Guile's `statprof'
+    ;; relies on a process-global SIGPROF handler, so benchmarking while
+    ;; other tasks run concurrently corrupts its profiler state and yields
+    ;; broken results.
     (if skip? #f
-        (if (veritas-run-benchmarks?) func #f))))
+        (if (veritas-run-benchmarks?)
+            (begin
+              (set-procedure-property! func 'veritas-task-type 'benchmark)
+              func)
+            #f))))
+
+(define (benchmark-task? proc)
+  "Return @code{#t} when @var{proc} is a task built by @code{benchmark}."
+  (and (procedure? proc)
+       (eq? 'benchmark
+            (procedure-property proc 'veritas-task-type))))
 
 (define (%make-reporter dsl-input)
   "Internal configuration resolution rule to identify and map reporter interfaces.
@@ -346,23 +393,31 @@ sequential flat list containing purely ready-to-run thunk closures."
                     (set-suite-result-output! result task-output))
                    (else '())) result)))) ordered-tasks)))
 
-(define (%execute-tasks task-thunks concurrent?)
-  "Execute a suite of compiled @var{task-thunks} with explicit VM orchestration.
+(define (%execute-tasks regular-thunks benchmark-thunks concurrent?)
+  "Execute compiled @var{regular-thunks} and @var{benchmark-thunks} with explicit VM orchestration.
 
-Respects the @var{concurrent?} block flags by spreading
+Regular test/suite @var{regular-thunks} respect @var{concurrent?} by spreading
 evaluations over Fibers setups or running single-threaded execution stacks.
 
-Returns two distinct values via a standard multi-value return structure:
-@enumerate
-@item The caught VM code coverage information matrix record (or @code{#f})
-@item The aggregated raw execution results collection
-@end enumerate"
-  (if concurrent?
-      (evaluate-thunks-concurrently task-thunks)
-      (evaluate-thunks task-thunks)))
+Benchmark thunks, however, are *always* run sequentially: Guile's @code{statprof}
+uses a process-global @code{SIGPROF} handler, so benchmarking concurrently with
+other tasks corrupts the profiler state and produces spurious failures.  Running
+them serially also keeps benchmark timings meaningful (no CPU contention from
+sibling fibers).
+
+Returns the aggregated raw execution results collection."
+  (append (if concurrent?
+              (evaluate-thunks-concurrently regular-thunks)
+              (evaluate-thunks regular-thunks))
+          (evaluate-thunks benchmark-thunks)))
 
 (define (%extract-test-results all-results)
-  "Recursively normalize mixed-type results arrays into sequential flat test sheets."
+  "Recursively normalize mixed-type results arrays into sequential flat test sheets.
+
+A thunk running inside a fiber may fail; @code{evaluate-thunks-concurrently}
+captures the exception and reports it as a string.  Instead of aborting with a
+confusing @code{Unknown evaluation structure} error, such entries are surfaced as
+failed assertions so the run reports the real failure and exits non-zero."
   (map (lambda (sr)
          (cond
            ((suite-result? sr)
@@ -371,8 +426,16 @@ Returns two distinct values via a standard multi-value return structure:
             sr)
            ((benchmark-result? sr)
             '())
-           (else (error (format #f "Unknown evaluation structure parsed: ~a"
-                                sr))))) all-results))
+           ((string? sr)
+            (make-assertion-result 0 ""
+                                   (format #f "task raised an error: ~a" sr)
+                                   #f))
+           (else (make-assertion-result 0 ""
+                                        (format #f
+                                                "Unknown evaluation structure parsed: ~a"
+                                                sr)
+                                        #f))))
+       all-results))
 
 (define (%write-coverage-report coverage-data vc)
   "Write internal compiled VM @var{coverage-data} records safely into an LCOV trace file."
@@ -431,7 +494,15 @@ Evaluates positional task variables sequentially or concurrently, providing orch
   (let* ((start-time (gettimeofday))
          (made-reporter (%make-reporter reporter))
          (vc (list (cons 'reporter made-reporter)))
-         (task-thunks (%prepare-task-thunks tasks shuffle? vc)))
+         (valid-tasks (filter procedure? tasks))
+         ;; Benchmarks are kept apart from regular tasks so they can be run
+         ;; sequentially (see %execute-tasks).
+         (benchmark-tasks (filter benchmark-task? valid-tasks))
+         (regular-tasks (remove benchmark-task? valid-tasks))
+         (regular-thunks (%prepare-task-thunks regular-tasks shuffle? vc))
+         (benchmark-thunks (%prepare-task-thunks benchmark-tasks shuffle? vc))
+         (task-count (+ (length regular-thunks)
+                        (length benchmark-thunks))))
     (catch #t
            (lambda ()
              (mkdir "reports")
@@ -441,17 +512,20 @@ Evaluates positional task variables sequentially or concurrently, providing orch
     (call-with-values (lambda ()
                         (if with-coverage?
                             (with-code-coverage (lambda ()
-                                                  (%execute-tasks task-thunks
+                                                  (%execute-tasks regular-thunks
+                                                                  benchmark-thunks
                                                                   concurrent?)))
                             ;; Force a two-value return matching the signature
                             (values #f
-                                    (%execute-tasks task-thunks concurrent?))))
+                                    (%execute-tasks regular-thunks
+                                                    benchmark-thunks
+                                                    concurrent?))))
                       (lambda (coverage-data all-results)
                         (when (and with-coverage? coverage-data)
                           (%write-coverage-report coverage-data vc))
 
                         (%process-execution-lifecycle vc all-results
-                                                      (length task-thunks)
+                                                      task-count
                                                       start-time debug?)
 
                         all-results))))

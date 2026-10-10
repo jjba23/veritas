@@ -135,7 +135,7 @@ Tests are defined in plain Scheme code (Guile), allowing powerful abstractions, 
 The hierarchy is defined as follows:
 - In your test file, define a no-argument function called ~spec~ which is the entry-point, and should contain your veritas-run and test statements and ensure that  ~spec~ it's exported/public. This is useful for when you use the built-in veritas test runner. Otherwise feel free to do this differently.
 - ~veritas-run~ takes an arbitrary (variadic) amount of ~suite~ items, ~test~ items or ~benchmark~ items.
-- ~suite~ takes a variadic amount of ~test~ items.
+- ~suite~ takes a variadic amount of ~test~ items, and may itself contain other suites. Suites and tests can therefore be nested to any depth; see the ~nesting~ unit tests for a five-level example.
 - ~test~ takes a variadic amount of assertions (~assert-equal~, ~assert-error~,  ~assert-true~, etc.)
 - ~benchmark~ takes a ~name~, a number of ~runs~ and a ~thunk~ to be measured. This is currently done by using ~statprof~.
 
@@ -156,6 +156,109 @@ Refer to the Makefile to understand how to run this project and more.
 [[https://jointhefreeworld.org/static-assets/veritas/vino-veritas-small.png]]
 
 --------------------
+
+* Assertions and matchers
+
+/PROBATIO ET REFUTATIO/ - proof and disproof
+
+Assertions are the atoms of a Veritas run: each one returns a check that is evaluated during the test and reported as a pass or a fail. Give an assertion a ~#:name~ to make the report readable.
+
+Core equality and boolean assertions:
+
+#+begin_src scheme
+(assert-equal #:expect 3 #:got (+ 1 2) #:name "1 + 2 is 3")
+(assert-eq #:expect 'foo #:got 'foo)          ;; identity, eq?
+(assert-eqv #:expect 42 #:got (+ 40 2))       ;; value, eqv?
+(assert-not-equal #:expect '(1 2 3) #:got '(1 2 4))
+(assert-not-eq #:expect (list 1) #:got (list 1))
+(assert-not-eqv #:expect 1 #:got 2)
+(assert-true (> 5 2) #:name "5 beats 2")
+(assert-false (string=? "guile" "GUILE"))
+#+end_src
+
+Approximate (floating point) comparisons take an optional ~#:epsilon~:
+
+#+begin_src scheme
+(is-approximate? 3.14159 3.14160 #:epsilon 0.0001) ;; => #t
+(assert-approximate #:expect 3.14 #:got 3.141 #:epsilon 0.01)
+(assert-not-approximate #:expect 3.14 #:got 3.5 #:epsilon 0.01)
+#+end_src
+
+Any ~#:got~ value may be delayed and evaluated at test time by quoting it and wrapping the computation in ~comp~ (aliases: ~compute~, ~computare~):
+
+#+begin_src scheme
+(assert-equal #:expect 144
+              #:got `(comp (begin
+                             ;; evaluated by Veritas when the test runs
+                             (let ((x 12)) (* x x))))
+              #:name "Complex computation inside an assertion")
+#+end_src
+
+Error handling is first-class:
+
+#+begin_src scheme
+;; passes when the thunk raises an error, fails otherwise
+(assert-error (lambda () (/ 1 0)))
+;; passes when the thunk does not raise
+(assert-no-error (lambda () (+ 1 2)))
+;; assert-error with expected-error matching
+(assert-raises (lambda () (/ 1 0)))
+(assert-raises (lambda () (+ 1 'a)) #:on 'wrong-type-arg)
+(assert-raises (lambda () (error "boom"))
+               #:predicate (lambda (key args) (equal? key 'misc-error)))
+#+end_src
+
+Veritas also ships higher-level *matchers* in the spirit of RSpec, Jest's ~expect~ and AssertJ. They are ordinary assertions, so reporting stays uniform:
+
+#+begin_src scheme
+;; containment: substring for strings, membership for lists and vectors,
+;; key membership for hash tables
+(assert-contains #:expect '(1 2 3) #:got 2)
+(assert-contains #:expect "hello world" #:got "world")
+(assert-contains #:expect #(1 2 3) #:got 2)
+(assert-not-contains #:expect '(1 2) #:got 9)
+
+;; regular expressions (pattern is a string or a compiled regexp)
+(assert-matches #:pattern "^[a-z]+@[a-z]+$" #:got "user@host")
+(assert-not-matches #:pattern "^x" #:got "hello")
+
+;; emptiness, length and membership
+(assert-empty #:got '())
+(assert-empty #:got "")
+(assert-not-empty #:got '(1 2 3))
+(assert-length #:expect 3 #:got '(1 2 3))
+(assert-length #:expect 5 #:got "hello")
+(assert-one-of #:expect '(red green blue) #:got 'green)
+
+;; inclusive ranges
+(assert-in-range #:min 1 #:max 10 #:got 5)
+#+end_src
+
+The whole family is re-exported by ~(veritas veritas)~, so no extra import is needed. See ~test/veritas/unit/matchers.scm~ for every matcher exercised against both passing and failing inputs.
+
+*IMPORTANT:* ~test~ collects its *procedure-valued arguments* as the assertion cases, so every assertion must be passed to ~test~ directly (or built with ~apply~). Assertions nested inside a ~let~, ~for-each~, ~call-with-values~ or any other expression are created but never collected, so they silently do not run:
+
+#+begin_src scheme
+;; WRONG: only the last assertion is collected, the first is dropped
+(test "wrapped assertions are dropped"
+      (let ((xs '(1 2 3)))
+        (assert-equal #:expect 3 #:got (length xs))
+        (assert-true (pair? xs))))
+
+;; RIGHT: every assertion is a direct argument of `test'
+(test "direct assertions all run"
+      (assert-equal #:expect 3 #:got (length '(1 2 3)))
+      (assert-true (pair? '(1 2 3))))
+
+;; RIGHT: build the assertions programmatically, then apply them
+(apply test "one assertion per case"
+       (map (lambda (n)
+              (assert-equal #:expect n #:got (+ 1 (- n 1))))
+            '(1 2 3)))
+#+end_src
+
+
+------------------------
 
 * Data driven testing
 
@@ -188,6 +291,118 @@ This is made easy thanks to Lisp, with higher order functions, quasi-quoting and
                        (error warn #t)
                        (error error #t))))))
 #+end_src
+
+
+Veritas also ships a dedicated, declarative *table* API in ~(veritas table)~. ~test-each~ expands a list of cases into one test per case, so a failure points at the exact input. ~suite-each~ does the same at the suite level (each case becomes its own nested suite), and ~cases->table~ indexes a case list by a key for named columns.
+
+#+begin_src scheme
+(use-modules (veritas table))
+
+(define addition-suite
+  (test-each "integer addition"
+             '((0 0 0) (1 2 3) (10 20 30) (-1 1 0))
+             (lambda (case)
+               (let ((a (list-ref case 0))
+                     (b (list-ref case 1))
+                     (expected (list-ref case 2)))
+                 (test (format #f "~a + ~a = ~a" a b expected)
+                       (assert-equal #:expect expected #:got (+ a b)))))))
+
+;; each case becomes its own nested suite
+(define emptiness-suite
+  (suite-each "collection emptiness"
+              '(("" #t) ("x" #f))
+              (lambda (case)
+                (let ((s (list-ref case 0))
+                      (expected (list-ref case 1)))
+                  (suite (format #f "string ~s" s)
+                         (test "emptiness matches"
+                               (assert-equal #:expect expected
+                                             #:got (string=? s ""))))))))
+
+;; name the columns of a table explicitly
+(cases->table '((:a 1) (:b 2)) car) ;; => ((:a :a 1) (:b :b 2))
+#+end_src
+
+Every generated case is an ordinary test or suite, so it is shuffled and reported like any other. Use ~#:shuffle?~ (default ~#t~) and ~#:concurrent?~ (default ~#f~) to control order and concurrency.
+
+
+* Behaviour-driven testing
+
+/MORES ET SPECIES/ - habits and appearances
+
+For Given/When/Then scenarios in the spirit of Cucumber / Gherkin, Veritas ships a small BDD layer in ~(veritas bdd)~. A scenario is just a suite whose steps are ordinary tests, so every reporter, filter and runner feature keeps working.
+
+#+begin_src scheme
+(use-modules (veritas bdd))
+
+(define greeting-scenario
+  (scenario "greeting a user by name"
+    (given "a user named Ada"                    ;; Given
+      (assert-equal #:expect "Ada" #:got (user-name ada)))
+    (when-step "the user is greeted"             ;; When
+      (assert-equal #:expect "Hello, Ada!" #:got (greet ada)))
+    (then "the greeting is personalised"         ;; Then
+      (assert-true (string-prefix? "Hello" (greet ada))))
+    (and-step "the name is included"             ;; And
+      (assert-contains #:expect (greet ada) #:got "Ada"))
+    (but-step "no title is used"                 ;; But
+      (assert-not-matches #:pattern "^Hello, (Mr|Ms)" #:got (greet ada)))))
+#+end_src
+
+Steps run in declaration order: scenarios disable shuffling and concurrency by default, so a ~Given~ always precedes its ~When~ and ~Then~. Scenarios accept the same lifecycle keywords as ~suite~ (~#:before-all~, ~#:after-all~, ~#:skip?~, ~#:concurrent?~).
+
+The scenario keyword is also available as ~feature~, ~story~, ~fabula~ and ~scaena~, and every step has a Latin alias: ~dato~ (~given~), ~quando~ (~when-step~), ~tunc~ (~then~), ~etiam~ (~and-step~) and ~sed~ (~but-step~). The When step is called ~when-step~ because Guile's core ~when~ is syntax and importing a conflicting binding would break ~(when ...)~ for the whole module. The Latin ~quando~ is unshadowed and reads naturally:
+
+#+begin_src scheme
+(define latin-scenario
+  (fabula "a scenario written in latin"
+    (dato "a list of two numbers"
+      (assert-equal #:expect 2 #:got (length '(10 20))))
+    (quando "the numbers are summed"
+      (assert-equal #:expect 30 #:got (+ 10 20)))
+    (tunc "the total is thirty"
+      (assert-equal #:expect 30 #:got (+ 10 20)))))
+#+end_src
+
+*Note:* passing several steps through a ~let~ closure as a single expression does not work the way it reads in Scheme, because a ~let~ body evaluates to a single value and only the last step would survive. Share setup through module-level bindings, ~#:before-all~, or the lazy ~comp~ form instead.
+
+
+----------------
+
+* Container testing
+
+/MACHINA PROBANDA/ - the machine to be tested
+
+The ~(veritas container)~ module provides Docker/Podman helpers for integration and black box testing, following the well known container-test pattern: start a container, wait until it is ready, exercise it, then clean it up. The runtime is auto-detected (Podman first, then Docker) and can be forced with ~VERITAS_CONTAINER_RUNTIME~. Everything shells out to the runtime CLI, so no daemon bindings are required.
+
+#+begin_src scheme
+(use-modules (veritas veritas))   ;; assertions
+(use-modules (veritas container))
+
+(with-container
+  (lambda (c)
+    (assert-true (container-running? c))
+    (assert-matches #:pattern "ready"
+                    #:got (container-exec c '("cat" "/tmp/ready")))
+    (assert-equal #:expect "exec-ok"
+                  #:got (container-exec c '("echo" "exec-ok"))))
+  #:image "alpine"
+  #:command '("sh" "-c" "touch /tmp/ready && sleep 600")
+  #:wait (lambda (c)
+           (container-wait-for-command c '("test" "-f" "/tmp/ready")
+                                       #:timeout 10)))
+#+end_src
+
+~with-container~ always cleans up after the thunk; pass ~#:keep? #t~ to leave the container running for debugging. Behind it you get the building blocks:
+
+- ~container-run~, ~container-build~, ~container-exec~, ~container-exec-status~
+- ~container-stop~, ~container-remove~, ~container-logs~, ~container-running?~
+- readiness helpers ~container-wait-for-log~, ~container-wait-for-command~ and ~container-wait-for-port~, all built on ~wait-until~
+- ~assert-container-running~, which checks at run time (not when the assertion is constructed)
+- ~run-command~ / ~run-command!~ to shell out to any process without a shell
+
+Containers are started with ~#:env~, ~#:ports~, ~#:volumes~ and ~#:extra-args~, so images can be wired up like ~docker run~. The ~container~ unit tests drive the whole module against a fake runtime, so they pass without any daemon.
 
 
 --------------
@@ -270,6 +485,10 @@ Some functionalities, including the runner, are configured via environment varia
 
 - ~VERITAS_ONLY_SUITE~ is an optional variable you can pass to limit the execution to suites whose name partially matches this variable.
 
+- ~VERITAS_ONLY_TAG~ is an optional variable you can pass to run only tests and suites carrying a matching tag (case-insensitive). Tags are declared with the ~#:tags~ keyword on ~test~ and ~suite~, for example ~(test "slow check" #:tags '(slow integration) ...)~.
+
+- ~VERITAS_CONTAINER_RUNTIME~ is an optional variable that forces the executable used by the container helpers (for example ~podman~ or ~docker~). When unset, Podman is preferred and Docker is used as a fallback.
+
 - ~VERITAS_REPORTER~ is an optional variable, interpreted as symbol in Lisp, by default ~emoji-reporter~, other choices are ~monotone-reporter~
 
 
@@ -296,6 +515,82 @@ VERITAS_TEST_TYPE=unit \
 		-L ./test \
 		-c '((@ (veritas runner) run-tests))'
 #+end_src
+
+
+------------------------
+
+* Command Line Interface
+
+/PROGRAMMA AD PEDEM/ - /a program at your fingertips/
+
+Typing Guile invocations by hand is fine, but Veritas also ships a CLI that
+turns the environment variables above into regular command line flags. Every
+flag maps to exactly one ~VERITAS_*~ variable, so a CLI run and an environment
+run produce the same, reproducible configuration.
+
+#+begin_src shell
+# Show the help page
+guix shell -m manifest.scm -- ./bin/veritas --help
+
+# Run the unit tests with the project defaults
+guix shell -m manifest.scm -- ./bin/veritas
+
+# Integration suite, skip benchmarks, keep the discovered file order
+guix shell -m manifest.scm -- ./bin/veritas --test-type integration \
+    --no-benchmarks --no-shuffle
+
+# Only run suites whose name mentions "auth", using the plain reporter
+guix shell -m manifest.scm -- ./bin/veritas --only-suite auth \
+    --reporter monotone-reporter
+#+end_src
+
+The CLI adds ~SCAN_DIR/TEST_TOP_DIR~ (by default ~./test~) to Guile's load
+path automatically, so no ~-L ./test~ is needed.
+
+** Options
+
+- ~-d, --scan-dir DIR~ maps to ~VERITAS_SCAN_DIR~
+- ~-T, --test-top-dir DIR~ maps to ~VERITAS_TEST_TOP_DIR~
+- ~-t, --test-type TYPE~ maps to ~VERITAS_TEST_TYPE~
+- ~-e, --entrypoint NAME~ maps to ~VERITAS_ENTRYPOINT~
+- ~-m, --test-module NAME~ maps to ~VERITAS_TEST_MODULE~
+- ~-r, --reporter NAME~ maps to ~VERITAS_REPORTER~
+- ~--only-test SUBSTR~ maps to ~VERITAS_ONLY_TEST~
+- ~--only-suite SUBSTR~ maps to ~VERITAS_ONLY_SUITE~
+- ~-s, --shuffle~ / ~--no-shuffle~ map to ~VERITAS_SHUFFLE_FILES~
+- ~-b, --benchmarks~ / ~--no-benchmarks~ map to ~VERITAS_RUN_BENCHMARKS~
+- ~-h, --help~ prints the help page
+- ~-V, --version~ prints version information
+
+Benchmarks are always executed sequentially by the runner: the statistical
+profiler is process-global, so profiling while other tasks run concurrently
+would corrupt measurements and results. Tests and suites keep running
+concurrently.
+
+** Man page
+
+The full reference is available as a man page at ~man/veritas.1~:
+
+#+begin_src shell
+man ./man/veritas.1
+#+end_src
+
+** Interactive use
+
+The CLI is also usable from a Guile REPL:
+
+#+begin_src scheme
+(use-modules (veritas cli))
+
+;; print the help page
+(show-help)
+
+;; run with argparse-like flags
+(run-cli '("--test-type" "unit" "--no-benchmarks"))
+#+end_src
+
+To run with the current environment without parsing a command line, call the
+runner directly, as shown in the Runner section above.
 
 
 ------------------------

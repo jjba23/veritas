@@ -149,6 +149,12 @@ Dispatches recursive tree matching across structural listings by comparing eleme
 Returns a multi-dimensional nested string list structure grouping eligible test module file locations."
   (let* ((discovery-targets (list scan-dir test-top-dir test-module)))
     (cond
+      ;; An exhausted branch must be treated as empty, otherwise (car dir) is
+      ;; called on '() - which happens whenever a leaf shares a name with one
+      ;; of the discovery targets (for example a file named after the test
+      ;; module).
+      ((null? dir)
+       '())
       ((and (list? dir)
             (member (car dir) discovery-targets))
        (discover-tests #:test-type test-type

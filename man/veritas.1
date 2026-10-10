@@ -1,0 +1,219 @@
+.\" veritas - test runner for the Veritas framework
+.\" Copyright (C) Josep Bigorra <jjbigorra@gmail.com>
+.\"
+.\" This documentation is free documentation: you can redistribute it and/or
+.\" modify it under the terms of the GNU Free Documentation License, version
+.\" 1.3 or (at your option) any later version.
+.TH VERITAS 1 "2026" "veritas 0.1.0" "User Commands"
+.SH NAME
+veritas \- discover and run Veritas test suites, tests and benchmarks
+.SH SYNOPSIS
+.B veritas
+.RI [ OPTIONS ]
+.SH DESCRIPTION
+.B veritas
+is the command line interface of the Veritas unit, integration and black box
+testing framework for GNU Guile.
+.PP
+It walks a project looking for test files, loads each file's entry point and
+runs it.  By default the entry point is a no-argument function called
+.BR spec ,
+files are looked up under
+.B ./test
+and test modules are expected to be named
+.BR "(veritas unit ...)" .
+.PP
+Every option is a thin syntactic sugar over a
+.B VERITAS_*
+environment variable.  The command line therefore produces exactly the same
+configuration as setting the environment by hand, which keeps local runs,
+CI pipelines and programmatic runs reproducible and in sync.
+.SH OPTIONS
+.TP
+.BR \-d ", " \-\-scan\-dir " " DIR
+Root directory scanned for tests
+.RB ( VERITAS_SCAN_DIR ,
+default
+.BR ./ ).
+.TP
+.BR \-T ", " \-\-test\-top\-dir " " DIR
+Directory holding the test hierarchy
+.RB ( VERITAS_TEST_TOP_DIR ,
+default
+.BR test ).
+.TP
+.BR \-t ", " \-\-test\-type " " TYPE
+Test category and sub-directory to load
+.RB ( VERITAS_TEST_TYPE ,
+default
+.BR unit ).
+.TP
+.BR \-e ", " \-\-entrypoint " " NAME
+No-argument function called inside every test file
+.RB ( VERITAS_ENTRYPOINT ,
+default
+.BR spec ).
+.TP
+.BR \-m ", " \-\-test\-module " " NAME
+Top level module prefix of the tests
+.RB ( VERITAS_TEST_MODULE ,
+default
+.BR veritas ).
+.TP
+.BR \-r ", " \-\-reporter " " NAME
+Reporter to use
+.RB ( VERITAS_REPORTER ,
+default
+.BR emoji-reporter ).
+Other built-in choices include
+.B monotone-reporter
+and
+.BR json-reporter .
+.TP
+.B \-\-only\-test " " SUBSTR
+Only run tests whose name contains
+.IR SUBSTR
+.RB ( VERITAS_ONLY_TEST ).
+.TP
+.B \-\-only\-suite " " SUBSTR
+Only run suites whose name contains
+.IR SUBSTR
+.RB ( VERITAS_ONLY_SUITE ).
+.TP
+.BR \-s ", " \-\-shuffle
+Shuffle the order of discovered files (default;
+.BR VERITAS_SHUFFLE_FILES=true ).
+.TP
+.B \-\-no\-shuffle
+Keep the discovered file order
+.RB ( VERITAS_SHUFFLE_FILES=false ).
+.TP
+.BR \-b ", " \-\-benchmarks
+Run benchmarks (default;
+.BR VERITAS_RUN_BENCHMARKS=true ).
+Benchmarks always run sequentially so that the profiler produces sound
+measurements.
+.TP
+.B \-\-no\-benchmarks
+Skip benchmarks
+.RB ( VERITAS_RUN_BENCHMARKS=false ).
+.TP
+.BR \-h ", " \-\-help
+Display a help page and exit.
+.TP
+.BR \-V ", " \-\-version
+Display version information and exit.
+.SH ENVIRONMENT
+.TP
+.B VERITAS_ENTRYPOINT
+Entry point function name.  Defaults to
+.BR spec .
+.TP
+.B VERITAS_SCAN_DIR
+Directory to scan for tests.  Defaults to
+.BR ./ .
+.TP
+.B VERITAS_TEST_TYPE
+Test type directory.  Defaults to
+.BR unit .
+.TP
+.B VERITAS_TEST_TOP_DIR
+Test hierarchy root.  Defaults to
+.BR test .
+.TP
+.B VERITAS_TEST_MODULE
+Module prefix of the test suites.  Defaults to
+.BR veritas .
+.TP
+.B VERITAS_SHUFFLE_FILES
+Either
+.B true
+or
+.BR false .
+Defaults to
+.BR true .
+.TP
+.B VERITAS_RUN_BENCHMARKS
+Either
+.B true
+or
+.BR false .
+Defaults to
+.BR true .
+.TP
+.B VERITAS_ONLY_TEST
+Optional substring filter on test names.
+.TP
+.B VERITAS_ONLY_SUITE
+Optional substring filter on suite names.
+.TP
+.B VERITAS_REPORTER
+Reporter symbol.  Defaults to
+.BR emoji-reporter .
+.SH EXIT STATUS
+.TP
+.B 0
+All selected tests and benchmarks finished successfully.
+.TP
+.B 1
+A test failed, an option was invalid, or an error occurred while loading or
+running the tests.
+.SH EXAMPLES
+Run the unit tests with the project defaults:
+.PP
+.RS 4
+.EX
+veritas
+.EE
+.RE
+.PP
+Run the integration suite, without benchmarks, keeping file order:
+.PP
+.RS 4
+.EX
+veritas \-t integration \-\-no\-benchmarks \-\-no\-shuffle
+.EE
+.RE
+.PP
+Use the plain reporter and only run suites mentioning
+.BR auth :
+.PP
+.RS 4
+.EX
+veritas \-r monotone\-reporter \-\-only\-suite auth
+.EE
+.RE
+.PP
+Inside a Guix development shell:
+.PP
+.RS 4
+.EX
+guix shell \-m manifest.scm \-\- ./bin/veritas \-h
+.EE
+.RE
+.SH INTERACTIVE USE
+The same runner is available from a Guile REPL.  Load the CLI module to
+inspect or reuse its configuration:
+.PP
+.RS 4
+.EX
+(use\-modules (veritas cli))
+(show\-help)
+(run\-cli '("--test\-type" "unit"))
+.EE
+.RE
+.PP
+To run with the current environment without parsing a command line, call the
+runner directly:
+.PP
+.RS 4
+.EX
+((@ (veritas runner) run\-tests))
+.EE
+.RE
+.SH SEE ALSO
+The project README and the technical API documentation.
+.SH LICENSE
+Veritas is licensed under the GNU Lesser General Public License, version 3 or
+later.  This manual page is licensed under the GNU Free Documentation License,
+version 1.3 or later.

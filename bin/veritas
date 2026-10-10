@@ -1,0 +1,16 @@
+#!/bin/sh
+# veritas - test runner CLI for the Veritas framework.
+#
+# This is a thin launcher around (veritas cli).  Run it from a shell that has
+# the Veritas dependencies available, for example:
+#
+#   guix shell -m manifest.scm -- ./bin/veritas --help
+#
+# The "--" separator keeps Guile from interpreting flags such as -h itself;
+# the CLI drops that marker before parsing.
+
+here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+
+exec guile -L "$here/../src" \
+     -c '((@ (veritas cli) main) (cdr (command-line)))' \
+     -- "$@"

@@ -136,12 +136,21 @@ Raises an error if an unknown object structure is encountered."
           (pre-test-result-results xs)))
     ((test-result? xs)
      (collect-assertion-successful* (test-result-results xs)))
+    ;; Suites can be nested (for example via suite-each or a suite holding
+    ;; child suites), so recurse into their test results.
+    ((suite-result? xs)
+     (map collect-assertion-successful*
+          (suite-result-test-results xs)))
     ((benchmark-result? xs)
      '())
     ((list? xs)
      (map collect-assertion-successful xs))
     ((equal? #t xs)
      '())
+    ;; A fiber may have failed and reported its exception as a string; treat
+    ;; that as a failed assertion rather than aborting the whole run.
+    ((string? xs)
+     #f)
     (else (error (format #f
                   "could not read assertion success from unknown type: ~a" xs)))))
 
@@ -174,15 +183,26 @@ are safely intercepted and logged to stdout without crashing the reporter framew
                        (format #t "could not display assertion: ~a: ~a" key
                                args)))) assertion-results))
 
-(define-syntax-rule (display-test-results test-results)
+(define (display-test-results test-results)
   "Display outputs and nested assertions for a list of @var{test-results}.
 
 Iterates through @var{test-results}. If an item is a valid test result, it prints the
 captured test output, and then processes its internal pre-test assertion data structures
-by forwarding them to @code{display-assertion-results}."
+by forwarding them to @code{display-assertion-results}. Nested suites (including a
+suite nested inside a suite, which arrives wrapped in a @code{test-result}) are
+recursed into so their tests are reported as well.
+
+This is a procedure, not a macro: the recursion happens while reporting at run
+time.  Expressing it as a macro would expand the recursive call again and again
+and never terminate, exhausting memory instead of printing the report."
   (for-each (lambda (x)
               (cond
                 ((unspecified? x)
+                 '())
+                ((suite-result? x)
+                 (begin
+                   (display (suite-result-output x))
+                   (display-test-results (suite-result-test-results x)))
                  '())
                 ((test-result? x)
                  (begin
@@ -191,13 +211,19 @@ by forwarding them to @code{display-assertion-results}."
                             (display (test-result-output x)))
                           (lambda (key . args)
                             (format #t "~a: ~a" key args)))
-                   (display-assertion-results (pre-test-result-results (test-result-results
-                                                                        x))))
+                   (let ((inner (test-result-results x)))
+                     (cond
+                       ((pre-test-result? inner)
+                        (display-assertion-results
+                         (pre-test-result-results inner)))
+                       ((suite-result? inner)
+                        (display (suite-result-output inner))
+                        (display-test-results (suite-result-test-results inner)))
+                       (else '()))))
                  '())
-
                 (else '()))) test-results))
 
-(define-syntax-rule (display-all-results vc all-results)
+(define (display-all-results vc all-results)
   "Print and log every test outcome inside @var{all-results} using reporter client @var{vc}.
 
 Iterates over the compilation of @var{all-results}. Evaluates types dynamically:
@@ -221,6 +247,11 @@ Throws an explicit error if an unrecognized result type is processed."
                    (display-assertion-results (pre-test-result-results x))))
                 ((benchmark-result? x)
                  (log-benchmark vc x))
+                ;; A fiber may report a captured exception as a string; surface
+                ;; it as an error instead of crashing the reporter.
+                ((string? x)
+                 (log-error vc
+                            (format #f "task raised an error: ~a" x)))
                 (else (error (format #f
                               "could not display result of unknown type: ~a" x)))))
             all-results))
