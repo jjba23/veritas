@@ -29,8 +29,7 @@
   #:use-module (ice-9 format)
   #:use-module (srfi srfi-1)
   #:use-module (veritas veritas)
-  #:export (test-each suite-each
-            cases->table))
+  #:export (test-each suite-each cases->table))
 
 (define (cases->table cases key)
   "Index @var{cases} by @var{key}, returning an alist of key to case list.
@@ -41,12 +40,14 @@ Useful to build readable tables with named columns.
 (cases->table '((:a 1) (:b 2)) car)
 @result{} ((:a (:a 1)) (:b (:b 2)))
 @end example"
-  (map (lambda (case)
-         (cons (key case) case))
-       cases))
+  (map (lambda (case )
+         (cons (key case) case)) cases))
 
-(define* (test-each group-name cases case->test
-                    #:key (shuffle? #t) (concurrent? #f))
+(define* (test-each group-name
+                    cases
+                    case->test
+                    #:key (shuffle? #t)
+                    (concurrent? #f))
   "Expand @var{cases} into a suite of tests named @var{group-name}.
 
 @var{case->test} is a procedure that receives one case and must return a
@@ -62,18 +63,23 @@ Useful to build readable tables with named columns.
                (test (format #f \"~a + ~a = ~a\" a b expected)
                  (assert-equal #:expect expected #:got (+ a b))))))
 @end example"
-  (apply suite group-name
+  (apply suite
+         group-name
          #:shuffle? shuffle?
          #:concurrent? concurrent?
          (map case->test cases)))
 
-(define* (suite-each group-name cases case->suite
-                     #:key (shuffle? #t) (concurrent? #f))
+(define* (suite-each group-name
+                     cases
+                     case->suite
+                     #:key (shuffle? #t)
+                     (concurrent? #f))
   "Expand @var{cases} into nested suites under @var{group-name}.
 
 Like @code{test-each} but @var{case->suite} returns a @code{suite} instead of
 a single test, which is handy for grouping several assertions per case."
-  (apply suite group-name
+  (apply suite
+         group-name
          #:shuffle? shuffle?
          #:concurrent? concurrent?
          (map case->suite cases)))

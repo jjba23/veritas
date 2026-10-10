@@ -28,6 +28,14 @@
 ;; to write robust tests that cover both expected outcomes and predictable
 ;; failures, thereby improving the reliability and quality of their Scheme code.
 ;;
+;; Every assertion also has a Latin alias, mirroring the Latin naming already
+;; used by the BDD helpers (dato, quando, tunc, ...): (proba ...) is (assert
+;; ...), aequalis is assert-equal, verus is assert-true, continet is
+;; assert-contains, and so on.  An alias is the exact same procedure object as
+;; its English name, so keyword arguments, semantics and reporting are
+;; identical.  The complete mapping is documented in the README and repeated in
+;; the alias block at the end of this file.
+;;
 ;;; Code:
 
 (define-module (veritas assert)
@@ -59,7 +67,32 @@
                          assert-not-empty
                          assert-length
                          assert-in-range
-                         assert-one-of))
+                         assert-one-of
+                         ;; Latin aliases, see the block at the end of this file
+                         proba
+                         aequalis
+                         idem
+                         aequivalens
+                         non-aequalis
+                         non-idem
+                         non-aequivalens
+                         verus
+                         falsus
+                         propinquus?
+                         propinquus
+                         non-propinquus
+                         errat
+                         non-errat
+                         suscitat
+                         continet
+                         non-continet
+                         congruit
+                         non-congruit
+                         inanis
+                         non-inanis
+                         longitudo
+                         intra
+                         unus-ex))
 
 (define* (assert #:key expect got compare name)
   "Returns a function taking a @acronym{VC, veritas-context}
@@ -487,14 +520,13 @@ Strings are searched for substrings, lists and vectors for an element
   (cond
     ((string? container)
      (and (string? needle)
-          (string-contains container needle)
-          #t))
+          (string-contains container needle) #t))
     ((list? container)
      (and (member needle container) #t))
     ((vector? container)
-     (and (any (lambda (x) (equal? x needle))
-               (vector->list container))
-          #t))
+     (and (any (lambda (x)
+                 (equal? x needle))
+               (vector->list container)) #t))
     ((hash-table? container)
      (and (hash-get-handle container needle) #t))
     (else #f)))
@@ -520,7 +552,8 @@ Works for strings (substring), lists and vectors (membership) and hash tables
 (assert-contains #:expect '(1 2 3) #:got 2)
 (assert-contains #:expect \"hello world\" #:got \"world\")
 @end example"
-  (assert #:expect expect #:got got
+  (assert #:expect expect
+          #:got got
           #:compare (lambda (container needle)
                       (contains-value? container needle))
           #:name name))
@@ -529,7 +562,8 @@ Works for strings (substring), lists and vectors (membership) and hash tables
   "Assert that the container @var{expect} does not contain @var{got}.
 
 Inverse of @code{assert-contains}."
-  (assert #:expect expect #:got got
+  (assert #:expect expect
+          #:got got
           #:compare (lambda (container needle)
                       (not (contains-value? container needle)))
           #:name name))
@@ -542,20 +576,23 @@ Inverse of @code{assert-contains}."
 @example
 (assert-matches #:pattern \"^[a-z]+@[a-z]+$\" #:got \"user@host\")
 @end example"
-  (let ((rx (if (regexp? pattern) pattern (make-regexp pattern))))
-    (assert #:expect rx #:got got
+  (let ((rx (if (regexp? pattern) pattern
+                (make-regexp pattern))))
+    (assert #:expect rx
+            #:got got
             #:compare (lambda (regexp value)
                         (and (string? value)
-                             (regexp-exec regexp value)
-                             #t))
+                             (regexp-exec regexp value) #t))
             #:name name)))
 
 (define* (assert-not-matches #:key pattern got name)
   "Assert that string @var{got} does not match regular expression @var{pattern}.
 
 Inverse of @code{assert-matches}."
-  (let ((rx (if (regexp? pattern) pattern (make-regexp pattern))))
-    (assert #:expect rx #:got got
+  (let ((rx (if (regexp? pattern) pattern
+                (make-regexp pattern))))
+    (assert #:expect rx
+            #:got got
             #:compare (lambda (regexp value)
                         (not (and (string? value)
                                   (regexp-exec regexp value))))
@@ -576,26 +613,21 @@ a procedure of @code{(key args)} returning @code{#t} for the expected error.
   (lambda (vc)
     (when name
       (log-assert vc name))
-    (let* ((raised?
-            (catch #t
-                   (lambda ()
-                     (apply thunk
-                            '())
-                     #f)
-                   (lambda (key . args)
-                     (cond
-                       ;; An explicit predicate is authoritative: when supplied
-                       ;; it alone decides whether the error is expected.  It
-                       ;; must be checked before the default `on' of #t,
-                       ;; otherwise any error would satisfy the assertion and
-                       ;; the predicate would never be able to reject one.
-                       (predicate
-                        (and (predicate key args)
-                             #t))
-                       ((eq? on #t)
-                        #t)
-                       (else (and (equal? key on)
-                                  #t)))))))
+    (let* ((raised? (catch #t
+                           (lambda ()
+                             (apply thunk
+                                    '()) #f)
+                           (lambda (key . args)
+                             (cond
+                               ;; An explicit predicate is authoritative: when supplied
+                               ;; it alone decides whether the error is expected.  It
+                               ;; must be checked before the default `on' of #t,
+                               ;; otherwise any error would satisfy the assertion and
+                               ;; the predicate would never be able to reject one.
+                               (predicate (and (predicate key args) #t))
+                               ((eq? on #t)
+                                #t)
+                               (else (and (equal? key on) #t)))))))
       (if raised?
           (begin
             (log-pass vc "raised an error as expected")
@@ -608,13 +640,16 @@ a procedure of @code{(key args)} returning @code{#t} for the expected error.
 
 (define* (assert-empty #:key got name)
   "Assert that @var{got} is an empty list, vector or string."
-  (assert #:expect #t #:got got
-          #:compare (lambda (_ value) (empty-value? value))
+  (assert #:expect #t
+          #:got got
+          #:compare (lambda (_ value)
+                      (empty-value? value))
           #:name name))
 
 (define* (assert-not-empty #:key got name)
   "Assert that @var{got} is a non-empty list, vector or string."
-  (assert #:expect #t #:got got
+  (assert #:expect #t
+          #:got got
           #:compare (lambda (_ value)
                       (and (length-of value)
                            (positive? (length-of value))))
@@ -622,7 +657,8 @@ a procedure of @code{(key args)} returning @code{#t} for the expected error.
 
 (define* (assert-length #:key expect got name)
   "Assert that @var{got} has @var{expect} elements (list, vector or string length)."
-  (assert #:expect expect #:got got
+  (assert #:expect expect
+          #:got got
           #:compare (lambda (n value)
                       (let ((len (length-of value)))
                         (and len
@@ -631,16 +667,100 @@ a procedure of @code{(key args)} returning @code{#t} for the expected error.
 
 (define* (assert-in-range #:key min max got name)
   "Assert that @var{got} is within the inclusive range @var{min}--@var{max}."
-  (assert #:expect (cons min max) #:got got
+  (assert #:expect (cons min max)
+          #:got got
           #:compare (lambda (range value)
-                      (and (>= value (car range))
-                           (<= value (cdr range))))
+                      (and (>= value
+                               (car range))
+                           (<= value
+                               (cdr range))))
           #:name name))
 
 (define* (assert-one-of #:key expect got name)
   "Assert that @var{got} is @code{equal?} to one of the elements of list @var{expect}."
-  (assert #:expect expect #:got got
+  (assert #:expect expect
+          #:got got
           #:compare (lambda (choices value)
-                      (and (member value choices)
-                           #t))
+                      (and (member value choices) #t))
           #:name name))
+
+;;; ====== Latin aliases ======
+;;
+;; Every assertion has a Latin alias, in the same spirit as the BDD step
+;; aliases (dato, quando, tunc, etiam, sed).  Each alias is bound to the very
+;; same procedure object as its English name, so `(eq? aequalis assert-equal)'
+;; holds and behavior, keyword arguments and reporting are identical.
+;;
+;;   proba            assert
+;;   aequalis         assert-equal
+;;   idem             assert-eq
+;;   aequivalens      assert-eqv
+;;   non-aequalis     assert-not-equal
+;;   non-idem         assert-not-eq
+;;   non-aequivalens  assert-not-eqv
+;;   verus            assert-true
+;;   falsus           assert-false
+;;   propinquus?      is-approximate?
+;;   propinquus       assert-approximate
+;;   non-propinquus   assert-not-approximate
+;;   errat            assert-error
+;;   non-errat        assert-no-error
+;;   suscitat         assert-raises
+;;   continet         assert-contains
+;;   non-continet     assert-not-contains
+;;   congruit         assert-matches
+;;   non-congruit     assert-not-matches
+;;   inanis           assert-empty
+;;   non-inanis       assert-not-empty
+;;   longitudo        assert-length
+;;   intra            assert-in-range
+;;   unus-ex          assert-one-of
+
+(define proba
+  assert)
+(define aequalis
+  assert-equal)
+(define idem
+  assert-eq)
+(define aequivalens
+  assert-eqv)
+(define non-aequalis
+  assert-not-equal)
+(define non-idem
+  assert-not-eq)
+(define non-aequivalens
+  assert-not-eqv)
+(define verus
+  assert-true)
+(define falsus
+  assert-false)
+(define propinquus?
+  is-approximate?)
+(define propinquus
+  assert-approximate)
+(define non-propinquus
+  assert-not-approximate)
+(define errat
+  assert-error)
+(define non-errat
+  assert-no-error)
+(define suscitat
+  assert-raises)
+(define continet
+  assert-contains)
+(define non-continet
+  assert-not-contains)
+(define congruit
+  assert-matches)
+(define non-congruit
+  assert-not-matches)
+(define inanis
+  assert-empty)
+(define non-inanis
+  assert-not-empty)
+(define longitudo
+  assert-length)
+(define intra
+  assert-in-range)
+(define unus-ex
+  assert-one-of)

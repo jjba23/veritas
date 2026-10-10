@@ -54,6 +54,30 @@
                                 assert-in-range
                                 assert-one-of
                                 is-approximate?
+                                proba
+                                aequalis
+                                idem
+                                aequivalens
+                                non-aequalis
+                                non-idem
+                                non-aequivalens
+                                verus
+                                falsus
+                                propinquus?
+                                propinquus
+                                non-propinquus
+                                errat
+                                non-errat
+                                suscitat
+                                continet
+                                non-continet
+                                congruit
+                                non-congruit
+                                inanis
+                                non-inanis
+                                longitudo
+                                intra
+                                unus-ex
                                 evaluate-thunks-concurrently
                                 collect-assertion-successful
                                 fisher-yates-shuffle)
@@ -86,8 +110,7 @@ the test runs when any tag contains @var{restriction} (case-insensitively)."
   (or (not restriction)
       (any (lambda (tag)
              (string-contains (string-downcase (format #f "~a" tag))
-                              (string-downcase restriction)))
-           tags)))
+                              (string-downcase restriction))) tags)))
 
 (define* (do-if-string-contained #:key name restriction result)
   "Execute filtering on @var{name} against an execution substring @var{restriction}.
@@ -206,8 +229,8 @@ captured, and returned inside an encapsulated @code{pre-test-result} data struct
 
                    (make-pre-test-result name test-results)))))
     (if skip? #f
-        (if (not (tag-matches? #:tags tags #:restriction (veritas-only-tag)))
-            #f
+        (if (not (tag-matches? #:tags tags
+                               #:restriction (veritas-only-tag))) #f
             (do-if-string-contained #:name name
                                     #:restriction (veritas-only-test)
                                     #:result func)))))
@@ -305,8 +328,8 @@ Captures and isolation-binds all textual test output streams inside a single con
                      (write final-suite-data)
                      (newline)) final-suite-data))))
     (if skip? #f
-        (if (not (tag-matches? #:tags tags #:restriction (veritas-only-tag)))
-            #f
+        (if (not (tag-matches? #:tags tags
+                               #:restriction (veritas-only-tag))) #f
             (do-if-string-contained #:name name
                                     #:restriction (veritas-only-suite)
                                     #:result func)))))
@@ -346,15 +369,16 @@ Utilizes Guile's native statistical profiler engine (@code{statprof}) to capture
     (if skip? #f
         (if (veritas-run-benchmarks?)
             (begin
-              (set-procedure-property! func 'veritas-task-type 'benchmark)
-              func)
-            #f))))
+              (set-procedure-property! func
+                                       'veritas-task-type
+                                       'benchmark) func) #f))))
 
 (define (benchmark-task? proc)
   "Return @code{#t} when @var{proc} is a task built by @code{benchmark}."
   (and (procedure? proc)
        (eq? 'benchmark
-            (procedure-property proc 'veritas-task-type))))
+            (procedure-property proc
+                                'veritas-task-type))))
 
 (define (%make-reporter dsl-input)
   "Internal configuration resolution rule to identify and map reporter interfaces.
@@ -432,10 +456,8 @@ failed assertions so the run reports the real failure and exits non-zero."
                                    #f))
            (else (make-assertion-result 0 ""
                                         (format #f
-                                                "Unknown evaluation structure parsed: ~a"
-                                                sr)
-                                        #f))))
-       all-results))
+                                         "Unknown evaluation structure parsed: ~a"
+                                         sr) #f)))) all-results))
 
 (define (%write-coverage-report coverage-data vc)
   "Write internal compiled VM @var{coverage-data} records safely into an LCOV trace file."
@@ -512,9 +534,10 @@ Evaluates positional task variables sequentially or concurrently, providing orch
     (call-with-values (lambda ()
                         (if with-coverage?
                             (with-code-coverage (lambda ()
-                                                  (%execute-tasks regular-thunks
-                                                                  benchmark-thunks
-                                                                  concurrent?)))
+                                                  (%execute-tasks
+                                                   regular-thunks
+                                                   benchmark-thunks
+                                                   concurrent?)))
                             ;; Force a two-value return matching the signature
                             (values #f
                                     (%execute-tasks regular-thunks
@@ -525,7 +548,7 @@ Evaluates positional task variables sequentially or concurrently, providing orch
                           (%write-coverage-report coverage-data vc))
 
                         (%process-execution-lifecycle vc all-results
-                                                      task-count
-                                                      start-time debug?)
+                                                      task-count start-time
+                                                      debug?)
 
                         all-results))))

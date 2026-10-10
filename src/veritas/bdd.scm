@@ -52,10 +52,20 @@
   #:declarative? #t
   #:use-module (ice-9 format)
   #:use-module (veritas veritas)
-  #:export (scenario feature story
-            given when-step then and-step but-step
-            fabula scaena
-            dato quando tunc etiam sed))
+  #:export (scenario feature
+                     story
+                     given
+                     when-step
+                     then
+                     and-step
+                     but-step
+                     fabula
+                     scaena
+                     dato
+                     quando
+                     tunc
+                     etiam
+                     sed))
 
 (define (labeled prefix name)
   "Prefix a step @var{name} with its keyword @var{prefix}."
@@ -92,40 +102,58 @@ arguments are forwarded to @code{suite}; steps are normally created with
                        #:shuffle? shuffle?
                        #:concurrent? concurrent?
                        #:before-all before-all
-                       #:after-all after-all)
-                 steps)))
+                       #:after-all after-all) steps)))
 
-(define* (given name #:rest cases)
+(define* (given name
+                #:rest cases)
   "Define a Given setup step named @var{name} holding assertion @var{cases}."
-  (apply test (labeled "Given" name) cases))
+  (apply test
+         (labeled "Given" name) cases))
 
-(define* (when-step name #:rest cases)
+(define* (when-step name
+                    #:rest cases)
   "Define a When action step named @var{name} holding assertion @var{cases}.
 
 Named @code{when-step} to avoid shadowing Guile's core @code{when} syntax."
-  (apply test (labeled "When" name) cases))
+  (apply test
+         (labeled "When" name) cases))
 
-(define* (then name #:rest cases)
+(define* (then name
+               #:rest cases)
   "Define a Then outcome step named @var{name} holding assertion @var{cases}."
-  (apply test (labeled "Then" name) cases))
+  (apply test
+         (labeled "Then" name) cases))
 
-(define* (and-step name #:rest cases)
+(define* (and-step name
+                   #:rest cases)
   "Define an And continuation step named @var{name} holding assertion @var{cases}."
-  (apply test (labeled "And" name) cases))
+  (apply test
+         (labeled "And" name) cases))
 
-(define* (but-step name #:rest cases)
+(define* (but-step name
+                   #:rest cases)
   "Define a But continuation step named @var{name} holding assertion @var{cases}."
-  (apply test (labeled "But" name) cases))
+  (apply test
+         (labeled "But" name) cases))
 
 ;; ====== Latin aliases ======
 
-(define feature scenario)
-(define story scenario)
-(define fabula scenario)
-(define scaena scenario)
+(define feature
+  scenario)
+(define story
+  scenario)
+(define fabula
+  scenario)
+(define scaena
+  scenario)
 
-(define dato given)
-(define quando when-step)
-(define tunc then)
-(define etiam and-step)
-(define sed but-step)
+(define dato
+  given)
+(define quando
+  when-step)
+(define tunc
+  then)
+(define etiam
+  and-step)
+(define sed
+  but-step)

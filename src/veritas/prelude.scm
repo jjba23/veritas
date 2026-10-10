@@ -214,8 +214,8 @@ and never terminate, exhausting memory instead of printing the report."
                    (let ((inner (test-result-results x)))
                      (cond
                        ((pre-test-result? inner)
-                        (display-assertion-results
-                         (pre-test-result-results inner)))
+                        (display-assertion-results (pre-test-result-results
+                                                    inner)))
                        ((suite-result? inner)
                         (display (suite-result-output inner))
                         (display-test-results (suite-result-test-results inner)))

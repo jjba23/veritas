@@ -236,6 +236,56 @@ Veritas also ships higher-level *matchers* in the spirit of RSpec, Jest's ~expec
 
 The whole family is re-exported by ~(veritas veritas)~, so no extra import is needed. See ~test/veritas/unit/matchers.scm~ for every matcher exercised against both passing and failing inputs.
 
+** Latin aliases
+
+/PROBATIO LATINA/ - the Latin proof
+
+In the same spirit as the Latin BDD steps (see below), every assertion has a Latin alias. An alias is bound to the very same procedure as its English name, so the keyword arguments, the semantics and the reporting are identical: pick whichever reads best in your test. The aliases are re-exported by ~(veritas veritas)~ too, so no extra import is needed.
+
+| Latin alias     | English assertion        | Meaning                                  |
+|-----------------+--------------------------+------------------------------------------|
+| ~proba~         | ~assert~                 | core combinator ("prove")                |
+| ~aequalis~      | ~assert-equal~           | equal (structural, ~equal?~)             |
+| ~idem~          | ~assert-eq~              | the same (identity, ~eq?~)               |
+| ~aequivalens~   | ~assert-eqv~             | equivalent (~eqv?~)                      |
+| ~non-aequalis~  | ~assert-not-equal~       | not equal                                |
+| ~non-idem~      | ~assert-not-eq~          | not the same                             |
+| ~non-aequivalens~ | ~assert-not-eqv~       | not equivalent                           |
+| ~verus~         | ~assert-true~            | true                                     |
+| ~falsus~        | ~assert-false~           | false                                    |
+| ~propinquus?~   | ~is-approximate?~        | close? (predicate)                       |
+| ~propinquus~    | ~assert-approximate~     | close (within ~#:epsilon~)               |
+| ~non-propinquus~ | ~assert-not-approximate~ | not close                                |
+| ~errat~         | ~assert-error~           | it errs (thunk raises)                   |
+| ~non-errat~     | ~assert-no-error~        | it does not err (thunk is clean)         |
+| ~suscitat~      | ~assert-raises~          | it raises, optionally ~#:on~/~#:predicate~ |
+| ~continet~      | ~assert-contains~        | it contains                              |
+| ~non-continet~  | ~assert-not-contains~    | it does not contain                      |
+| ~congruit~      | ~assert-matches~         | it matches (regexp)                      |
+| ~non-congruit~  | ~assert-not-matches~     | it does not match                        |
+| ~inanis~        | ~assert-empty~           | empty                                    |
+| ~non-inanis~    | ~assert-not-empty~       | not empty                                |
+| ~longitudo~     | ~assert-length~          | length                                   |
+| ~intra~         | ~assert-in-range~        | within (inclusive range)                 |
+| ~unus-ex~       | ~assert-one-of~          | one of                                   |
+
+#+begin_src scheme
+;; the same tests, written in Latin
+(proba #:expect 3 #:got (+ 1 1 1) #:compare equal?)
+(aequalis #:expect '(1 2 3) #:got '(1 2 3))
+(verus (> 5 2) #:name "5 beats 2")
+(falsus (string=? "guile" "GUILE"))
+(propinquus #:expect 3.14 #:got 3.141 #:epsilon 0.01)
+(errat (lambda () (/ 1 0)))
+(suscitat (lambda () (+ 1 'a)) #:on 'wrong-type-arg)
+(continet #:expect "hello world" #:got "world")
+(congruit #:pattern "^[a-z]+@[a-z]+$" #:got "user@host")
+(inanis #:got '())
+(longitudo #:expect 3 #:got '(1 2 3))
+(intra #:min 1 #:max 10 #:got 5)
+(unus-ex #:expect '(red green blue) #:got 'green)
+#+end_src
+
 *IMPORTANT:* ~test~ collects its *procedure-valued arguments* as the assertion cases, so every assertion must be passed to ~test~ directly (or built with ~apply~). Assertions nested inside a ~let~, ~for-each~, ~call-with-values~ or any other expression are created but never collected, so they silently do not run:
 
 #+begin_src scheme

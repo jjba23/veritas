@@ -37,13 +37,12 @@
   #:use-module (ice-9 format)
   #:use-module (ice-9 getopt-long)
   #:use-module (srfi srfi-1)
-  #:export (run-cli
-            main
-            show-help
-            veritas-version
-            veritas-option-grammar
-            veritas-help-text
-            veritas-man-page-name))
+  #:export (run-cli main
+                    show-help
+                    veritas-version
+                    veritas-option-grammar
+                    veritas-help-text
+                    veritas-man-page-name))
 
 (define veritas-version
   "0.1.0")
@@ -58,77 +57,130 @@
 ;; Guile's getopt-long does not support "--flag=no".
 
 (define veritas-option-grammar
-  '((scan-dir (single-char #\d) (value #t))
-    (test-top-dir (single-char #\T) (value #t))
-    (test-type (single-char #\t) (value #t))
-    (entrypoint (single-char #\e) (value #t))
-    (test-module (single-char #\m) (value #t))
-    (reporter (single-char #\r) (value #t))
+  '((scan-dir (single-char #\d)
+              (value #t))
+    (test-top-dir (single-char #\T)
+                  (value #t))
+    (test-type (single-char #\t)
+               (value #t))
+    (entrypoint (single-char #\e)
+                (value #t))
+    (test-module (single-char #\m)
+                 (value #t))
+    (reporter (single-char #\r)
+              (value #t))
     (only-test (value #t))
     (only-suite (value #t))
     (only-tag (value #t))
-    (shuffle (single-char #\s) (value #f))
+    (shuffle (single-char #\s)
+             (value #f))
     (no-shuffle (value #f))
-    (benchmarks (single-char #\b) (value #f))
+    (benchmarks (single-char #\b)
+                (value #f))
     (no-benchmarks (value #f))
-    (help (single-char #\h) (value #f))
-    (version (single-char #\V) (value #f))))
+    (help (single-char #\h)
+          (value #f))
+    (version (single-char #\V)
+             (value #f))))
 
 ;; ====== Help text ======
 
 (define veritas-help-text
-  (string-append "veritas " veritas-version " - test runner for the Veritas framework\n"
-                 "\n"
-                 "usage: veritas [OPTIONS]\n"
-                 "\n"
-                 "Discover and run the test suites, tests and benchmarks of a project.\n"
-                 "Every option is mapped to the corresponding VERITAS_* environment\n"
-                 "variable, so the command line is only syntactic sugar over the exact\n"
-                 "same configuration used programmatically and in CI.\n"
-                 "\n"
-                 "options:\n"
-                 "  -d, --scan-dir DIR       root directory to scan for tests (VERITAS_SCAN_DIR)\n"
-                 "  -T, --test-top-dir DIR   directory holding the test hierarchy (VERITAS_TEST_TOP_DIR)\n"
-                 "  -t, --test-type TYPE     test category / sub-directory to load (VERITAS_TEST_TYPE)\n"
-                 "  -e, --entrypoint NAME    no-argument function to call per file (VERITAS_ENTRYPOINT)\n"
-                 "  -m, --test-module NAME   top level module prefix of the tests (VERITAS_TEST_MODULE)\n"
-                 "  -r, --reporter NAME      reporter to use, e.g. emoji-reporter or\n"
-                 "                           monotone-reporter or json-reporter (VERITAS_REPORTER)\n"
-                 "      --only-test SUBSTR   only run tests whose name contains SUBSTR (VERITAS_ONLY_TEST)\n"
-                 "      --only-suite SUBSTR  only run suites whose name contains SUBSTR (VERITAS_ONLY_SUITE)\n"
-                 "      --only-tag TAG       only run tests/suites carrying TAG (VERITAS_ONLY_TAG)\n"
-                 "  -s, --shuffle            shuffle the order of discovered files (default)\n"
-                 "      --no-shuffle         keep the discovered file order (VERITAS_SHUFFLE_FILES=false)\n"
-                 "  -b, --benchmarks         run benchmarks (default) (VERITAS_RUN_BENCHMARKS=true)\n"
-                 "      --no-benchmarks      skip benchmarks (VERITAS_RUN_BENCHMARKS=false)\n"
-                 "  -h, --help               show this help and exit\n"
-                 "  -V, --version            show version information and exit\n"
-                 "\n"
-                 "environment variables:\n"
-                 "  VERITAS_ENTRYPOINT        entry-point function name, defaults to \"spec\"\n"
-                 "  VERITAS_SCAN_DIR          directory to scan, defaults to \"./\"\n"
-                 "  VERITAS_TEST_TYPE         test type directory, defaults to \"unit\"\n"
-                 "  VERITAS_TEST_TOP_DIR      test hierarchy root, defaults to \"test\"\n"
-                 "  VERITAS_TEST_MODULE       module prefix, defaults to \"veritas\"\n"
-                 "  VERITAS_SHUFFLE_FILES     \"true\" or \"false\", defaults to \"true\"\n"
-                 "  VERITAS_RUN_BENCHMARKS    \"true\" or \"false\", defaults to \"true\"\n"
-                 "  VERITAS_ONLY_TEST         optional test-name substring filter\n"
-                 "  VERITAS_ONLY_SUITE        optional suite-name substring filter\n"
-                 "  VERITAS_ONLY_TAG          optional tag filter\n"
-                 "  VERITAS_REPORTER          reporter symbol, defaults to emoji-reporter\n"
-                 "\n"
-                 "examples:\n"
-                 "  veritas                          run unit tests with the project defaults\n"
-                 "  veritas --test-type integration  run the integration test suite\n"
-                 "  veritas --no-shuffle --reporter monotone-reporter\n"
-                 "  veritas --only-suite auth        run only the suites mentioning \"auth\"\n"
-                 "  veritas --only-tag slow          run only tests/suites tagged \"slow\"\n"
-                 "  veritas --no-benchmarks          fast feedback loop, skip benchmarks\n"
-                 "\n"
-                 "interactive use:\n"
-                 "  The same runner is available from a Guile REPL.  Load the CLI module and\n"
-                 "  call (run-cli '(\"--help\")) or (show-help) to inspect the options, and\n"
-                 "  ((@ (veritas runner) run-tests)) to run with the current environment.\n"))
+  (string-append "veritas "
+   veritas-version
+   " - test runner for the Veritas framework
+"
+   "\n"
+   "usage: veritas [OPTIONS]\n"
+   "\n"
+   "Discover and run the test suites, tests and benchmarks of a project.
+"
+   "Every option is mapped to the corresponding VERITAS_* environment
+"
+   "variable, so the command line is only syntactic sugar over the exact
+"
+   "same configuration used programmatically and in CI.
+"
+   "\n"
+   "options:\n"
+   "  -d, --scan-dir DIR       root directory to scan for tests (VERITAS_SCAN_DIR)
+"
+   "  -T, --test-top-dir DIR   directory holding the test hierarchy (VERITAS_TEST_TOP_DIR)
+"
+   "  -t, --test-type TYPE     test category / sub-directory to load (VERITAS_TEST_TYPE)
+"
+   "  -e, --entrypoint NAME    no-argument function to call per file (VERITAS_ENTRYPOINT)
+"
+   "  -m, --test-module NAME   top level module prefix of the tests (VERITAS_TEST_MODULE)
+"
+   "  -r, --reporter NAME      reporter to use, e.g. emoji-reporter or
+"
+   "                           monotone-reporter or json-reporter (VERITAS_REPORTER)
+"
+   "      --only-test SUBSTR   only run tests whose name contains SUBSTR (VERITAS_ONLY_TEST)
+"
+   "      --only-suite SUBSTR  only run suites whose name contains SUBSTR (VERITAS_ONLY_SUITE)
+"
+   "      --only-tag TAG       only run tests/suites carrying TAG (VERITAS_ONLY_TAG)
+"
+   "  -s, --shuffle            shuffle the order of discovered files (default)
+"
+   "      --no-shuffle         keep the discovered file order (VERITAS_SHUFFLE_FILES=false)
+"
+   "  -b, --benchmarks         run benchmarks (default) (VERITAS_RUN_BENCHMARKS=true)
+"
+   "      --no-benchmarks      skip benchmarks (VERITAS_RUN_BENCHMARKS=false)
+"
+   "  -h, --help               show this help and exit
+"
+   "  -V, --version            show version information and exit
+"
+   "\n"
+   "environment variables:\n"
+   "  VERITAS_ENTRYPOINT        entry-point function name, defaults to \"spec\"
+"
+   "  VERITAS_SCAN_DIR          directory to scan, defaults to \"./\"
+"
+   "  VERITAS_TEST_TYPE         test type directory, defaults to \"unit\"
+"
+   "  VERITAS_TEST_TOP_DIR      test hierarchy root, defaults to \"test\"
+"
+   "  VERITAS_TEST_MODULE       module prefix, defaults to \"veritas\"
+"
+   "  VERITAS_SHUFFLE_FILES     \"true\" or \"false\", defaults to \"true\"
+"
+   "  VERITAS_RUN_BENCHMARKS    \"true\" or \"false\", defaults to \"true\"
+"
+   "  VERITAS_ONLY_TEST         optional test-name substring filter
+"
+   "  VERITAS_ONLY_SUITE        optional suite-name substring filter
+"
+   "  VERITAS_ONLY_TAG          optional tag filter
+"
+   "  VERITAS_REPORTER          reporter symbol, defaults to emoji-reporter
+"
+   "\n"
+   "examples:\n"
+   "  veritas                          run unit tests with the project defaults
+"
+   "  veritas --test-type integration  run the integration test suite
+"
+   "  veritas --no-shuffle --reporter monotone-reporter
+"
+   "  veritas --only-suite auth        run only the suites mentioning \"auth\"
+"
+   "  veritas --only-tag slow          run only tests/suites tagged \"slow\"
+"
+   "  veritas --no-benchmarks          fast feedback loop, skip benchmarks
+"
+   "\n"
+   "interactive use:\n"
+   "  The same runner is available from a Guile REPL.  Load the CLI module and
+"
+   "  call (run-cli '(\"--help\")) or (show-help) to inspect the options, and
+"
+   "  ((@ (veritas runner) run-tests)) to run with the current environment.
+"))
 
 (define (show-help)
   "Print the full Veritas CLI help page to standard output."
@@ -150,24 +202,36 @@ switch is present @var{default} is used."
   (let ((pos (option-ref opts positive #f))
         (neg (option-ref opts negative #f)))
     (cond
-     (neg (setenv env "false"))
-     (pos (setenv env "true"))
-     (default (setenv env default)))))
+      (neg (setenv env "false"))
+      (pos (setenv env "true"))
+      (default (setenv env default)))))
 
 (define (apply-options-to-environment! opts)
   "Translate parsed command line @var{opts} into VERITAS_* environment variables."
-  (setenv-if-present! opts 'scan-dir "VERITAS_SCAN_DIR")
-  (setenv-if-present! opts 'test-top-dir "VERITAS_TEST_TOP_DIR")
-  (setenv-if-present! opts 'test-type "VERITAS_TEST_TYPE")
-  (setenv-if-present! opts 'entrypoint "VERITAS_ENTRYPOINT")
-  (setenv-if-present! opts 'test-module "VERITAS_TEST_MODULE")
-  (setenv-if-present! opts 'reporter "VERITAS_REPORTER")
-  (setenv-if-present! opts 'only-test "VERITAS_ONLY_TEST")
-  (setenv-if-present! opts 'only-suite "VERITAS_ONLY_SUITE")
-  (setenv-if-present! opts 'only-tag "VERITAS_ONLY_TAG")
-  (setenv-boolean! opts 'shuffle 'no-shuffle "VERITAS_SHUFFLE_FILES" #f)
-  (setenv-boolean! opts 'benchmarks 'no-benchmarks
-                   "VERITAS_RUN_BENCHMARKS" #f))
+  (setenv-if-present! opts
+                      'scan-dir "VERITAS_SCAN_DIR")
+  (setenv-if-present! opts
+                      'test-top-dir "VERITAS_TEST_TOP_DIR")
+  (setenv-if-present! opts
+                      'test-type "VERITAS_TEST_TYPE")
+  (setenv-if-present! opts
+                      'entrypoint "VERITAS_ENTRYPOINT")
+  (setenv-if-present! opts
+                      'test-module "VERITAS_TEST_MODULE")
+  (setenv-if-present! opts
+                      'reporter "VERITAS_REPORTER")
+  (setenv-if-present! opts
+                      'only-test "VERITAS_ONLY_TEST")
+  (setenv-if-present! opts
+                      'only-suite "VERITAS_ONLY_SUITE")
+  (setenv-if-present! opts
+                      'only-tag "VERITAS_ONLY_TAG")
+  (setenv-boolean! opts
+                   'shuffle
+                   'no-shuffle "VERITAS_SHUFFLE_FILES" #f)
+  (setenv-boolean! opts
+                   'benchmarks
+                   'no-benchmarks "VERITAS_RUN_BENCHMARKS" #f))
 
 ;; ====== Driver ======
 
@@ -181,8 +245,7 @@ manually; the CLI derives it from the environment so that @code{veritas} just
 works out of the box."
   (let* ((scan-dir (or (getenv "VERITAS_SCAN_DIR") "./"))
          (test-top-dir (or (getenv "VERITAS_TEST_TOP_DIR") "test"))
-         (base (if (string-suffix? "/" scan-dir)
-                   scan-dir
+         (base (if (string-suffix? "/" scan-dir) scan-dir
                    (string-append scan-dir "/")))
          (test-path (string-append base test-top-dir)))
     (add-to-load-path test-path)))
@@ -194,7 +257,8 @@ The launcher script forwards user arguments after @code{--} so that Guile does
 not try to interpret flags such as @code{-h} itself; this removes that marker."
   (if (and (pair? args)
            (string? (car args))
-           (string=? "--" (car args)))
+           (string=? "--"
+                     (car args)))
       (cdr args) args))
 
 (define (run-cli args)
@@ -209,25 +273,24 @@ an exit status: @code{0} on success, @code{1} on failure.
   (let* ((clean-args (normalize-args args))
          ;; getopt-long treats the first element as the program name, so we
          ;; supply our own.
-         (opts (getopt-long (cons "veritas" clean-args)
-                            veritas-option-grammar
+         (opts (getopt-long (cons "veritas" clean-args) veritas-option-grammar
                             #:stop-at-first-non-option #f)))
     (cond
-     ((option-ref opts 'help #f)
-      (show-help)
-      0)
-     ((option-ref opts 'version #f)
-      (format #t "veritas ~a\n" veritas-version)
-      0)
-     (else
-      (apply-options-to-environment! opts)
-      (ensure-test-load-path!)
-      ;; Resolve the runner lazily, after the environment has been updated, so
-      ;; that parameters initialised from the environment observe the CLI
-      ;; values.
-      (let ((runner (resolve-module '(veritas runner))))
-        ((module-ref runner 'run-tests)))
-      0))))
+      ((option-ref opts
+                   'help #f)
+       (show-help) 0)
+      ((option-ref opts
+                   'version #f)
+       (format #t "veritas ~a\n" veritas-version) 0)
+      (else (apply-options-to-environment! opts)
+            (ensure-test-load-path!)
+            ;; Resolve the runner lazily, after the environment has been updated, so
+            ;; that parameters initialised from the environment observe the CLI
+            ;; values.
+            (let ((runner (resolve-module '(veritas runner))))
+              ((module-ref runner
+                           'run-tests)))
+            0))))
 
 (define (main args)
   "Entry point suitable for a launcher or a Guile @code{-c} invocation.
