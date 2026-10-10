@@ -76,7 +76,7 @@ inside the reporter association list using @var{msg} as its argument."
                            ((equal? 'json-reporter reporter-sym)
                             json-reporter)
                            (else emoji-reporter))))
-    
+
     (apply (assoc-ref reporter-alist log-type)
            (list msg))))
 
@@ -129,7 +129,7 @@ inside the reporter association list using @var{msg} as its argument."
   `((reporter-name . emoji-reporter) (log-pass unquote
                                                (lambda (msg)
                                                  (log (format #f
-                                                       "    ~a✅ pass - ~a~a"
+                                                       "    ~a✅ ~a~a"
                                                        (assoc-ref
                                                         ansi-color-escapes
                                                         'green) msg
@@ -340,7 +340,7 @@ inside the reporter association list using @var{msg} as its argument."
                                                        (benchmark-result-name
                                                         msg)))))
                      (for-each (lambda (run)
-                                 
+
                                  (log (scm->json-string `((timestamp unquote
                                                                      (now))
                                                           (level . benchmark)

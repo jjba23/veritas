@@ -148,7 +148,7 @@ A doc string to identify the assertion in the logs.
       (if (compare expect gott)
           (begin
             (log-pass vc
-                      (format #f "assertion succesful, got: ~a" gott))
+                      (format #f "got: ~a" gott))
             `((assertion-successful unquote #t)
               (assertion-name unquote name)))
           (begin
