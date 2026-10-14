@@ -198,7 +198,7 @@ when the code under test reaches the binding at run time.
                         (lambda () 0)
                         (lambda ()
                           (assert-equal #:expect 0
-                                        #:got (eval '((@ (my app) now))
+                                        #:got (eval '((@@ (my app) now))
                                                     (resolve-module '(my app))))))
 @end example"
   (let ((original (module-ref module var)))

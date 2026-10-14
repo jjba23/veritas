@@ -71,7 +71,8 @@ steps:
           `((task . "maak-test")
             (project . "%%CI_REPO_NAME%%")
             (branch-name . "%%CI_COMMIT_BRANCH%%")
-            (clone-url . "%%CI_REPO_CLONE_URL%%")))
+            (clone-url . "%%CI_REPO_CLONE_URL%%")
+            (env . ((VERITAS_RUN_BENCHMARKS . false)))))
 
   poll-byggsteg-job:
     name: "🔄 Poll job status @ Byggsteg"

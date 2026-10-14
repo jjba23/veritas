@@ -77,7 +77,7 @@ not a whole number of processes is an error rather than a silent fallback,
 because a CI job that asked for parallelism and got none should be told.
 
 @example
-(parse-jobs "4")
+(parse-jobs \"4\")
 @result{} 4
 @end example"
   (if (not value)
