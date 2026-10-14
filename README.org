@@ -1041,6 +1041,13 @@ concurrently by default.")
 
 /OPERA UTENS VERITAS/ - works using Veritas
 
+- [[https://codeberg.org/jjba23/bewaking][Bewaking]] - Authentication, Authorization, Secure Tokens in an expressive way using Lisp (Guile Scheme)
+- [[https://codeberg.org/jjba23/orgwebalchemy][OrgWebAlchemy]] - Parse and convert Org mode markup to HTML + Markdown, w/ Lisp (Guile Scheme)
+- [[https://codeberg.org/jjba23/kracht][Kracht]] - Prelude for Guile Scheme, an opt-in enhancement to the standard library
+- [[https://codeberg.org/jjba23/mutastructura][Mutastructura]] - Schema and Database Migrations powered by Lisp (SQLite, Postgres, MongoDB, MySQL) (Guile Scheme)
+- [[https://codeberg.org/jjba23/lucidplan][LucidPlan]] - Project management that is fast, privacy-first and flexible, free and open and powered by Lisp (Guile Scheme)
+- [[https://codeberg.org/jjba23/wikimusic][WikiMusic]] - Musical knowledge encyclopaedia and content management system (CMS) powered by Lisp
+- [[https://codeberg.org/jjba23/byggsteg][Byggsteg]] - CI/CD orchestrator written in Guile Scheme - free as in freedom
 - [[https://codeberg.org/jjba23/scriba][Scriba]] - A powerful logging library for Guile Scheme with flexibility and configuration in mind.
 - [[https://codeberg.org/jjba23/kracht][Kracht]] - Prelude for Guile Scheme, an opt-in enhancement to the standard library.
 - [[https://codeberg.org/jjba23/heks-linux][Heks Linux]] - The witches' GNU/Linux: modular, flexible, reproducible, powered by Lisp and Fedora / Debian + GNOME / Niri.
