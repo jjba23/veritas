@@ -55,8 +55,7 @@ steps:
             (project . "%%CI_REPO_NAME%%")
             (branch-name . "%%CI_COMMIT_BRANCH%%")
             (clone-url . "%%CI_REPO_CLONE_URL%%")
-            (env . ((VERITAS_REPORTER . monotone-reporter)
-                    (VERITAS_RUN_BENCHMARKS . false)))))
+            (env . ((VERITAS_RUN_BENCHMARKS . false)))))
 
   pr-submit-byggsteg-job:
     name: "💼 Submit PR job @ Byggsteg"
