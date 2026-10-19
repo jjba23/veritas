@@ -190,7 +190,9 @@ Hooks run at run time too, and they bracket the assertions: inside a test, the c
 
 -----------------------------
 
-Veritas is easy to integrate with, and already counts with extensive integrations that increase quality of life and developer experience for:
+* Integrations
+
+Veritas has a clean and well documented design, counting also with plenty features, which makes it easy to integrate with, and already counts with extensive integrations that increase quality of life and developer experience for:
 - Emacs: https://codeberg.org/jjba23/veritas.el
 
 -----------------
