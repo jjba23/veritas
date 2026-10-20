@@ -183,98 +183,107 @@ settle well after the deadline itself."
                    (error "boom"))
         (assert-true #t)))
 
+;; These tests share one spin counter and wait for the fibers they started to
+;; settle, so they run one at a time: a neighbour's spinner looks exactly like a
+;; fiber that outlived its deadline.  The run around them stays concurrent, so
+;; there is a scheduler for the deadlines to work with.
+(define timeout-suite
+  (suite "deadlines"
+         #:concurrent? #f
+         #:shuffle? #f
+         ;; Units within their deadline behave as before.
+         (test "a test within its deadline passes"
+               (assert-equal #:expect '(#t #t)
+                             #:got (outcomes-of quick-test)))
+         (test "a suite within its deadline passes"
+               (assert-equal #:expect '(#t)
+                             #:got (outcomes-of quick-suite)))
+         (test "an assertion within its deadline passes"
+               (assert-equal #:expect '(#t)
+                             #:got (outcomes-of (test "lazy assertion"
+                                                      lazy-assertion))))
+         (test "no deadline means no deadline"
+               (assert-equal #:expect '(#t)
+                             #:got (outcomes-of (test "no deadline here"
+                                                      (assert-true #t)))))
+         ;; A unit that overruns its deadline is a failure, and the message
+         ;; says so.
+         (test "an overrunning test is reported as a failure"
+               (begin
+                 (reset-spin!)
+                 (assert-equal #:expect '(#f)
+                               #:got (outcomes-of overrunning-test))))
+         (test "the timeout failure explains itself"
+               (assert-matches #:pattern "timed out"
+                               #:got (name-of-first-assertion (run-quietly (lambda ()
+                                                                                   
+                                                                                   
+                                                                             (overrunning-test
+                                                                              validation-client))))
+                               #:name "the failure mentions the timeout"))
+         (test "an overrunning suite is reported as a failure"
+               (assert-equal #:expect '(#f)
+                             #:got (outcomes-of overrunning-suite)))
+         (test "an overrunning lazy assertion is reported as a failure"
+               (assert-equal #:expect '(#f)
+                             #:got (outcomes-of (test "lazy overrun"
+                                                      overrunning-lazy-assertion))))
+         (test "an overrunning thunk assertion is reported as a failure"
+               (begin
+                 (reset-spin!)
+                 (assert-equal #:expect '(#f)
+                               #:got (outcomes-of (test "thunk overrun"
+                                                        overrunning-thunk-assertion)))))
+         (test "an overrunning scenario is reported as a failure"
+               (assert-equal #:expect '(#f)
+                             #:got (outcomes-of overrunning-scenario)))
+         (test "an overrunning benchmark is reported as a failure"
+               (if (not (procedure? overrunning-benchmark))
+                   (assert-true #t
+                                #:name
+                                "benchmarks are disabled in this run")
+                   (begin
+                     (reset-spin!)
+                     (assert-equal #:expect '(#f)
+                                   #:got (outcomes-of
+                                          overrunning-benchmark)))))
+         ;; The fibers of overrunning units are aborted, not left spinning
+         ;; in the background.
+         (test "the fiber of an overrunning test is aborted"
+               (begin
+                 (reset-spin!)
+                 (outcomes-of overrunning-test)
+                 (assert-true (spin-settled?)
+                              #:name "the spin counter stopped growing")))
+         (test "the fiber of an overrunning suite is aborted"
+               (begin
+                 (reset-spin!)
+                 (outcomes-of overrunning-suite)
+                 (assert-true (spin-settled?)
+                              #:name "the spin counter stopped growing")))
+         (test "the fiber of an overrunning thunk assertion is aborted"
+               (begin
+                 (reset-spin!)
+                 (outcomes-of (test "thunk overrun"
+                                    overrunning-thunk-assertion))
+                 (assert-true (spin-settled?)
+                              #:name "the spin counter stopped growing")))
+         ;; A blocked unit must not make the caller wait: the deadline returns
+         ;; promptly and the pending fiber is dropped.
+         (test "a blocked unit does not stall the run"
+               (let ((elapsed (seconds-elapsed (lambda ()
+                                                 (outcomes-of
+                                                  blocked-test)))))
+                 (assert-true (< elapsed 5)
+                              #:name "the deadline returned promptly")))
+         ;; Timed units that raise still raise, like untimed ones.
+         (test "a unit that raises still raises"
+               (assert-error (lambda ()
+                               (run-quietly (lambda ()
+                                              (raising-test
+                                               validation-client))))
+                             #:name
+                             "the raised error reached the caller"))))
+
 (define (spec)
-  (veritas-run #:debug? #f
-               ;; Units within their deadline behave as before.
-               (test "a test within its deadline passes"
-                     (assert-equal #:expect '(#t #t)
-                                   #:got (outcomes-of quick-test)))
-               (test "a suite within its deadline passes"
-                     (assert-equal #:expect '(#t)
-                                   #:got (outcomes-of quick-suite)))
-               (test "an assertion within its deadline passes"
-                     (assert-equal #:expect '(#t)
-                                   #:got (outcomes-of (test "lazy assertion"
-                                                            lazy-assertion))))
-               (test "no deadline means no deadline"
-                     (assert-equal #:expect '(#t)
-                                   #:got (outcomes-of (test "no deadline here"
-                                                       (assert-true #t)))))
-               ;; A unit that overruns its deadline is a failure, and the message
-               ;; says so.
-               (test "an overrunning test is reported as a failure"
-                     (begin
-                       (reset-spin!)
-                       (assert-equal #:expect '(#f)
-                                     #:got (outcomes-of overrunning-test))))
-               (test "the timeout failure explains itself"
-                     (assert-matches #:pattern "timed out"
-                                     #:got (name-of-first-assertion (run-quietly (lambda ()
-                                                                                   
-                                                                                   
-                                                                                   (overrunning-test
-                                                                                    validation-client))))
-                                     #:name "the failure mentions the timeout"))
-               (test "an overrunning suite is reported as a failure"
-                     (assert-equal #:expect '(#f)
-                                   #:got (outcomes-of overrunning-suite)))
-               (test "an overrunning lazy assertion is reported as a failure"
-                     (assert-equal #:expect '(#f)
-                                   #:got (outcomes-of (test "lazy overrun"
-                                                       overrunning-lazy-assertion))))
-               (test "an overrunning thunk assertion is reported as a failure"
-                (begin
-                  (reset-spin!)
-                  (assert-equal #:expect '(#f)
-                                #:got (outcomes-of (test "thunk overrun"
-                                                    overrunning-thunk-assertion)))))
-               (test "an overrunning scenario is reported as a failure"
-                     (assert-equal #:expect '(#f)
-                                   #:got (outcomes-of overrunning-scenario)))
-               (test "an overrunning benchmark is reported as a failure"
-                     (if (not (procedure? overrunning-benchmark))
-                         (assert-true #t
-                                      #:name
-                                      "benchmarks are disabled in this run")
-                         (begin
-                           (reset-spin!)
-                           (assert-equal #:expect '(#f)
-                                         #:got (outcomes-of
-                                                overrunning-benchmark)))))
-               ;; The fibers of overrunning units are aborted, not left spinning
-               ;; in the background.
-               (test "the fiber of an overrunning test is aborted"
-                     (begin
-                       (reset-spin!)
-                       (outcomes-of overrunning-test)
-                       (assert-true (spin-settled?)
-                                    #:name "the spin counter stopped growing")))
-               (test "the fiber of an overrunning suite is aborted"
-                     (begin
-                       (reset-spin!)
-                       (outcomes-of overrunning-suite)
-                       (assert-true (spin-settled?)
-                                    #:name "the spin counter stopped growing")))
-               (test "the fiber of an overrunning thunk assertion is aborted"
-                     (begin
-                       (reset-spin!)
-                       (outcomes-of (test "thunk overrun"
-                                          overrunning-thunk-assertion))
-                       (assert-true (spin-settled?)
-                                    #:name "the spin counter stopped growing")))
-               ;; A blocked unit must not make the caller wait: the deadline returns
-               ;; promptly and the pending fiber is dropped.
-               (test "a blocked unit does not stall the run"
-                     (let ((elapsed (seconds-elapsed (lambda ()
-                                                       (outcomes-of
-                                                        blocked-test)))))
-                       (assert-true (< elapsed 5)
-                                    #:name "the deadline returned promptly")))
-               ;; Timed units that raise still raise, like untimed ones.
-               (test "a unit that raises still raises"
-                     (assert-error (lambda ()
-                                     (run-quietly (lambda ()
-                                                    (raising-test
-                                                     validation-client))))
-                                   #:name
-                                   "the raised error reached the caller"))))
+  (veritas-run #:debug? #f timeout-suite))

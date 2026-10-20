@@ -31,6 +31,7 @@
                                 generate-list
                                 generate-symbol
                                 generate-string
+                                make-assertion
                                 assert-equal
                                 assert-eq
                                 assert-eqv
@@ -83,7 +84,10 @@
                                 call-with-timeout
                                 fisher-yates-shuffle
                                 fresh-seed)
-  #:export (test veritas-run suite benchmark do-if-string-contained
+  #:export (test suite %test %suite
+                  split-keyword-arguments
+                  defer-body-forms
+                  veritas-run benchmark do-if-string-contained
                   current-seed
                   seeded-shuffle
                   failed-test-names
@@ -341,12 +345,13 @@ to go before the procedures can be picked out."
                 (drop-keyword-arguments (cdr xs))))))
 
 (define (get-cases-for-test xs)
-  "Return the assertion cases of a @code{test} body @var{xs}.
+  "Return the body forms of a @code{test} body @var{xs}.
 
 Keyword arguments such as @code{#:before} and @code{#:after} are dropped along
-with the value that follows them, leaving only the cases."
-  (filter procedure?
-          (drop-keyword-arguments xs)))
+with the value that follows them, leaving one entry per body form: a thunk (the
+@code{test} macro wraps every form in one), an assertion already built, or a list
+of either."
+  (drop-keyword-arguments xs))
 
 ;; ====== Core DSL ======
 (define* (with-task-timeout timeout proc on-timeout)
@@ -384,21 +389,239 @@ gets reported."
                                                                           timeout)))))
                      ""))
 
-(define* (test name
-               #:key (debug? #f)
-               (shuffle? #t)
-               (skip? #f)
-               (timeout #f)
-               (tags '())
-               (before #f)
-               (after #f)
-               #:rest cases)
-  "Define a test named @var{name}.
+;; ====== Reading a body ======
+;;
+;; A test or suite body is a sequence of expressions, so the value of its last
+;; one was all the runner used to see.  In
+;;
+;;   (let ((account (make-account 100)))
+;;     (given "an account with 100" ...)
+;;     (when-step "a withdrawal" ...)
+;;     (then "the balance holds" ...))
+;;
+;; two of the three steps were built and thrown away, and in
+;;
+;;   (let ((x 2))
+;;     (assert-equal #:expect 2 #:got x)
+;;     (display "checked"))
+;;
+;; the assertion was never run at all: no error, no report entry, a passing
+;; test.  Bodies are therefore read for what they *build*.  The `test' and
+;; `suite' macros wrap every body form in a thunk, the thunk is evaluated with a
+;; collector bound, and every case built along the way is recorded as it is
+;; built.  Lists of cases, nested thunks, and helper procedures that build cases
+;; are understood as well, so a body can be structured however the test reads
+;; best.
 
-The arguments that follow are the assertion cases.  @var{before} and @var{after}
-run around them, @var{timeout} caps the whole test in seconds, hooks included,
-@var{skip?} drops it from the run, @var{shuffle?} randomizes the case order and
-@var{tags} decide which filter may select it.
+(define (keyword-syntax? stx)
+  "Return @code{#t} when @var{stx} is a keyword, such as @code{#:timeout}."
+  (keyword? (syntax->datum stx)))
+
+(define (split-keyword-arguments args)
+  "Split @var{args}, the syntax of an argument list, into its parts.
+
+Two values come back: the @code{#:keyword value} pairs in the order they were
+written, and the forms that are not part of a pair, also in order.  The
+@code{test} and @code{suite} macros use it to tell a body from the flags around
+it, wherever those flags were written."
+  (let loop ((rest args) (keywords '()) (body '()))
+    (syntax-case rest ()
+      (()
+       (values (reverse keywords) (reverse body)))
+      ((first remaining ...)
+       (if (keyword-syntax? #'first)
+           (syntax-case #'(remaining ...) ()
+             ((value after ...)
+              (loop #'(after ...)
+                    (cons #'value (cons #'first keywords))
+                    body))
+             (()
+              (error "a keyword argument needs a value, and this one has none:"
+                     (syntax->datum #'first))))
+           (loop #'(remaining ...) keywords (cons #'first body)))))))
+
+(define (defer-body-forms forms)
+  "Wrap each of @var{forms} in a thunk, so a body is evaluated when its task runs.
+
+Deferring is what makes a body form contribute both its own value and the cases
+it builds: the form is evaluated inside the body's collector, at run time,
+instead of while the test file is being loaded."
+  (map (lambda (form) #`(lambda () #,form)) forms))
+
+(define (veritas-task? value)
+  "Return @code{#t} when @var{value} is a test, suite or benchmark."
+  (and (procedure? value)
+       (procedure-property value 'veritas-task-type)))
+
+(define (veritas-assertion? value)
+  "Return @code{#t} when @var{value} was built by an assertion constructor."
+  (and (procedure? value)
+       (procedure-property value 'veritas-assertion)))
+
+(define (assertion-case? value)
+  "Return @code{#t} when @var{value} is an assertion for a test body to run.
+
+Assertions built by Veritas are tagged.  A plain procedure of one argument is
+taken as a case too, which is how hand-written case lambdas -
+@code{(lambda (vc) ((assert-true #t) vc))} - have always been written."
+  (and (procedure? value)
+       (not (veritas-task? value))
+       (or (veritas-assertion? value)
+           (not (nullary-procedure? value)))))
+
+(define (task-case? value)
+  "Return @code{#t} when @var{value} is a task for a suite to run.
+
+Tasks built by Veritas are tagged; a procedure that takes the validation client
+counts as one as well."
+  (and (procedure? value)
+       (not (veritas-assertion? value))
+       (or (veritas-task? value)
+           (not (nullary-procedure? value)))))
+
+(define (consumed? value)
+  "Return @code{#t} when @var{value} is an assertion that has already run.
+
+An assertion a body runs itself is an input to another case rather than a case
+of its own, which is what @code{(assert-true (ok? (assert-equal ...)))} means."
+  (and (veritas-assertion? value)
+       (procedure-property value 'veritas-assertion-ran)))
+
+(define* (expand-body-form form case? expand #:optional (depth 0))
+  "Return the cases @var{form} stands for, or builds while it runs.
+
+A form that is a thunk - what the DSL makes of every body form - is evaluated
+with a collector bound, so every case it builds is kept.  What it returns counts
+as well, and an assertion it ran itself is left out.  @var{depth} bounds how far
+thunks of thunks are followed."
+  (if (not (nullary-procedure? form))
+      (flatten-cases form case? expand depth)
+      (let ((collector (make-collector)))
+        (let ((value (parameterize ((current-collector collector))
+                       (form))))
+          (deduplicate-values (append (filter case?
+                                              (remove consumed?
+                                                      (collector-items
+                                                       collector)))
+                                      (flatten-cases value case? expand
+                                                     depth)))))))
+
+(define* (expand-test-form form #:optional (depth 0))
+  "Return the assertion cases the test body form @var{form} stands for."
+  (expand-body-form form assertion-case? expand-test-form depth))
+
+(define* (expand-task-form form #:optional (depth 0))
+  "Return the tasks the suite body form @var{form} stands for."
+  (expand-body-form form task-case? expand-task-form depth))
+
+(define (assertion-field result key)
+  "Return what the assertion @var{result} says about @var{key}, or @code{#f}.
+
+An assertion that reports no name, or none at all, answers @code{#f} here rather
+than raising: a case is allowed to be terse, not to take the run down."
+  (if (and (list? result)
+           (assq key result))
+      (cdr (assq key result)) #f))
+
+(define* (run-assertion assertion index vc)
+  "Run one @var{assertion} case and return the @code{assertion-result} it made.
+
+@var{index} is the position the case has in its test, and @var{vc} is the client
+its output is reported through.  A case that answers with something other than
+an assertion result is a failure with a reason, not a failure in silence."
+  (let* ((capture (capture-result-and-output (lambda ()
+                                               (assertion vc))))
+         (result (result-and-output-result capture))
+         (output (result-and-output-output capture)))
+    (if (and (list? result)
+             (assq 'assertion-successful result))
+        (make-assertion-result index output
+                               (assertion-field result 'assertion-name)
+                               (assertion-field result 'assertion-successful))
+        (let ((message (format #f
+                               "the case returned ~s, which is not an assertion result"
+                               result)))
+          (make-assertion-result index
+                                 (string-append output
+                                                (with-output-to-string (lambda ()
+                                                                         (log-fail
+                                                                          vc message))))
+                                 message #f)))))
+
+(define (run-test-forms forms vc)
+  "Run the assertions each of @var{forms} stands for, numbering them as they run.
+
+A form is expanded, and what it built is run, before the next form is looked at:
+state a body prepares between two assertions is in place when the second one
+runs, and the output of one form is never reported out of order."
+  (let loop ((forms forms) (index 0) (out '()))
+    (if (null? forms) (reverse out)
+        (let* ((cases (expand-test-form (car forms)))
+               (results (map (lambda (assertion i)
+                               (run-assertion assertion i vc))
+                             cases (iota (length cases) index))))
+          (loop (cdr forms)
+                (+ index (length cases))
+                (append (reverse results) out))))))
+
+(define* (no-assertions-result vc name)
+  "Return the failed assertion reported for a test body that built none.
+
+A body that runs no assertions at all looks exactly like a passing test, so it
+is reported as a failure instead: either the test checks nothing, or its checks
+are built where the runner cannot see them."
+  (let ((message (format #f
+                         "the body of ~a built no assertions"
+                         (if name name "the test"))))
+    (make-assertion-result 0
+                           (with-output-to-string (lambda ()
+                                                    (log-fail vc message)))
+                           message #f)))
+
+(define* (as-task kind task)
+  "Tag @var{task}, a procedure the DSL built, as a task of @var{kind}, and record it.
+
+Recording it is what lets a body form that builds several tasks - the body of a
+@code{let} around several tests, say - contribute every one of them.  @code{#f},
+which is what a filter that dropped the task looks like, is passed through and
+never recorded."
+  (when (procedure? task)
+    (set-procedure-property! task 'veritas-task-type kind))
+  (collect-in! task))
+
+(define-syntax test
+  (lambda (stx)
+    (syntax-case stx ()
+      ((_ name args ...)
+       (call-with-values (lambda ()
+                           (split-keyword-arguments #'(args ...)))
+         (lambda (keywords body)
+           (with-syntax (((keyword ...) keywords)
+                         ((thunk ...) (defer-body-forms body)))
+             #'(%test name keyword ... thunk ...))))))))
+
+(define* (%test name
+                #:key (debug? #f)
+                (shuffle? #f)
+                (skip? #f)
+                (timeout #f)
+                (tags '())
+                (before #f)
+                (after #f)
+                #:rest cases)
+  "Define a test named @var{name}; the procedure behind the @code{test} macro.
+
+The arguments after @var{name} are the body.  Each form is evaluated when the
+test runs, and every assertion built while it is evaluated is a case: an
+assertion, a list of them, a thunk of them, or a helper procedure that builds
+them are all understood.  @var{before} and @var{after} run around the body,
+@var{timeout} caps the whole test in seconds, hooks included, @var{skip?} drops
+it from the run and @var{tags} decide which filter may select it.
+
+A body is read in order, because a body is a sequence: one form prepares what
+the next one checks.  @var{shuffle?} asks for the order of the body forms to be
+randomized anyway, which is a way to find checks that depend on each other by
+accident.
 
 @example
 (test \"Addition Validation\"
@@ -407,97 +630,88 @@ run around them, @var{timeout} caps the whole test in seconds, hooks included,
 @end example"
   (let* ((func (lambda (vc)
                  (log-test vc name)
-                 (let* ((procedure-cases (get-cases-for-test cases))
-                        (indexed-cases (map (lambda (case-proc i)
-                                              (list i case-proc))
-                                            (if shuffle?
-                                                (fisher-yates-shuffle
-                                                 procedure-cases)
-                                                procedure-cases)
-                                            (iota (length procedure-cases))))
-                        (assertion-thunks (map (lambda (indexed-case)
-                                                 (let* ((idx (car indexed-case))
-                                                        (assertion-proc (cadr
-                                                                         indexed-case)))
-                                                   ;; Capture when the thunk runs, so the
-                                                   ;; #:before hook has already run.
-                                                   (lambda ()
-                                                     (let ((result-and-output (capture-result-and-output (lambda ()
-                                                                                                           
-                                                                                                           
-                                                                                                           (assertion-proc
-                                                                                                            vc)))))
-                                                       (make-assertion-result
-                                                        idx
-                                                        (result-and-output-output
-                                                         result-and-output)
-                                                        (assoc-ref (result-and-output-result
-                                                                    result-and-output)
-                                                                   'assertion-name)
-                                                        (assoc-ref (result-and-output-result
-                                                                    result-and-output)
-                                                                   'assertion-successful))))))
-                                               indexed-cases))
+                 (let* ((forms (get-cases-for-test cases))
+                        (ordered (if shuffle?
+                                     (fisher-yates-shuffle forms)
+                                     forms))
                         (_ (if (not before)
                                '()
                                (before vc)))
-                        (test-results (evaluate-thunks assertion-thunks))
+                        (test-results (run-test-forms ordered vc))
                         (_ (if (not after)
                                '()
-                               (after vc))))
-                   
+                               (after vc)))
+                        (test-results (if (null? test-results)
+                                          (list (no-assertions-result vc name))
+                                          test-results)))
                    (when debug?
                      (newline)
                      (write test-results)
                      (newline))
-
                    (make-pre-test-result name test-results)))))
     (if (or skip?
             (not (failed-test-wanted? name))) #f
         (if (not (tag-matches? #:tags tags
                                #:restriction (veritas-only-tag))) #f
-            (do-if-string-contained #:name name
-                                    #:restriction (veritas-only-test)
-                                    #:result (with-task-timeout timeout func
-                                                                (lambda (vc)
-                                                                  (task-timeout-result
-                                                                   vc name
-                                                                   timeout))))))))
+            (as-task 'test (do-if-string-contained #:name name
+                                                  #:restriction (veritas-only-test)
+                                                  #:result (with-task-timeout
+                                                               timeout func
+                                                               (lambda (vc)
+                                                                 (task-timeout-result
+                                                                  vc name
+                                                                  timeout)))))))))
 
 (define (get-tests-for-suite xs)
-  "Return the child tests and suites of a @code{suite} body @var{xs}.
+  "Return the body forms of a @code{suite} body @var{xs}.
 
 Keyword arguments such as @code{#:before-all} and @code{#:after-all} are dropped
-along with the value that follows them, leaving only the children."
-  (filter procedure?
-          (drop-keyword-arguments xs)))
+along with the value that follows them, leaving one entry per child form: a
+thunk (the @code{suite} macro wraps every form in one), a test or suite already
+built, or a list of either."
+  (drop-keyword-arguments xs))
 
-(define* (suite name
-                #:key (debug? #f)
-                (shuffle? #t)
-                (skip? #f)
-                (timeout #f)
-                (tags '())
-                (concurrent? #t)
-                (before-all #f)
-                (after-all #f)
-                #:rest tests)
-  "Define a suite named @var{name} that groups the tests and suites after it.
+(define-syntax suite
+  (lambda (stx)
+    (syntax-case stx ()
+      ((_ name args ...)
+       (call-with-values (lambda ()
+                           (split-keyword-arguments #'(args ...)))
+         (lambda (keywords body)
+           (with-syntax (((keyword ...) keywords)
+                         ((thunk ...) (defer-body-forms body)))
+             #'(%suite name keyword ... thunk ...))))))))
 
-Children run concurrently unless @var{concurrent?} is @code{#f}, and in shuffled
-order unless @var{shuffle?} is @code{#f}.  @var{before-all} and @var{after-all}
-run once around them, @var{timeout} caps the whole suite in seconds including
-those hooks, @var{skip?} drops it from the run and @var{tags} decide which filter
-may select it."
+(define* (%suite name
+                 #:key (debug? #f)
+                 (shuffle? #t)
+                 (skip? #f)
+                 (timeout #f)
+                 (tags '())
+                 (concurrent? #t)
+                 (before-all #f)
+                 (after-all #f)
+                 #:rest tests)
+  "Define a suite named @var{name}; the procedure behind the @code{suite} macro.
+
+The arguments after @var{name} are the children.  Each form is evaluated when
+the suite runs, and every test, suite or benchmark built while it is evaluated is
+a child: one already built, a list of them, or a thunk of them are all
+understood.  Children run concurrently unless @var{concurrent?} is @code{#f}, and
+in shuffled order unless @var{shuffle?} is @code{#f}.  @var{before-all} and
+@var{after-all} run once around them, @var{timeout} caps the whole suite in
+seconds including those hooks, @var{skip?} drops it from the run and @var{tags}
+decide which filter may select it."
   (let* ((func (lambda (vc)
-                 (let* ((procedure-tests (get-tests-for-suite tests))
+                 (let* ((forms (get-tests-for-suite tests))
+                        (children (append-map expand-task-form forms))
+                        (ordered (if shuffle?
+                                     (fisher-yates-shuffle children)
+                                     children))
                         (indexed-tests (map (lambda (test-proc i)
                                               (list i test-proc))
-                                            (if shuffle?
-                                                (fisher-yates-shuffle
-                                                 procedure-tests)
-                                                procedure-tests)
-                                            (iota (length procedure-tests))))
+                                            ordered
+                                            (iota (length ordered))))
                         (test-thunks (map (lambda (indexed-test)
                                             (let* ((idx (car indexed-test))
                                                    (test-proc (cadr
@@ -514,7 +728,8 @@ may select it."
                                                        (_ (close-port
                                                            output-port)))
                                                   (make-test-result idx
-                                                   test-output result)))))
+                                                                    test-output
+                                                                    result)))))
                                           indexed-tests))
                         (_ (begin
                              (unless (null? test-thunks)
@@ -531,21 +746,22 @@ may select it."
                                (after-all vc)))
                         (final-suite-data (make-suite-result name test-results
                                                              "")))
-                   
                    (when debug?
                      (newline)
                      (write final-suite-data)
-                     (newline)) final-suite-data))))
+                     (newline))
+                   final-suite-data))))
     (if skip? #f
         (if (not (tag-matches? #:tags tags
-                               #:restriction (veritas-only-tag))) #f
-            (do-if-string-contained #:name name
-                                    #:restriction (veritas-only-suite)
-                                    #:result (with-task-timeout timeout func
+                               #:restriction (veritas-only-suite))) #f
+            (as-task 'suite (do-if-string-contained #:name name
+                                                   #:restriction (veritas-only-suite)
+                                                   #:result (with-task-timeout
+                                                                timeout func
                                                                 (lambda (vc)
                                                                   (suite-timeout-result
                                                                    vc name
-                                                                   timeout))))))))
+                                                                   timeout)))))))))
 
 (define* (benchmark #:key (skip? #f)
                     name
@@ -579,13 +795,10 @@ separately from tests.  @var{timeout} caps all the runs together in seconds and
     ;; broken results.
     (if skip? #f
         (if (veritas-run-benchmarks?)
-            (let ((timed (with-task-timeout timeout func
-                                            (lambda (vc)
-                                              (task-timeout-result vc name
-                                                                   timeout)))))
-              (set-procedure-property! timed
-                                       'veritas-task-type
-                                       'benchmark) timed) #f))))
+            (as-task 'benchmark (with-task-timeout timeout func
+                                  (lambda (vc)
+                                    (task-timeout-result vc name
+                                                         timeout)))) #f))))
 
 (define (benchmark-task? proc)
   "Return @code{#t} when @var{proc} is a task built by @code{benchmark}."

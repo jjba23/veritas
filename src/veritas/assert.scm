@@ -45,6 +45,7 @@
                          assert-false
                          assert-error
                          assert
+                         make-assertion
                          assert-no-error
                          assert-not-eq
                          assert-not-equal
@@ -88,32 +89,56 @@
                          intra
                          unus-ex))
 
+(define (make-assertion assertion)
+  "Return @var{assertion}, a procedure of one validation client, as a case to run.
+
+The returned procedure is tagged so the runner can tell an assertion from a
+task, and it records having run, which is how an assertion the body itself
+consumes - with @code{value} or @code{ok?}, say - stays an input to another case
+instead of becoming a case of its own.
+
+It is also registered with the collector of the body being evaluated, if there
+is one.  That registration is what keeps a body form that builds several
+assertions, such as the body of a @code{let}, from contributing only the value
+of its last expression.  Building an assertion outside any body - at load time,
+or inside an assertion that runs later - simply registers nothing."
+  (letrec ((thunk (lambda (vc)
+                    (set-procedure-property! thunk
+                                             'veritas-assertion-ran
+                                             #t)
+                    (assertion vc))))
+    (set-procedure-property! thunk 'veritas-assertion #t)
+    (collect-in! thunk)))
+
 (define* (assertion-with-timeout timeout name assertion)
   "Wrap @var{assertion}, a procedure of one validation client, with a @var{timeout}.
 
 With a positive @var{timeout} the assertion runs under @code{call-with-timeout}:
 if it overruns, its fiber is aborted and a failure named after @var{name} is
-reported instead of hanging the run.  @code{#f}, the default, returns
-@var{assertion} untouched.
+reported instead of hanging the run.  @code{#f}, the default, runs
+@var{assertion} as it is.
+
+The result is always a case - tagged, and recorded with the body being
+evaluated - whether or not a deadline was given.
 
 Only work done while the assertion runs is covered, so keep expensive setup in a
 @var{comp} form or inside the thunk passed to @code{assert-error}.  A fiber
 suspended in a blocking wait cannot be unwound; there the run stops waiting and
 the fiber is dropped with its scheduler."
-  (if (not timeout) assertion
-      (lambda (vc)
-        (call-with-timeout timeout
-                           (lambda ()
-                             (assertion vc))
-                           #:on-timeout (lambda ()
-                                          (let ((message (format #f
-                                                          "~a timed out after ~a seconds"
-                                                          (if name name
-                                                              "assertion")
-                                                          timeout)))
-                                            (log-fail vc message)
-                                            `((assertion-successful unquote #f)
-                                              (assertion-name unquote message))))))))
+  (make-assertion (if (not timeout) assertion
+                      (lambda (vc)
+                        (call-with-timeout timeout
+                                           (lambda ()
+                                             (assertion vc))
+                                           #:on-timeout (lambda ()
+                                                          (let ((message (format #f
+                                                                          "~a timed out after ~a seconds"
+                                                                          (if name name
+                                                                              "assertion")
+                                                                          timeout)))
+                                                            (log-fail vc message)
+                                                            `((assertion-successful unquote #f)
+                                                              (assertion-name unquote message)))))))))
 
 (define* (assert #:key expect
                  got

@@ -39,32 +39,31 @@
          (test "version and man page name are present"
                (assert-not-empty #:got veritas-version)
                (assert-equal #:expect "veritas(1)" #:got veritas-man-page-name))
-         ;; NOTE: assertions must be passed to `test' as direct arguments;
-         ;; `test' collects its procedure-valued arguments.  We therefore use
-         ;; `apply test' with a mapped list of assertions instead of `for-each'.
-         (apply test "help text documents every flag"
-                (map (lambda (flag)
-                       (assert-contains #:expect veritas-help-text
-                                        #:got flag
-                                        #:name (format #f "help mentions ~a" flag)))
-                     '("--scan-dir" "--test-top-dir" "--test-type"
-                       "--entrypoint" "--test-module" "--reporter"
-                       "--only-test" "--only-suite" "--only-tag"
-                       "--only-failed" "--no-only-failed"
-                       "--seed" "--partition" "--jobs"
-                       "--shuffle" "--no-shuffle"
-                       "--benchmarks" "--no-benchmarks" "--help"
-                       "--version")))
-         (apply test "option grammar declares the expected options"
-                (map (lambda (option)
-                       (assert-true (and (assq option veritas-option-grammar) #t)
-                                    #:name (format #f "~a is a known option"
-                                                   option)))
-                     '(scan-dir test-top-dir test-type entrypoint test-module
-                                reporter only-test only-suite only-tag
-                                only-failed no-only-failed seed partition jobs
-                                shuffle no-shuffle benchmarks no-benchmarks help
-                                version)))))
+         ;; A body form that holds a list of assertions contributes every one
+         ;; of them, so a mapped list is as good as a list of direct arguments.
+         (test "help text documents every flag"
+               (map (lambda (flag)
+                      (assert-contains #:expect veritas-help-text
+                                       #:got flag
+                                       #:name (format #f "help mentions ~a" flag)))
+                    '("--scan-dir" "--test-top-dir" "--test-type"
+                      "--entrypoint" "--test-module" "--reporter"
+                      "--only-test" "--only-suite" "--only-tag"
+                      "--only-failed" "--no-only-failed"
+                      "--seed" "--partition" "--jobs"
+                      "--shuffle" "--no-shuffle"
+                      "--benchmarks" "--no-benchmarks" "--help"
+                      "--version")))
+         (test "option grammar declares the expected options"
+               (map (lambda (option)
+                      (assert-true (and (assq option veritas-option-grammar) #t)
+                                   #:name (format #f "~a is a known option"
+                                                  option)))
+                    '(scan-dir test-top-dir test-type entrypoint test-module
+                               reporter only-test only-suite only-tag
+                               only-failed no-only-failed seed partition jobs
+                               shuffle no-shuffle benchmarks no-benchmarks help
+                               version)))))
 
 (define driver-suite
   (suite "CLI driver"

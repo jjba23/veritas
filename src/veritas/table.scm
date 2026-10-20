@@ -57,7 +57,7 @@ Handy for tables with named columns."
                (test (format #f \"~a + ~a = ~a\" a b expected)
                  (assert-equal #:expect expected #:got (+ a b))))))
 @end example"
-  (apply suite
+  (apply %suite
          group-name
          #:shuffle? shuffle?
          #:concurrent? concurrent?
@@ -71,7 +71,7 @@ Handy for tables with named columns."
   "Like @code{test-each}, but @var{case->suite} returns a @code{suite}.
 
 Use it when one case needs several tests rather than one."
-  (apply suite
+  (apply %suite
          group-name
          #:shuffle? shuffle?
          #:concurrent? concurrent?

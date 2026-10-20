@@ -144,9 +144,10 @@
 ;; A test's #:before hook has to run before that test's own assertions, and
 ;; #:after after them, so state prepared in the hook is visible to the cases it
 ;; brackets.  This suite records the order the hooks actually fire in.  The
-;; checks read ~hook-observations~ from inside a case lambda, because a #:got
-;; written directly would be computed while this file loads, before any hook
-;; has fired.
+;; checks read ~hook-observations~ from inside a case lambda, which runs after
+;; the hook; a #:got written directly would be computed when the body is
+;; evaluated, which is also after the hook, since a body form is evaluated when
+;; its test runs.
 (define hook-observations
   '())
 

@@ -140,41 +140,43 @@ it unchanged."
 
 Checked when the assertion runs, so it is written as a case lambda:
 @code{(lambda (vc) ((assert-called spy) vc))}."
-  (lambda (vc)
-    ((assert #:expect #t
-             #:got (> (spy-call-count spy) 0)
-             #:compare eq?
-             #:name (or name (format #f "~a was called" (spy-label spy))))
-     vc)))
+  (make-assertion (lambda (vc)
+                    ((assert #:expect #t
+                             #:got (> (spy-call-count spy) 0)
+                             #:compare eq?
+                             #:name (or name
+                                        (format #f "~a was called"
+                                                (spy-label spy))))
+                     vc))))
 
 (define* (assert-called-with spy args #:key name)
   "Assert that @var{spy} was called with exactly @var{args}.
 
 Checked when the assertion runs, so it is written as a case lambda:
 @code{(lambda (vc) ((assert-called-with spy '(1 2)) vc))}."
-  (lambda (vc)
-    ((assert #:expect args
-             #:got (spy-calls spy)
-             #:compare (lambda (wanted calls)
-                         (and (member wanted calls) #t))
-             #:name (or name
-                        (format #f "~a was called with ~a"
-                                (spy-label spy) args)))
-     vc)))
+  (make-assertion (lambda (vc)
+                    ((assert #:expect args
+                             #:got (spy-calls spy)
+                             #:compare (lambda (wanted calls)
+                                         (and (member wanted calls) #t))
+                             #:name (or name
+                                        (format #f "~a was called with ~a"
+                                                (spy-label spy) args)))
+                     vc))))
 
 (define* (assert-call-count spy #:key expect name)
   "Assert that @var{spy} was called exactly @var{expect} times.
 
 Checked when the assertion runs, so it is written as a case lambda:
 @code{(lambda (vc) ((assert-call-count spy #:expect 2) vc))}."
-  (lambda (vc)
-    ((assert #:expect expect
-             #:got (spy-call-count spy)
-             #:compare =
-             #:name (or name
-                        (format #f "~a was called ~a time(s)"
-                                (spy-label spy) expect)))
-     vc)))
+  (make-assertion (lambda (vc)
+                    ((assert #:expect expect
+                             #:got (spy-call-count spy)
+                             #:compare =
+                             #:name (or name
+                                        (format #f "~a was called ~a time(s)"
+                                                (spy-label spy) expect)))
+                     vc))))
 
 (define (with-temporary-binding module var value thunk)
   "Call @var{thunk} with @var{module}'s @var{var} set to @var{value}, and restore it.

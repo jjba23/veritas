@@ -41,7 +41,16 @@
                                          collect-assertion-successful
                                          collect-assertion-successful*
                                          call-with-timeout
-                                         make-timeout-assertion-result))
+                                         make-timeout-assertion-result
+                                         current-collector
+                                         make-collector
+                                         collector?
+                                         collect-in!
+                                         collector-items
+                                         deduplicate-values
+                                         procedure-required-arity
+                                         nullary-procedure?
+                                         flatten-cases))
 
 (define-syntax-rule (evaluate-thunks-concurrently thunks)
   "Run @var{thunks} concurrently in fibers and collect what they return.
@@ -254,6 +263,109 @@ so a test's output can be reported next to its result."
          (the-output (get-output-string output-port))
          (_ (close-port output-port)))
     (make-result-and-output result the-output)))
+
+;;; ====== What a body builds ======
+;;
+;; A test or suite body is a sequence of expressions, not a list of cases, and
+;; only the value of its last expression survives:
+;;
+;;   (let ((x 2))
+;;     (assert-equal #:expect 2 #:got x)   ; built and thrown away
+;;     (assert-true (even? x)))            ; the only one the runner sees
+;;
+;; Bodies are therefore evaluated with a collector bound, and every case -
+;; assertion, test, suite or benchmark - is recorded as it is built.  A body
+;; form that is just an assertion still works, through its value: registration
+;; and the value are merged, by identity, when the form is expanded.
+;;
+;; An assertion that the body itself runs (through `value', `ok?' or a case
+;; lambda, say) is marked as consumed, so using an assertion as the input of
+;; another one does not turn it into a case of its own.
+
+(define current-collector
+  ;; The collector of the body being evaluated, or #f outside one.
+  (make-parameter #f))
+
+(define (make-collector)
+  "Return a fresh collector: a mutable list head of recorded items."
+  (cons 'veritas-collector '()))
+
+(define (collector? value)
+  "Return @code{#t} when @var{value} is a collector made by @code{make-collector}."
+  (and (pair? value)
+       (eq? 'veritas-collector (car value))))
+
+(define (collect-in! item)
+  "Record @var{item} in the active collector, and return @var{item}.
+
+Does nothing else when no collector is bound, which is what building a case
+outside a body - at load time, or inside an assertion that runs later - looks
+like.  @code{#f} is never recorded: a case a filter dropped is not a case."
+  (let ((collector (current-collector)))
+    (when (and item
+               (collector? collector))
+      (set-cdr! collector (cons item (cdr collector))))
+    item))
+
+(define (collector-items collector)
+  "Return what @var{collector} recorded, in the order the items were built."
+  (if (not (collector? collector)) '()
+      (reverse (cdr collector))))
+
+(define (deduplicate-values values)
+  "Return @var{values} without the entries that are the same object as an earlier one.
+
+Identity, not equality, decides: the same case built twice is two cases, while
+the same case both recorded and returned by one form is one."
+  (let loop ((rest values) (seen '()) (out '()))
+    (cond
+      ((null? rest) (reverse out))
+      ((memq (car rest) seen) (loop (cdr rest) seen out))
+      (else (loop (cdr rest) (cons (car rest) seen) (cons (car rest) out))))))
+
+(define (procedure-required-arity proc)
+  "Return how many arguments @var{proc} needs, or @code{#f} when that is unknown.
+
+Guile reports a procedure's arity as the list @code{(required optional rest?)},
+or as several values on older versions; both are read here."
+  (and (procedure? proc)
+       (catch #t
+              (lambda ()
+                (call-with-values (lambda ()
+                                    (procedure-minimum-arity proc))
+                                  (lambda (first . rest)
+                                    (if (pair? first)
+                                        (car first)
+                                        first))))
+              (lambda (key . args) #f))))
+
+(define (nullary-procedure? proc)
+  "Return @code{#t} when @var{proc} can be called with no arguments at all.
+
+A body form is wrapped in such a thunk by the DSL, and a thunk of this shape is
+therefore a body still to be evaluated rather than a case to run."
+  (eqv? 0 (procedure-required-arity proc)))
+
+(define* (flatten-cases value case? expand #:optional (depth 0))
+  "Return the cases @var{value} stands for, in order, leaving out what is not one.
+
+@var{case?} recognises a case, @var{expand} evaluates a thunk-shaped body form,
+lists (of any depth) are walked, and anything else - an unspecified value, a
+number, a nested task in a place that wants assertions - contributes nothing.
+@var{depth} bounds the recursion, so a thunk that keeps returning thunks is a
+value that is ignored rather than a run that never ends."
+  (cond
+    ((> depth 64) '())
+    ((null? value) '())
+    ((pair? value)
+     (if (list? value)
+         (append-map (lambda (element)
+                       (flatten-cases element case? expand (1+ depth)))
+                     value)
+         '()))
+    ((case? value) (list value))
+    ((nullary-procedure? value) (expand value (1+ depth)))
+    (else '())))
 
 ;;; ====== Timeouts ======
 ;;

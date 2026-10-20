@@ -33,6 +33,7 @@
   #:declarative? #t
   #:use-module (srfi srfi-1)
   #:use-module (ice-9 format)
+  #:use-module (veritas assert)
   #:use-module (veritas prelude)
   #:use-module (veritas reporter)
   #:export (assert-snapshot
@@ -128,37 +129,37 @@ runs, so state that only exists at test time can be snapshotted.
   (if (not name)
       (error "assert-snapshot needs a #:name: it labels the assertion and names the snapshot file"))
   (let ((path (snapshot-path name #:dir dir)))
-    (lambda (vc)
-      (log-assert vc name)
-      (let* ((value (if (procedure? got) (got) got))
-             (exists? (file-exists? path))
-             (update? (snapshot-update?)))
-        (cond
-          ((or (not exists?) update?)
-           (ensure-directories! path)
-           (call-with-output-file path
-             (lambda (port)
-               (write value port)
-               (newline port)))
-           (log-pass vc (format #f "~a snapshot ~a"
-                                (if exists? "updated" "wrote") path))
-           `((assertion-successful unquote #t)
-             (assertion-name unquote name)))
-          (else
-           (let ((stored (read-snapshot path)))
-             (cond
-               ((not (car stored))
-                (log-fail vc (format #f "could not read snapshot ~a: ~a"
-                                     path (cdr stored)))
-                `((assertion-successful unquote #f)
-                  (assertion-name unquote name)))
-               ((equal? (car stored) value)
-                (log-pass vc (format #f "matches snapshot ~a" path))
-                `((assertion-successful unquote #t)
-                  (assertion-name unquote name)))
-               (else
-                (log-fail vc (format #f
-                                     "snapshot mismatch for ~a\nexpected: ~s\n     got: ~s\n(rerun with VERITAS_UPDATE_SNAPSHOTS=true to accept the new value)"
-                                     path (car stored) value))
-                `((assertion-successful unquote #f)
-                  (assertion-name unquote name)))))))))))
+    (make-assertion (lambda (vc)
+                      (log-assert vc name)
+                      (let* ((value (if (procedure? got) (got) got))
+                             (exists? (file-exists? path))
+                             (update? (snapshot-update?)))
+                        (cond
+                          ((or (not exists?) update?)
+                           (ensure-directories! path)
+                           (call-with-output-file path
+                             (lambda (port)
+                               (write value port)
+                               (newline port)))
+                           (log-pass vc (format #f "~a snapshot ~a"
+                                                (if exists? "updated" "wrote") path))
+                           `((assertion-successful unquote #t)
+                             (assertion-name unquote name)))
+                          (else
+                           (let ((stored (read-snapshot path)))
+                             (cond
+                               ((not (car stored))
+                                (log-fail vc (format #f "could not read snapshot ~a: ~a"
+                                                     path (cdr stored)))
+                                `((assertion-successful unquote #f)
+                                  (assertion-name unquote name)))
+                               ((equal? (car stored) value)
+                                (log-pass vc (format #f "matches snapshot ~a" path))
+                                `((assertion-successful unquote #t)
+                                  (assertion-name unquote name)))
+                               (else
+                                (log-fail vc (format #f
+                                                     "snapshot mismatch for ~a\nexpected: ~s\n     got: ~s\n(rerun with VERITAS_UPDATE_SNAPSHOTS=true to accept the new value)"
+                                                     path (car stored) value))
+                                `((assertion-successful unquote #f)
+                                  (assertion-name unquote name))))))))))))

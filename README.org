@@ -100,40 +100,39 @@ Note: Veritas generally expects you to pass keyword arguments before variadic ar
 
 [[https://jointhefreeworld.org/static-assets/veritas/screen-2026-09-24-09-25-36.png]]
 
-** Eager arguments and the lazy comp form
+** When a body is evaluated
 
-A file of tests is *built* when Guile loads it and *run* afterwards, and that one fact accounts for most surprises in a Veritas file. ~test~, ~suite~ and every ~assert-*~ procedure are ordinary procedures, not special syntax: calling one builds a check and returns it. Scheme evaluates the arguments of that call before making it, so ~#:expect~, ~#:got~, test names and tags are already values by the time the runner starts - computed once, while the file loaded, in the order you wrote them. What the runner executes later is the check that was returned.
+A file of tests is *built* when Guile loads it and *run* afterwards, and knowing which parts live in which half of that split accounts for most surprises in a Veritas file. ~test~, ~suite~, ~scenario~ and the BDD steps are macros: each body form is wrapped in a thunk and evaluated when its task runs. So a body is a program the runner executes, and the arguments of the assertions in it - ~#:expect~, ~#:got~, ~#:name~, ... - are computed at that moment too, in the order you wrote them.
 
-The same assertion can therefore do its work at two very different moments:
+A body form can therefore build any number of assertions, and all of them run:
 
 #+begin_src scheme
-;; printed while the file is loaded, once, before any test runs
-(assert-equal #:expect 1
-              #:got (begin (display "loading\n") 1))
-
-;; printed while the test runs, between its header and its result
-(assert-equal #:expect 1
-              #:got `(comp (begin (display "running\n") 1)))
+(test "a body is a sequence"
+      ;; printed while the test runs, in this order
+      (display "preparing\n")
+      (let ((xs '(1 2 3)))
+        (assert-equal #:expect 3 #:got (length xs))   ;; both run
+        (assert-true (pair? xs))))
 #+end_src
 
-The first call computes ~(begin (display "loading\n") 1)~ as an argument and hands the *value* to a check that only compares. The second quotes its computation and wraps it in ~comp~, so the check receives a description of the work and performs it when the assertion runs.
-
-This table is the whole story: only what the right-hand column describes runs at run time.
+This table is the whole story.
 
 | written as                                                       | evaluated when                                  |
 |------------------------------------------------------------------+-------------------------------------------------|
-| any argument: ~#:expect~, ~#:got~, ~#:name~, ~#:tags~, ...        | the file loads, once, before the run begins     |
+| a form in a ~test~, ~suite~ or ~scenario~ body                    | that test or suite runs, top to bottom          |
+| the arguments of an assertion: ~#:expect~, ~#:got~, ~#:name~, ... | with the body form that builds the assertion    |
 | a ~comp~ payload in ~#:got~                                      | the assertion runs                              |
 | the thunk of ~assert-error~, ~assert-no-error~ or ~assert-raises~ | the assertion runs                              |
 | the body of a ~#:before~ or ~#:after~ hook                       | its test runs, around that test's cases         |
 | the body of a ~#:before-all~ or ~#:after-all~ hook               | its suite runs, around all of its children      |
 | a benchmark's ~#:thunk~                                          | once per ~#:runs~, while the benchmark runs     |
 
-Three things follow from that split.
+Four things follow from that split.
 
-- An eager argument is computed once, while the file loads. If it raises, the file never finishes loading: you get a backtrace instead of a failing test, and no test in that file runs. Setup that can fail, or that has to happen at run time - creating a file, starting a container, mutating shared state - belongs in a hook or in a thunk.
-- An expectation cannot be delayed. Only ~#:got~ is inspected for a ~comp~ form; ~assert-true~ and ~assert-false~ pass their single value argument through as ~#:got~, so those can be delayed the same way. A ~comp~ list in ~#:expect~ is an ordinary list, and that list is what gets compared.
-- What you write top to bottom is not the order the work happens in: cases are shuffled, and a suite's tests run concurrently by default. Share state through a hook, never through evaluation order.
+- Setup written in a body happens at test time, in order, and a test that raises while its body is being evaluated fails like any other: you get a failing test, not a file that refuses to load.
+- A body that builds no assertions at all is reported as a *failure*. A check that quietly disappears looks exactly like a passing test, so it is not allowed to.
+- Assertions outside a body - a top-level ~(assert-equal ...)~, or one built at load time and bound to a variable - are only values there. They run when something runs them: pass them into a ~test~ or apply them to a validation client yourself.
+- What you write top to bottom inside a body is the order the work happens in - a body is a sequence, so it is not shuffled unless you ask for ~#:shuffle? #t~, which is a way to catch checks that depend on each other by accident. Around that, a suite's tests run concurrently by default and a suite's children are shuffled, so share state through a hook rather than through the order of tests.
 
 *** Delaying an argument with comp
 
@@ -145,6 +144,8 @@ Delay an argument by writing the computation as data: a quoted list starting wit
 #+end_src
 
 ~compute~ and ~computare~ are aliases of ~comp~. The quote matters, since an unquoted ~(comp ...)~ would be a call to a procedure of that name. Nothing else is special, so an ordinary quoted list such as ~'(1 2 3)~ is still compared as a value.
+
+Bodies already run at test time, so ~comp~ is no longer needed to delay setup. It is still how you put work *inside* the assertion instead of next to it, which is what a deadline on the assertion covers: ~(assert-equal #:got `(comp (slow-call)) #:timeout 2)~ aborts ~(slow-call)~ when it overruns, while a plain ~#:got~ is computed before the assertion starts and is not under its deadline.
 
 The payload is evaluated with ~eval~ in the interaction environment, and under the runner that environment is the bare top level: core Scheme is there, the imports and the definitions of your test file are not. ~(comp (my-helper))~ raises ~unbound-variable: my-helper~, and ~(comp (call-with-input-file "f" get-string-all))~ fails as well, even though the same file imports the module that provides ~get-string-all~. Either way the runner reports a task error rather than a failed assertion. Keep ~comp~ payloads to core Scheme - arithmetic, ~let~, ~sleep~ - and reach your own code by preparing state at test time instead.
 
@@ -209,12 +210,10 @@ The hierarchy is defined as follows:
 - In a test file, define a no-argument function called ~spec~ and export it. It holds your ~veritas-run~ statements and is what the built-in runner calls. Run your tests another way and ~spec~ is not required.
 - ~veritas-run~ takes an arbitrary (variadic) amount of ~suite~ items, ~test~ items or ~benchmark~ items.
 - ~suite~ takes a variadic amount of ~test~ items, and may itself contain other suites. Suites and tests can therefore be nested to any depth; see the ~nesting~ unit tests for a five-level example.
-- ~test~ takes a variadic amount of assertions (~assert-equal~, ~assert-error~,  ~assert-true~, etc.)
+- ~test~ takes a body: forms that build assertions (~assert-equal~, ~assert-error~, ~assert-true~, etc.). Every assertion the body builds is a case, so a ~let~, a ~map~ or a helper procedure is as good as a list of checks.
 - ~benchmark~ takes a ~name~, a number of ~runs~ and a ~thunk~ to be measured. This is currently done by using ~statprof~.
 
-~test~ and ~suite~ run nothing when you call them. They return closures, which close over their name, their cases and their flags from wherever you wrote them.
-
-That is what lets the runner choose the order, the concurrency and the timing of a run, and capture each test's output on its own port.
+~test~ and ~suite~ are macros that run nothing when the file is loaded. Each body form becomes a thunk, and calling the macro returns a closure over its name, its body and its flags. A body is therefore evaluated when its task runs, which is what lets the runner choose the order, the concurrency and the timing of a run, and capture each test's output on its own port.
 
 Tests, or whole suites, can then run in parallel over cooperative fibers, which cuts down the wall clock time of a run. Suites are concurrent by default; ~#:concurrent? #f~ serializes them.
 
@@ -281,8 +280,9 @@ its own, leaving that split to test selection and build tooling.
 - *Extend it in the language you test in.* Assertions, reporters and data
   generators are ordinary Guile procedures, so a project-specific matcher is a
   function, not a plugin against an extension API.
-- *One vocabulary, three spellings.* ~given~, ~Given~ and ~dato~ are the same
-  procedure, as are ~then~/~Then~/~tunc~ and the twenty-four assertion aliases.
+- *One vocabulary, three spellings.* ~given~, ~Given~ and ~dato~ build the same
+  step, as do ~then~/~Then~/~tunc~, and the twenty-four assertion aliases are
+  the very same procedures under their Latin names.
 - *Replay, rerun, shard.* A shuffled run reports the seed it used, ~--seed~
   runs that order again, ~--only-failed~ runs just the tests the previous run
   recorded as failing, and ~--partition 2/4~ runs one slice of the files with
@@ -366,7 +366,7 @@ scheduler that owns it finishes.
 
 An eager ~#:got~ is not covered by a deadline: it was computed while the file was
 loaded. Only work done at test time - a ~comp~ payload, a thunk assertion, a
-lifecycle hook - can be cut short. See [[*Eager arguments and the lazy comp form][Eager arguments and the lazy comp form]].
+lifecycle hook - can be cut short. See [[*When a body is evaluated][When a body is evaluated]].
 
 Deadlines are read from a real clock, so fractional seconds are fine; a
 ~#:timeout~ of ~0.3~ is a useful smoke test when you are trying to reproduce a
@@ -412,7 +412,7 @@ Approximate (floating point) comparisons take an optional ~#:epsilon~:
 (assert-not-approximate #:expect 3.14 #:got 3.5 #:epsilon 0.01)
 #+end_src
 
-Any ~#:got~ can be delayed until the test runs by quoting it and wrapping the computation in ~comp~ (aliases: ~compute~ and ~computare~). What that covers, and where it stops, is in [[*Eager arguments and the lazy comp form][Eager arguments and the lazy comp form]].
+Any ~#:got~ can be pushed into the assertion itself by quoting it and wrapping the computation in ~comp~ (aliases: ~compute~ and ~computare~), which is how work ends up under that assertion's own ~#:timeout~. What that covers, and where it stops, is in [[*When a body is evaluated][When a body is evaluated]].
 
 Error handling is first-class:
 
@@ -506,22 +506,33 @@ In the same spirit as the Latin BDD steps (see below), every assertion has a Lat
 (unus-ex #:expect '(red green blue) #:got 'green)
 #+end_src
 
-*IMPORTANT:* ~test~ collects its *procedure-valued arguments* as the assertion cases, so every assertion must be passed to ~test~ directly (or built with ~apply~). Assertions nested inside a ~let~, ~for-each~, ~call-with-values~ or any other expression are created but never collected, so they silently do not run:
+A body is read for what it *builds*, not for the value of its last expression. Two consequences are worth spelling out:
 
 #+begin_src scheme
-;; WRONG: only the last assertion is collected, the first is dropped
-(test "wrapped assertions are dropped"
+;; a let, a for-each, a map or a helper procedure: every assertion built counts
+(test "wrapped assertions all run"
       (let ((xs '(1 2 3)))
         (assert-equal #:expect 3 #:got (length xs))
         (assert-true (pair? xs))))
 
-;; RIGHT: every assertion is a direct argument of `test'
-(test "direct assertions all run"
-      (assert-equal #:expect 3 #:got (length '(1 2 3)))
-      (assert-true (pair? '(1 2 3))))
+(test "one assertion per case"
+      (map (lambda (n)
+             (assert-equal #:expect n #:got (+ 1 (- n 1))))
+           '(1 2 3)))
 
-;; RIGHT: build the assertions programmatically, then apply them
-(apply test "one assertion per case"
+(define (cart-checks size full?)
+  (list (assert-equal #:expect 2 #:got size)
+        (assert-true full?)))
+
+(test "built by a helper" (cart-checks 2 #t))
+#+end_src
+
+The other consequence is that an assertion used as the *input* of another assertion stays an input. In ~(assert-true (list? (assert-something ...)))~ the inner assertion runs where it stands, and is not also run again as a case of its own.
+
+When the cases are built at run time, the procedures behind the macros take them exactly as a body would: ~%test~ and ~%suite~. That is what a table or a loop over cases uses, and it is why ~test-each~ and friends can build tests dynamically.
+
+#+begin_src scheme
+(apply %test "one assertion per case"
        (map (lambda (n)
               (assert-equal #:expect n #:got (+ 1 (- n 1))))
             '(1 2 3)))
@@ -534,32 +545,32 @@ In the same spirit as the Latin BDD steps (see below), every assertion has a Lat
 
 /PROBATIO EX DATIS/ - a.k.a. table-driven testing
 
-Lisp makes this easy: higher order functions, quasi-quoting, ~apply~, whatever fits. The example below uses ~apply~, and the same trick works at the suite, test or assertion level.
+Lisp makes this easy: higher order functions, quasi-quoting, ~map~, whatever fits. A body contributes every assertion it builds, so a mapped list of checks is a test with one case per row, and the same trick works at the suite level with a mapped list of tests.
 
 #+begin_src scheme
 (define log-level-suite
   (suite "Log Level"
-         (apply test "is-in-log-level?"
-                (map (lambda (c)
-                       (if (caddr c)
-                           (assert-true (is-in-log-level? (car c)
+         (test "is-in-log-level?"
+               (map (lambda (c)
+                      (if (caddr c)
+                          (assert-true (is-in-log-level? (car c)
+                                                         (cadr c))
+                                       #:name (format #f
+                                                      "~a is allowed in ~a"
+                                                      (car c)
+                                                      (cadr c)))
+                          (assert-false (is-in-log-level? (car c)
                                                           (cadr c))
                                         #:name (format #f
-                                                       "~a is allowed in ~a"
+                                                       "~a is not allowed in ~a"
                                                        (car c)
-                                                       (cadr c)))
-                           (assert-false (is-in-log-level? (car c)
-                                                           (cadr c))
-                                         #:name (format #f
-                                                 "~a is not allowed in ~a"
-                                                 (car c)
-                                                 (cadr c)))))
-                     '((trace trace #t)
-                       (trace debug #f)
-                       (trace info #f)
-                       ;; ...... and so on
-                       (error warn #t)
-                       (error error #t))))))
+                                                       (cadr c)))))
+                    '((trace trace #t)
+                      (trace debug #f)
+                      (trace info #f)
+                      ;; ...... and so on
+                      (error warn #t)
+                      (error error #t)))))
 #+end_src
 
 
@@ -648,7 +659,20 @@ The three main steps also have PascalCase aliases: ~Given~ (~given~), ~When~ (~w
       (assert-equal #:expect 6 #:got (apply + '(1 2 3))))))
 #+end_src
 
-*Note:* passing several steps through a ~let~ closure as a single expression does not work the way it reads in Scheme, because a ~let~ body evaluates to a single value and only the last step would survive. Share setup through module-level bindings, ~#:before-all~, or the lazy ~comp~ form instead.
+Steps share state the way any Scheme code does: close over a ~let~ in the scenario body. All the steps of that ~let~ run, because a scenario body is read for the steps it builds, not for the value of its last expression.
+
+#+begin_src scheme
+(scenario "withdrawing too much"
+  (let ((account (make-account 100)))
+    (given "an account with 100"
+      (assert-equal #:expect 100 #:got (account-balance account)))
+    (when-step "150 is withdrawn"
+      (assert-false (withdraw account 150)))
+    (then "the balance is unchanged"
+      (assert-equal #:expect 100 #:got (account-balance account)))))
+#+end_src
+
+The same holds inside a step: a ~let~ body there contributes every assertion it builds, and steps still run in declaration order.
 
 
 ----------------
@@ -715,8 +739,11 @@ it replaces.
           ((assert-call-count send #:expect 1) vc))))
 #+end_src
 
-The assertions read the spy when they run rather than when they are built, which
-is why they are written as a case lambda: a spy's calls are test-time state.
+The assertions read the spy when they run rather than when they are built, so
+they see the calls the body made before them. A body can also be a case lambda
+that applies each check to the validation client itself, which is the older
+style and still works:
+
 
 ~with-temporary-binding~ swaps a module binding for the length of a thunk and
 puts the original back even when the thunk raises:
