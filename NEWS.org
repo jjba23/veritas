@@ -1,0 +1,20 @@
+#+title: Changelog and News 📰
+#+author: Josep Bigorra
+#+email: jjbigorra@gmail.com
+#+options: toc:nil
+
+All notable changes to this project will be documented in this file. Changes are listed per project release (tag) and within each tag there are details about changes, additions, fixes and removals.
+
+This project adheres loosely to [[https://semver.org/spec/v2.0.0.html][Semantic Versioning]].
+
+*[Unreleased]*
+
+---------
+
+*[Released]*
+
+** v0.8.1 (2026-10-22)
+
+A maintenance release: the sources are identical to *v0.8.0*, and the tag gives
+downstream packagers a release to follow.  Releases before this file are
+recorded by their git tags.
