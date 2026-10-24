@@ -20,7 +20,7 @@
 %global debug_package %{nil}
 
 Name:           veritas
-Version:        0.8.2
+Version:        0.8.4
 Release:        0
 Summary:        Testing framework for Guile Scheme
 License:        LGPL-3.0-or-later

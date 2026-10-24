@@ -45,8 +45,9 @@
 
 (define (compile)
   "Compile all project source code."
-  (time-machine-manifest-shell (list "guild compile -L ./src" "-W3"
-                                     "./src/**/*.scm")))
+  (time-machine-manifest-shell (list "guild" "compile" "-L" "./src" "-W3"
+                                     "./src/**/*.scm")
+                               #:verbose? #t))
 
 (define (fmt)
   "Format the Scheme sources with `guix style'."
@@ -56,16 +57,20 @@
 
 (define (repl)
   "Development REPL."
-  (time-machine-manifest-shell '("guile -L ./src"
-                                 "-c '((@ (ares server) run-nrepl-server))'")))
+  (time-machine-manifest-shell (list "guile" "-L" "./src"
+                                     "-c" "'((@ (ares server) run-nrepl-server))'")))
 
 (define (docs)
   "Generate the API documentation."
   (delete-file-recursively "doc")
-  (time-machine-manifest-shell (list (~ "documenta api ./src/~a && "
-                                        project-name)
-                                     (~ "texi2any -v --html --css-ref=~a -o index_html"
-                                        api-docs-css-url)
+  ;; `documenta' writes the Texinfo tree and `texi2any' renders it: two calls,
+  ;; so a failure names the step that failed instead of an `&&' chain.
+  (time-machine-manifest-shell (list "documenta" "api"
+                                     (~ "./src/~a" project-name))
+                               #:verbose? #t)
+  (time-machine-manifest-shell (list "texi2any" "-v" "--html"
+                                     (~ "--css-ref=~a" api-docs-css-url)
+                                     "-o" "index_html"
                                      "./doc/api/index.texi")
                                #:verbose? #t)
   (mv "./index_html" "./doc/api-dist"))
@@ -75,27 +80,32 @@
   (docs)
   (remkdir-p (~ "~a/api-docs/~a" deploy-api-docs-dir project-name))
   (mv "doc/api-dist/*"
-      (~ "~a/api-docs/~a" deploy-api-docs-dir project-name))
+      (~ "~a/api-docs/~a" deploy-api-docs-dir project-name)
+      #:expand? #t)
   (delete-file-recursively "doc"))
 
 (define (test)
   "Run the test suite."
   (delete-file-recursively "reports/lcov/coverage*"
-                           #:verbose? #f)
-  (delete-file-recursively "reports/html"
-                           #:verbose? #f)
-  ($ (list "VERITAS_TEST_TYPE=unit" "VERITAS_RUN_BENCHMARKS=true"
-           "guix shell -m manifest.scm --" "guile -L ./src -L ./test"
-           "-c '((@ (veritas runner) run-tests))'"))
+                           #:expand? #t)
+  (delete-file-recursively "reports/html")
+  (manifest-shell (list "guile" "-L" "./src" "-L" "./test"
+                        "-c" "'((@ (veritas runner) run-tests))'")
+                  #:env '("VERITAS_TEST_TYPE=unit"
+                          "VERITAS_RUN_BENCHMARKS=true"))
   (coverage-report))
 
 (define (coverage-report)
   "Build the HTML coverage report."
-  (catch #t
-         (lambda ()
-           ($ '("genhtml reports/lcov/*.info --output-directory reports/html &> /dev/null")))
-         (lambda (key . args)
-           #f)))
+  ;; `genhtml' reads the fixture files the test run left, so the pattern is
+  ;; expanded by the shell (`#:expand?').  The report is a convenience rather
+  ;; than a verdict: a run that produced no coverage must not fail a task that
+  ;; already tested, hence `#:allow-failure?'.
+  (run (list "genhtml" "reports/lcov/*.info"
+             "--output-directory" "reports/html")
+       #:expand? #t
+       #:dev-null? #t
+       #:allow-failure? #t))
 
 (define (validate)
   "Format, compile and test, in that order."
@@ -105,15 +115,15 @@
 
 (define (hot-reload)
   "Rebuild and re-run the tests whenever a file changes."
-  (time-machine-manifest-shell (list "watchexec 'maak test'"
+  (time-machine-manifest-shell (list "watchexec" "'maak test'"
                                      "--clear"
-                                     (~ "--exts ~a"
-                                        (string-join (map symbol->string
-                                                      hot-reload-file-types)
-                                                     ","))
+                                     "--exts" (string-join
+                                               (map symbol->string
+                                                    hot-reload-file-types)
+                                               ",")
                                      "--on-busy-update=restart"
-                                     "--shell bash"
-                                     "--watch .")))
+                                     "--shell" "bash"
+                                     "--watch" ".")))
 
 (define (hr)
   "Short alias for `hot-reload'."
