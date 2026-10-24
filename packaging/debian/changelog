@@ -1,0 +1,13 @@
+veritas (0.8.2-1) unstable; urgency=medium
+
+  * Bump version for container and GNU/Linux packaging improvements.
+
+ -- Josep Bigorra <jjbigorra@gmail.com>  Sat, 24 Oct 2026 12:00:00 +0200
+
+veritas (0.8.1-1) unstable; urgency=medium
+
+  * Initial packaging.
+  * Install the launcher, the Guile modules and their byte-compiled copies.
+  * Install the veritas(1) manual page.
+
+ -- Josep Bigorra <jjbigorra@gmail.com>  Thu, 22 Oct 2026 12:00:00 +0000

@@ -119,3 +119,17 @@
 (define (default)
   "List the available tasks."
   ($ '("maak --list")))
+
+;; ====== Container tasks ======
+
+(define (container-build)
+  "Build the container image for veritas."
+  ($ '("podman build -t veritas .")))
+
+(define (container-run)
+  "Run the container image for veritas."
+  ($ '("podman run --rm -it veritas:latest")))
+
+(define (package-docker)
+  "Build the container image for veritas."
+  (container-build))

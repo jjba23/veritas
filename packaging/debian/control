@@ -1,0 +1,32 @@
+Source: veritas
+Section: devel
+Priority: optional
+Maintainer: Josep Bigorra <jjbigorra@gmail.com>
+Build-Depends:
+ debhelper-compat (= 13),
+ guile-3.0,
+ guile-3.0-dev,
+ pkg-config,
+ guile-json,
+ guile-fibers
+Standards-Version: 4.6.2
+Homepage: https://codeberg.org/jjba23/veritas
+Vcs-Git: https://codeberg.org/jjba23/veritas.git
+Vcs-Browser: https://codeberg.org/jjba23/veritas
+Rules-Requires-Root: no
+
+Package: veritas
+Architecture: any
+Depends:
+ ${misc:Depends},
+ ${shlibs:Depends},
+ guile-3.0,
+ guile-json,
+ guile-fibers,
+ bash,
+ coreutils
+Description: Testing framework for Guile Scheme
+ Veritas tests Guile Scheme code: suites group tests, tests hold assertions,
+ and the runner reports what happened as readable text, JSON or a coverage
+ report. It covers unit, integration and black-box tests, including
+ table-driven cases and Given/When/Then scenarios.
