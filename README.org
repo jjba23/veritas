@@ -19,6 +19,9 @@ What makes ~veritas~ pleasant to use is the embedded domain-specific language: t
 /An expressive, free and extensible test framework is a good instrument for exploring systems and algorithms./
 
 * At a glance
+:PROPERTIES:
+:CUSTOM_ID: at-a-glance
+:END:
 
 - *A test is a sentence.* ~(test "the cart is empty" (assert-true (cart-empty? cart)))~ is a whole test, and any assertion can carry a ~#:name~, so the report reads like the specification it is checking.
 - *A full toolkit in one dependency.* 24 matchers (with Latin aliases), Given/When/Then scenarios, table-driven suites, spies and stubs, snapshots, generators, deadlines at four granularities, benchmarks, LCOV coverage, tag filters, JSON and JUnit reports.
@@ -26,7 +29,7 @@ What makes ~veritas~ pleasant to use is the embedded domain-specific language: t
 - *A failure you can act on.* The report names the suite, the test and the assertion, shows what was expected and what was got, and the run can be narrowed with ~--only-test~, ~--only-suite~, ~--only-tag~ or ~--only-failed~.
 - *Yours to extend.* Assertions, reporters and generators are ordinary Guile procedures: a project-specific matcher is a function, not a plugin against an extension API.
 
-In a hurry? [[*Install][Install]] is two commands and [[*Quick start][Quick start]] is one file.
+In a hurry? [[#install][Install]] is two commands and [[#quick-start][Quick start]] is one file.
 
 *Where to find things*
 
@@ -40,32 +43,39 @@ In a hurry? [[*Install][Install]] is two commands and [[*Quick start][Quick star
 *Status:* veritas is pre-1.0, and I am working to stabilize it, so expect changes until we reach v1.0.0. The surface that stays put is a small one: ~veritas-run~, ~suite~, ~test~ and the ~assert-*~ family.
 
 * Contents
+:PROPERTIES:
+:CUSTOM_ID: contents
+:END:
 
-- [[*At a glance][At a glance]]
-- [[*Features][Features]]
-- [[*Install][Install]]
-- [[*Quick start][Quick start]]
-- [[*How veritas works][How veritas works]]
-- [[*Assertions and matchers][Assertions and matchers]]
-- [[*Timeouts][Timeouts]]
-- [[*Behaviour-driven testing][Behaviour-driven testing]]
-- [[*Data driven testing][Data driven testing]]
-- [[*Test doubles][Test doubles]]
-- [[*Snapshots][Snapshots]]
-- [[*Container testing][Container testing]]
-- [[*Generators][Generators]]
-- [[*Code coverage][Code coverage]]
-- [[*Configuration][Configuration]]
-- [[*Runner][Runner]]
-- [[*Command line interface][Command line interface]]
-- [[*How Veritas compares][How Veritas compares]]
-- [[*Why GNU Guix?][Why GNU Guix?]]
-- [[*Ecosystem][Ecosystem]]
-- [[*/IN VINO VERITAS/ - /IN AQUA SANITAS/][In vino veritas]]
-- [[*Contributing][Contributing]]
-- [[*License][License]]
+- [[#at-a-glance][At a glance]]
+- [[#features][Features]]
+- [[#ways-to-install][Ways to install]]
+- [[#install][Install]]
+- [[#quick-start][Quick start]]
+- [[#how-veritas-works][How veritas works]]
+- [[#assertions-and-matchers][Assertions and matchers]]
+- [[#timeouts][Timeouts]]
+- [[#behaviour-driven-testing][Behaviour-driven testing]]
+- [[#data-driven-testing][Data driven testing]]
+- [[#test-doubles][Test doubles]]
+- [[#snapshots][Snapshots]]
+- [[#container-testing][Container testing]]
+- [[#generators][Generators]]
+- [[#code-coverage][Code coverage]]
+- [[#configuration][Configuration]]
+- [[#runner][Runner]]
+- [[#command-line-interface][Command line interface]]
+- [[#how-veritas-compares][How Veritas compares]]
+- [[#why-gnu-guix][Why GNU Guix?]]
+- [[#ecosystem][Ecosystem]]
+- [[#in-vino-veritas-in-aqua-sanitas][In vino veritas]]
+- [[#contributing][Contributing]]
+- [[#license][License]]
 
 * Features
+:PROPERTIES:
+:CUSTOM_ID: features
+:END:
 
 /QUIDQUID AGIS, PRUDENTER AGAS/ - whatever you do, do it wisely
 
@@ -74,51 +84,141 @@ is no runner to install, no adapter to register and no configuration file to
 keep in sync.
 
 ** Writing tests that read well
+:PROPERTIES:
+:CUSTOM_ID: writing-tests-that-read-well
+:END:
 
 - ~suite~, ~test~ and the ~assert-*~ family: the hierarchy *is* the report. See
-  [[*Assertions and matchers][Assertions and matchers]].
+  [[#assertions-and-matchers][Assertions and matchers]].
 - 24 matchers — equality, identity, approximation, containment, regexps,
   emptiness, length, ranges, membership — plus a Latin alias for each one. See
-  [[*Assertions and matchers][Assertions and matchers]].
+  [[#assertions-and-matchers][Assertions and matchers]].
 - Given/When/Then scenarios in the spirit of Cucumber, with no extra runner. See
-  [[*Behaviour-driven testing][Behaviour-driven testing]].
+  [[#behaviour-driven-testing][Behaviour-driven testing]].
 - Table-driven tests: ~test-each~, ~suite-each~ and ~cases->table~ turn a list of
-  rows into suites and tests. See [[*Data driven testing][Data driven testing]].
+  rows into suites and tests. See [[#data-driven-testing][Data driven testing]].
 - Test doubles: ~make-spy~, ~make-stub~ and ~with-temporary-binding~. See
-  [[*Test doubles][Test doubles]].
+  [[#test-doubles][Test doubles]].
 - Snapshots for any value Guile can read back, written on first run. See
-  [[*Snapshots][Snapshots]].
-- Generators for property-style tests. See [[*Generators][Generators]].
+  [[#snapshots][Snapshots]].
+- Generators for property-style tests. See [[#generators][Generators]].
 - A body is a sequence, so assertions inside a ~let~, a ~map~ or a helper
-  procedure all run. See [[*What a body contributes][What a body contributes]].
+  procedure all run. See [[#what-a-body-contributes][What a body contributes]].
 
 ** Running a suite the way you need
+:PROPERTIES:
+:CUSTOM_ID: running-a-suite-the-way-you-need
+:END:
 
 - Deadlines on a whole suite, a single test, a benchmark or one assertion — an
-  overrun is a failure, never a hung CI job. See [[*Timeouts][Timeouts]].
+  overrun is a failure, never a hung CI job. See [[#timeouts][Timeouts]].
 - Suites run concurrently over fibers; benchmarks run sequentially, because the
   profiler is process-global.
 - Seeded shuffling: every run prints the seed, and ~VERITAS_SEED~ replays it.
 - Filters by test name, suite name, tag, or *the previous run's failures*.
 - ~--jobs~ runs whole files in worker processes and merges their output,
   failure record and JUnit report; ~--partition 2/4~ runs one slice of them.
-- Skip or tag any unit without touching the runner. See [[*Configuration][Configuration]].
+- Skip or tag any unit without touching the runner. See [[#configuration][Configuration]].
 
 ** Reporting
+:PROPERTIES:
+:CUSTOM_ID: reporting
+:END:
 
 - Four reporters: emoji (the default), monotone, JSON and JUnit XML. See
-  [[*Reporters][Reporters]].
+  [[#reporters][Reporters]].
 - Benchmarks report statistics from Guile's ~statprof~, next to the tests they
   measure.
-- LCOV coverage with one keyword. See [[*Code coverage][Code coverage]].
+- LCOV coverage with one keyword. See [[#code-coverage][Code coverage]].
 - The exit status is part of the contract: ~0~ when everything passed, ~1~ when
   anything failed.
 
+* Ways to install
+:PROPERTIES:
+:CUSTOM_ID: ways-to-install
+:END:
+
+/Four routes to the same 0.8.2, from the most automated to the most manual.  They all build the tag this README documents./
+
+** From the Guix channel
+:PROPERTIES:
+:CUSTOM_ID: from-the-guix-channel
+:END:
+*GNU Guix* is the functional package manager this project is developed with: a build is a pure function of its inputs, so the same recipe gives the same result everywhere, and an upgrade that goes wrong can be rolled back.
+
+The jointhefreeworld channel carries ~guile-veritas~ at 0.8.2, so a checkout of the channel is enough — no package definition to write:
+
+#+begin_src shell
+git clone https://codeberg.org/jjba23/guix-jointhefreeworld.git
+guix install -L ./guix-jointhefreeworld guile-veritas
+#+end_src
+
+Add the channel to ~$HOME/.config/guix/channels.scm~ (the channel's README has the four lines) and a plain ~guix install guile-veritas~ keeps working on every later ~guix pull~.
+
+** From the Nix flake
+:PROPERTIES:
+:CUSTOM_ID: from-the-nix-flake
+:END:
+*Nix* offers the same declarative, reproducible model with its own language, its own store and a binary cache, and it is a natural fit if the rest of your machine is already described in Nix.
+
+The jointhefreeworld flake builds this project with this repository's own expression, so the package cannot drift from the source:
+
+#+begin_src shell
+nix build github:jjba23/nix-jointhefreeworld#guile-veritas
+#+end_src
+
+The same attribute is available as an overlay, so ~pkgs.jointhefreeworld.guile-veritas~ works inside a NixOS or home-manager configuration too.
+
+** As a container image
+:PROPERTIES:
+:CUSTOM_ID: as-a-container-image
+:END:
+*Podman or Docker* is the route that puts nothing on the host: the ~Dockerfile~ in this repository builds the project in a builder stage and copies only what it installed into a runtime stage, so the image is small and the host keeps its own toolchain untouched.
+
+#+begin_src shell
+podman build -t veritas .   # docker build -t veritas . also works
+podman run --rm -it veritas
+#+end_src
+
+The image's entry point is Guile, with veritas on its load path, which makes it useful for a quick try and for reproducing a bug on a clean system.
+
+** As a distribution package
+:PROPERTIES:
+:CUSTOM_ID: as-a-distribution-package
+:END:
+*Debian, openSUSE and Arch* each get the project through their own package manager.  Packaging lives in this repository under ~packaging/~ and is pinned to the same release tag, so the recipes and the sources they build are versioned together.
+
+None of the three archives ships veritas yet, so these are recipes to build rather than packages to install from a mirror:
+
+| Distribution   | Package   | How to build it                                                                     |
+|----------------+-----------+-------------------------------------------------------------------------------------|
+| Debian, Ubuntu | ~veritas~ | copy ~packaging/debian~ to the repository root, then ~dpkg-buildpackage -us -uc -b~ |
+| openSUSE       | ~veritas~ | ~osc build~ with ~packaging/opensuse~                                               |
+| Arch           | ~veritas~ | ~makepkg -si~ in ~packaging/arch~                                                   |
+
+Each recipe carries its own dependency list, so a missing library fails the build with its name rather than producing a package that cannot load.
+
+** Which one?
+:PROPERTIES:
+:CUSTOM_ID: which-one
+:END:
+- *Guix* if you want the toolchain the project is tested with, and the ability to roll back a bad upgrade.
+- *Nix* if the rest of your machine is already declarative; the flake pins nixpkgs and gives you a binary cache.
+- *Container* if you only want to try the release, or reproduce a report on a machine that has nothing installed.
+- *Distribution package* if you want the project managed by the same tool as the rest of your system, with its licence, manual page and launcher in the usual places.
+
+
 * Install
+:PROPERTIES:
+:CUSTOM_ID: install
+:END:
 
 /COLLOCATIO ET USUS/ - placing, using
 
 ** Requirements
+:PROPERTIES:
+:CUSTOM_ID: requirements
+:END:
 
 - [[https://www.gnu.org/software/guile/][GNU Guile]] 3.0 or newer (developed against 3.0.9 and later)
 - [[https://github.com/wingo/fibers][guile-fibers]] — the concurrency under suites and the deadline machinery
@@ -129,6 +229,9 @@ register and no configuration file: ~(use-modules (veritas veritas))~ is the
 setup.
 
 ** With GNU Guix (recommended)
+:PROPERTIES:
+:CUSTOM_ID: with-gnu-guix-recommended
+:END:
 
 Veritas is packaged in Guix officially, as ~guile-veritas~ (~0.1.6~ at the time
 of writing). One command and you are done:
@@ -152,6 +255,9 @@ guix shell -m manifest.scm -- \
 #+end_src
 
 ** From source
+:PROPERTIES:
+:CUSTOM_ID: from-source
+:END:
 
 #+begin_src shell
 git clone https://codeberg.org/jjba23/veritas.git
@@ -179,6 +285,9 @@ tooling, so ~guix shell -m manifest.scm~ is all you need to hack on veritas
 itself.
 
 ** A pinned version, as a Guix package
+:PROPERTIES:
+:CUSTOM_ID: a-pinned-version-as-a-guix-package
+:END:
 
 If you would rather not depend on the version Guix ships today, this is the
 package definition the project uses; drop it in your own channel or manifest and
@@ -216,6 +325,9 @@ concurrently by default.")
 #+end_src
 
 ** The command line launcher
+:PROPERTIES:
+:CUSTOM_ID: the-command-line-launcher
+:END:
 
 ~bin/veritas~ is a thin launcher around ~(veritas cli)~: it turns the
 environment variables into regular command line flags, puts ~./test~ on Guile's
@@ -226,9 +338,12 @@ guix shell -m manifest.scm -- ./bin/veritas --help
 guix shell -m manifest.scm -- ./bin/veritas
 #+end_src
 
-See [[*Command line interface][Command line interface]] for every flag.
+See [[#command-line-interface][Command line interface]] for every flag.
 
 * Quick start
+:PROPERTIES:
+:CUSTOM_ID: quick-start
+:END:
 
 /AD REM/ - to the matter
 
@@ -318,9 +433,12 @@ after the body forms — the DSL picks them out either way. When ~rest~ argument
 are mentioned, it is another word for variadic.
 
 Prefer to let the runner discover your files? Put them under
-~test/<your-module>/unit/~ and see [[*Runner][Runner]].
+~test/<your-module>/unit/~ and see [[#runner][Runner]].
 
 * How veritas works
+:PROPERTIES:
+:CUSTOM_ID: how-veritas-works
+:END:
 
 /EX LABORE VENUSTAS/ - /from hard work, beauty/
 
@@ -342,6 +460,9 @@ Tests, or whole suites, can then run in parallel over cooperative fibers, which 
 Refer to ~maak.scm~ for the tasks available in this project (compile, test, docs, deploy, and more).
 
 ** When a body is evaluated
+:PROPERTIES:
+:CUSTOM_ID: when-a-body-is-evaluated
+:END:
 
 A file of tests is *built* when Guile loads it and *run* afterwards, and knowing which parts live in which half of that split accounts for most surprises in a Veritas file. ~test~, ~suite~, ~scenario~ and the BDD steps are macros: each body form is wrapped in a thunk and evaluated when its task runs. So a body is a program the runner executes, and the arguments of the assertions in it - ~#:expect~, ~#:got~, ~#:name~, ... - are computed at that moment too, in the order you wrote them.
 
@@ -358,15 +479,15 @@ A body form can therefore build any number of assertions, and all of them run:
 
 This table is the whole story.
 
-| written as                                                       | evaluated when                                  |
-|------------------------------------------------------------------+-------------------------------------------------|
-| a form in a ~test~, ~suite~ or ~scenario~ body                    | that test or suite runs, top to bottom          |
-| the arguments of an assertion: ~#:expect~, ~#:got~, ~#:name~, ... | with the body form that builds the assertion    |
-| a ~comp~ payload in ~#:got~                                      | the assertion runs                              |
-| the thunk of ~assert-error~, ~assert-no-error~ or ~assert-raises~ | the assertion runs                              |
-| the body of a ~#:before~ or ~#:after~ hook                       | its test runs, around that test's cases         |
-| the body of a ~#:before-all~ or ~#:after-all~ hook               | its suite runs, around all of its children      |
-| a benchmark's ~#:thunk~                                          | once per ~#:runs~, while the benchmark runs     |
+| written as                                                        | evaluated when                               |
+|-------------------------------------------------------------------+----------------------------------------------|
+| a form in a ~test~, ~suite~ or ~scenario~ body                    | that test or suite runs, top to bottom       |
+| the arguments of an assertion: ~#:expect~, ~#:got~, ~#:name~, ... | with the body form that builds the assertion |
+| a ~comp~ payload in ~#:got~                                       | the assertion runs                           |
+| the thunk of ~assert-error~, ~assert-no-error~ or ~assert-raises~ | the assertion runs                           |
+| the body of a ~#:before~ or ~#:after~ hook                        | its test runs, around that test's cases      |
+| the body of a ~#:before-all~ or ~#:after-all~ hook                | its suite runs, around all of its children   |
+| a benchmark's ~#:thunk~                                           | once per ~#:runs~, while the benchmark runs  |
 
 Four things follow from that split.
 
@@ -376,6 +497,9 @@ Four things follow from that split.
 - What you write top to bottom inside a body is the order the work happens in - a body is a sequence, so it is not shuffled unless you ask for ~#:shuffle? #t~, which is a way to catch checks that depend on each other by accident. Around that, a suite's tests run concurrently by default and a suite's children are shuffled, so share state through a hook rather than through the order of tests.
 
 *** Delaying an argument with comp
+:PROPERTIES:
+:CUSTOM_ID: delaying-an-argument-with-comp
+:END:
 
 Delay an argument by writing the computation as data: a quoted list starting with ~comp~.
 
@@ -391,6 +515,9 @@ Bodies already run at test time, so ~comp~ is no longer needed to delay setup. I
 The payload is evaluated with ~eval~ in the interaction environment, and under the runner that environment is the bare top level: core Scheme is there, the imports and the definitions of your test file are not. ~(comp (my-helper))~ raises ~unbound-variable: my-helper~, and ~(comp (call-with-input-file "f" get-string-all))~ fails as well, even though the same file imports the module that provides ~get-string-all~. Either way the runner reports a task error rather than a failed assertion. Keep ~comp~ payloads to core Scheme - arithmetic, ~let~, ~sleep~ - and reach your own code by preparing state at test time instead.
 
 *** Preparing state at test time
+:PROPERTIES:
+:CUSTOM_ID: preparing-state-at-test-time
+:END:
 
 The thunk-based assertion runs at test time, with everything the module imported:
 
@@ -430,6 +557,9 @@ Hooks run at run time too, and they bracket the assertions: inside a test, the c
 #+end_src
 
 ** What a body contributes
+:PROPERTIES:
+:CUSTOM_ID: what-a-body-contributes
+:END:
 
 A body is read for what it *builds*, not for the value of its last expression. The first is that a form may build as many assertions as it likes, and all of them run:
 
@@ -464,10 +594,13 @@ When the cases are built at run time, the procedures behind the macros take them
 #+end_src
 
 * Assertions and matchers
+:PROPERTIES:
+:CUSTOM_ID: assertions-and-matchers
+:END:
 
 /PROBATIO ET REFUTATIO/ - proof and disproof
 
-Assertions are the atoms of a Veritas run: each one returns a check that is evaluated during the test and reported as a pass or a fail. Give an assertion a ~#:name~ to make the report readable, and a ~#:timeout~ (in seconds) to bound how long it may take; see [[*Timeouts][Timeouts]].
+Assertions are the atoms of a Veritas run: each one returns a check that is evaluated during the test and reported as a pass or a fail. Give an assertion a ~#:name~ to make the report readable, and a ~#:timeout~ (in seconds) to bound how long it may take; see [[#timeouts][Timeouts]].
 
 Core equality and boolean assertions:
 
@@ -490,7 +623,7 @@ Approximate (floating point) comparisons take an optional ~#:epsilon~:
 (assert-not-approximate #:expect 3.14 #:got 3.5 #:epsilon 0.01)
 #+end_src
 
-Any ~#:got~ can be pushed into the assertion itself by quoting it and wrapping the computation in ~comp~ (aliases: ~compute~ and ~computare~), which is how work ends up under that assertion's own ~#:timeout~. What that covers, and where it stops, is in [[*When a body is evaluated][When a body is evaluated]].
+Any ~#:got~ can be pushed into the assertion itself by quoting it and wrapping the computation in ~comp~ (aliases: ~compute~ and ~computare~), which is how work ends up under that assertion's own ~#:timeout~. What that covers, and where it stops, is in [[#when-a-body-is-evaluated][When a body is evaluated]].
 
 Error handling is first-class:
 
@@ -535,37 +668,40 @@ Veritas also ships higher-level *matchers* in the spirit of RSpec, Jest's ~expec
 The whole family is re-exported by ~(veritas veritas)~, so no extra import is needed. See ~test/veritas/unit/matchers.scm~ for every matcher exercised against both passing and failing inputs.
 
 ** Latin aliases
+:PROPERTIES:
+:CUSTOM_ID: latin-aliases
+:END:
 
 /PROBATIO LATINA/ - the Latin proof
 
 In the same spirit as the Latin BDD steps (see below), every assertion has a Latin alias. An alias is bound to the very same procedure as its English name, so the keyword arguments, the semantics and the reporting are identical: pick whichever reads best in your test. The aliases are re-exported by ~(veritas veritas)~ too, so no extra import is needed.
 
-| Latin alias     | English assertion        | Meaning                                  |
-|-----------------+--------------------------+------------------------------------------|
-| ~proba~         | ~assert~                 | core combinator ("prove")                |
-| ~aequalis~      | ~assert-equal~           | equal (structural, ~equal?~)             |
-| ~idem~          | ~assert-eq~              | the same (identity, ~eq?~)               |
-| ~aequivalens~   | ~assert-eqv~             | equivalent (~eqv?~)                      |
-| ~non-aequalis~  | ~assert-not-equal~       | not equal                                |
-| ~non-idem~      | ~assert-not-eq~          | not the same                             |
-| ~non-aequivalens~ | ~assert-not-eqv~       | not equivalent                           |
-| ~verus~         | ~assert-true~            | true                                     |
-| ~falsus~        | ~assert-false~           | false                                    |
-| ~propinquus?~   | ~is-approximate?~        | close? (predicate)                       |
-| ~propinquus~    | ~assert-approximate~     | close (within ~#:epsilon~)               |
-| ~non-propinquus~ | ~assert-not-approximate~ | not close                                |
-| ~errat~         | ~assert-error~           | it errs (thunk raises)                   |
-| ~non-errat~     | ~assert-no-error~        | it does not err (thunk is clean)         |
-| ~suscitat~      | ~assert-raises~          | it raises, optionally ~#:on~/~#:predicate~ |
-| ~continet~      | ~assert-contains~        | it contains                              |
-| ~non-continet~  | ~assert-not-contains~    | it does not contain                      |
-| ~congruit~      | ~assert-matches~         | it matches (regexp)                      |
-| ~non-congruit~  | ~assert-not-matches~     | it does not match                        |
-| ~inanis~        | ~assert-empty~           | empty                                    |
-| ~non-inanis~    | ~assert-not-empty~       | not empty                                |
-| ~longitudo~     | ~assert-length~          | length                                   |
-| ~intra~         | ~assert-in-range~        | within (inclusive range)                 |
-| ~unus-ex~       | ~assert-one-of~          | one of                                   |
+| Latin alias       | English assertion        | Meaning                                    |
+|-------------------+--------------------------+--------------------------------------------|
+| ~proba~           | ~assert~                 | core combinator ("prove")                  |
+| ~aequalis~        | ~assert-equal~           | equal (structural, ~equal?~)               |
+| ~idem~            | ~assert-eq~              | the same (identity, ~eq?~)                 |
+| ~aequivalens~     | ~assert-eqv~             | equivalent (~eqv?~)                        |
+| ~non-aequalis~    | ~assert-not-equal~       | not equal                                  |
+| ~non-idem~        | ~assert-not-eq~          | not the same                               |
+| ~non-aequivalens~ | ~assert-not-eqv~         | not equivalent                             |
+| ~verus~           | ~assert-true~            | true                                       |
+| ~falsus~          | ~assert-false~           | false                                      |
+| ~propinquus?~     | ~is-approximate?~        | close? (predicate)                         |
+| ~propinquus~      | ~assert-approximate~     | close (within ~#:epsilon~)                 |
+| ~non-propinquus~  | ~assert-not-approximate~ | not close                                  |
+| ~errat~           | ~assert-error~           | it errs (thunk raises)                     |
+| ~non-errat~       | ~assert-no-error~        | it does not err (thunk is clean)           |
+| ~suscitat~        | ~assert-raises~          | it raises, optionally ~#:on~/~#:predicate~ |
+| ~continet~        | ~assert-contains~        | it contains                                |
+| ~non-continet~    | ~assert-not-contains~    | it does not contain                        |
+| ~congruit~        | ~assert-matches~         | it matches (regexp)                        |
+| ~non-congruit~    | ~assert-not-matches~     | it does not match                          |
+| ~inanis~          | ~assert-empty~           | empty                                      |
+| ~non-inanis~      | ~assert-not-empty~       | not empty                                  |
+| ~longitudo~       | ~assert-length~          | length                                     |
+| ~intra~           | ~assert-in-range~        | within (inclusive range)                   |
+| ~unus-ex~         | ~assert-one-of~          | one of                                     |
 
 #+begin_src scheme
 ;; the same tests, written in Latin
@@ -585,6 +721,9 @@ In the same spirit as the Latin BDD steps (see below), every assertion has a Lat
 #+end_src
 
 * Timeouts
+:PROPERTIES:
+:CUSTOM_ID: timeouts
+:END:
 
 /FESTINA LENTE/ - /make haste slowly/
 
@@ -625,6 +764,9 @@ example ~a hanging test with a deadline timed out after 0.3 seconds~) and
 timed unit that raises still raises, exactly like an untimed one.
 
 ** What gets killed
+:PROPERTIES:
+:CUSTOM_ID: what-gets-killed
+:END:
 
 The timed unit runs in its own fiber. When the deadline passes, a watchdog
 aborts that fiber, which unwinds it back to the boundary of the unit and gets it
@@ -635,6 +777,9 @@ timer, the run continues, and the abandoned fiber is discarded when the
 scheduler that owns it finishes.
 
 ** What is covered
+:PROPERTIES:
+:CUSTOM_ID: what-is-covered
+:END:
 
 - For ~test~ and ~suite~ the deadline covers everything the unit does while it
   runs: its lifecycle hooks (~#:before~, ~#:after~, ~#:before-all~,
@@ -648,7 +793,7 @@ scheduler that owns it finishes.
 An eager ~#:got~ is not covered by a deadline: it is computed while the body
 form that holds it runs, before the assertion itself starts. What a deadline
 covers is the assertion's own work - the comparison, a ~comp~ payload, whatever
-the thunks of ~assert-error~ and friends do - so defer what must be cut short. See [[*When a body is evaluated][When a body is evaluated]].
+the thunks of ~assert-error~ and friends do - so defer what must be cut short. See [[#when-a-body-is-evaluated][When a body is evaluated]].
 
 Deadlines are read from a real clock, so fractional seconds are fine; a
 ~#:timeout~ of ~0.3~ is a useful smoke test when you are trying to reproduce a
@@ -658,6 +803,9 @@ See ~test/veritas/unit/timeout.scm~ for every case exercised, including the
 proof that the fiber of an overrunning unit is really aborted.
 
 * Behaviour-driven testing
+:PROPERTIES:
+:CUSTOM_ID: behaviour-driven-testing
+:END:
 
 /MORES ET SPECIES/ - habits and appearances
 
@@ -724,6 +872,9 @@ Steps share state the way any Scheme code does: close over a ~let~ in the scenar
 The same holds inside a step: a ~let~ body there contributes every assertion it builds, and steps still run in declaration order.
 
 * Data driven testing
+:PROPERTIES:
+:CUSTOM_ID: data-driven-testing
+:END:
 
 /PROBATIO EX DATIS/ - a.k.a. table-driven testing
 
@@ -789,6 +940,9 @@ Veritas also ships a dedicated, declarative *table* API in ~(veritas table)~. ~t
 Every generated case is an ordinary test or suite, so it is shuffled and reported like any other. Use ~#:shuffle?~ (default ~#t~) and ~#:concurrent?~ (default ~#f~) to control order and concurrency.
 
 * Test doubles
+:PROPERTIES:
+:CUSTOM_ID: test-doubles
+:END:
 
 /PRO PERSONA/ - /standing in for the role/
 
@@ -840,6 +994,9 @@ a module declared ~#:declarative? #f~. That is why the ordinary Scheme answer
 comes first - pass the dependency in, or hand the caller a spy.
 
 * Snapshots
+:PROPERTIES:
+:CUSTOM_ID: snapshots
+:END:
 
 /IMAGO VERITATIS/ - /an image of the truth/
 
@@ -870,6 +1027,9 @@ silently rewritten, and ~VERITAS_UPDATE_SNAPSHOTS=true~ accepts the current valu
 of every snapshot the run reaches.
 
 * Container testing
+:PROPERTIES:
+:CUSTOM_ID: container-testing
+:END:
 
 /MACHINA PROBANDA/ - the machine to be tested
 
@@ -904,6 +1064,9 @@ The ~(veritas container)~ module provides Docker/Podman helpers for integration 
 Containers are started with ~#:env~, ~#:ports~, ~#:volumes~ and ~#:extra-args~, so images can be wired up like ~docker run~. The ~container~ unit tests drive the whole module against a fake runtime, so they pass without any daemon.
 
 * Generators
+:PROPERTIES:
+:CUSTOM_ID: generators
+:END:
 
 /GENERATORES DANT, GENERATORES AUFERUNT/ - the generators giveth, and the generators taketh away
 
@@ -945,6 +1108,9 @@ The unit tests under ~test/veritas/unit~ are the other good place to look. A sim
 #+end_src
 
 * Code coverage
+:PROPERTIES:
+:CUSTOM_ID: code-coverage
+:END:
 
 /AMBITUS PROBATIONIS CODICIS/: the testing scope of the code
 
@@ -953,6 +1119,9 @@ It is off by default; pass ~#:with-coverage? #t~ to ~veritas-run~ to turn it on.
 We are in experimental phase still for this feature, using LCOV + HTML method, more improvements to come yet!
 
 * Configuration
+:PROPERTIES:
+:CUSTOM_ID: configuration
+:END:
 
 /NON MULTA SED MULTUM/ - not many things, but much
 
@@ -962,56 +1131,62 @@ runner reads; and the reporter that turns a run into output. Defaults are sane,
 so you only reach for this page when you need to.
 
 ** Keywords
+:PROPERTIES:
+:CUSTOM_ID: keywords
+:END:
 
 Every keyword is optional. A unit takes its name first, then its keywords and
 body forms in whatever order reads best — the DSL sorts them out. A body is a
 sequence, so body forms run in the order you wrote them.
 
-| keyword (on ~test~) | default | what it does                                              |
-|---------------------+---------+-----------------------------------------------------------|
-| ~#:skip?~           | ~#f~    | drop the test from the run                                |
-| ~#:timeout~         | ~#f~    | deadline in seconds, hooks included                       |
-| ~#:tags~            | ~'()~   | tags a ~--only-tag~ filter may select                     |
-| ~#:before~          | ~#f~    | procedure of the validation client, run before the body    |
-| ~#:after~           | ~#f~    | procedure of the validation client, run after the body     |
-| ~#:shuffle?~        | ~#f~    | shuffle the body forms (a body is a sequence by default)   |
-| ~#:debug?~          | ~#f~    | write the raw result records to the terminal               |
+| keyword (on ~test~) | default | what it does                                             |
+|---------------------+---------+----------------------------------------------------------|
+| ~#:skip?~           | ~#f~    | drop the test from the run                               |
+| ~#:timeout~         | ~#f~    | deadline in seconds, hooks included                      |
+| ~#:tags~            | ~'()~   | tags a ~--only-tag~ filter may select                    |
+| ~#:before~          | ~#f~    | procedure of the validation client, run before the body  |
+| ~#:after~           | ~#f~    | procedure of the validation client, run after the body   |
+| ~#:shuffle?~        | ~#f~    | shuffle the body forms (a body is a sequence by default) |
+| ~#:debug?~          | ~#f~    | write the raw result records to the terminal             |
 
-| keyword (on ~suite~) | default | what it does                                             |
-|----------------------+---------+----------------------------------------------------------|
-| ~#:skip?~            | ~#f~    | drop the suite and its children from the run              |
-| ~#:timeout~          | ~#f~    | deadline in seconds, hooks and children included          |
-| ~#:tags~             | ~'()~   | tags a ~--only-tag~ filter may select                     |
-| ~#:concurrent?~      | ~#t~    | run the children over fibers (in parallel)                |
-| ~#:shuffle?~         | ~#t~    | shuffle the order of the children                         |
+| keyword (on ~suite~) | default | what it does                                                |
+|----------------------+---------+-------------------------------------------------------------|
+| ~#:skip?~            | ~#f~    | drop the suite and its children from the run                |
+| ~#:timeout~          | ~#f~    | deadline in seconds, hooks and children included            |
+| ~#:tags~             | ~'()~   | tags a ~--only-tag~ filter may select                       |
+| ~#:concurrent?~      | ~#t~    | run the children over fibers (in parallel)                  |
+| ~#:shuffle?~         | ~#t~    | shuffle the order of the children                           |
 | ~#:before-all~       | ~#f~    | procedure of the validation client, run around the children |
 | ~#:after-all~        | ~#f~    | procedure of the validation client, run around the children |
-| ~#:debug?~           | ~#f~    | write the raw result records to the terminal              |
+| ~#:debug?~           | ~#f~    | write the raw result records to the terminal                |
 
-| keyword (on ~benchmark~) | default | what it does                                  |
-|--------------------------+---------+-----------------------------------------------|
-| ~#:name~                 | —       | the name the report shows                     |
-| ~#:runs~                 | —       | how many runs to measure                      |
-| ~#:thunk~                | —       | the zero-argument procedure to measure        |
-| ~#:timeout~              | ~#f~    | deadline for all the runs together            |
-| ~#:skip?~                | ~#f~    | drop the benchmark from the run               |
+| keyword (on ~benchmark~) | default | what it does                           |
+|--------------------------+---------+----------------------------------------|
+| ~#:name~                 | —       | the name the report shows              |
+| ~#:runs~                 | —       | how many runs to measure               |
+| ~#:thunk~                | —       | the zero-argument procedure to measure |
+| ~#:timeout~              | ~#f~    | deadline for all the runs together     |
+| ~#:skip?~                | ~#f~    | drop the benchmark from the run        |
 
-| keyword (on ~veritas-run~) | default | what it does                                    |
-|----------------------------+---------+-------------------------------------------------|
-| ~#:shuffle?~               | ~#t~    | shuffle the top-level tasks                     |
-| ~#:concurrent?~            | ~#t~    | run them over fibers                            |
-| ~#:reporter~               | ~#f~    | pick a reporter, overriding ~VERITAS_REPORTER~   |
-| ~#:seed~                   | ~#f~    | fix the shuffle seed for a reproducible order   |
-| ~#:with-coverage?~         | ~#f~    | collect LCOV coverage (see [[*Code coverage][Code coverage]]) |
-| ~#:debug?~                 | ~#f~    | print the raw results                           |
+| keyword (on ~veritas-run~) | default | what it does                                   |
+|----------------------------+---------+------------------------------------------------|
+| ~#:shuffle?~               | ~#t~    | shuffle the top-level tasks                    |
+| ~#:concurrent?~            | ~#t~    | run them over fibers                           |
+| ~#:reporter~               | ~#f~    | pick a reporter, overriding ~VERITAS_REPORTER~ |
+| ~#:seed~                   | ~#f~    | fix the shuffle seed for a reproducible order  |
+| ~#:with-coverage?~         | ~#f~    | collect LCOV coverage (see [[#code-coverage][Code coverage]])      |
+| ~#:debug?~                 | ~#f~    | print the raw results                          |
 
 Assertions take ~#:name~ and ~#:timeout~ everywhere, plus their own keywords:
 ~#:expect~ and ~#:got~ on every comparison, ~#:epsilon~ on the approximate ones,
 ~#:pattern~ on the regexp ones, ~#:min~ and ~#:max~ on ~assert-in-range~,
 ~#:on~ and ~#:predicate~ on ~assert-raises~. See
-[[*Assertions and matchers][Assertions and matchers]].
+[[#assertions-and-matchers][Assertions and matchers]].
 
 ** Environment variables
+:PROPERTIES:
+:CUSTOM_ID: environment-variables
+:END:
 
 /VARIABILES AMBITUS/
 
@@ -1054,15 +1229,18 @@ Some functionalities, including the runner, are configured via environment varia
 - ~VERITAS_REPORTER~ is an optional variable, interpreted as symbol in Lisp, by default ~emoji-reporter~. Other choices are ~monotone-reporter~, ~json-reporter~ and ~junit-reporter~, the last of which writes a JUnit XML report to ~VERITAS_JUNIT_PATH~ (default ~reports/junit/veritas-junit.xml~) when the run finishes.
 
 ** Reporters
+:PROPERTIES:
+:CUSTOM_ID: reporters
+:END:
 
 A reporter decides how a run is rendered. Pick one with ~#:reporter~ or with
 ~VERITAS_REPORTER~:
 
-| reporter            | what you get                                                     |
-|---------------------+------------------------------------------------------------------|
-| ~emoji-reporter~    | the default: emoji, colour and dividers, made for a terminal      |
-| ~monotone-reporter~ | plain text, no emoji — the one to reach for in a log file         |
-| ~json-reporter~     | one JSON object per event, for a dashboard or another program     |
+| reporter            | what you get                                                        |
+|---------------------+---------------------------------------------------------------------|
+| ~emoji-reporter~    | the default: emoji, colour and dividers, made for a terminal        |
+| ~monotone-reporter~ | plain text, no emoji — the one to reach for in a log file           |
+| ~json-reporter~     | one JSON object per event, for a dashboard or another program       |
 | ~junit-reporter~    | a JUnit XML document at ~VERITAS_JUNIT_PATH~, quiet on the terminal |
 
 #+begin_src shell
@@ -1078,6 +1256,9 @@ Coverage is not a reporter: it is a keyword on the run, and it writes LCOV and
 HTML beside the reports.
 
 * Runner
+:PROPERTIES:
+:CUSTOM_ID: runner
+:END:
 
 /ARTIFEX EXPERIMENTI/ - /the master of the experiment/
 
@@ -1086,7 +1267,7 @@ You can call ~veritas-run~ yourself, or use the bundled runner that discovers te
 With the runner and the defaults, put your unit test files under
 ~./test/veritas/unit/*.scm~ and name each module ~(veritas unit your-name)~:
 that is how Guile finds them. Every part of that path is a variable you can
-change — see [[*Configuration][Configuration]].
+change — see [[#configuration][Configuration]].
 
 Sub-directories are fine, and they become part of the module name:
 ~test/veritas/unit/numeric/a/num.scm~ is ~(veritas unit numeric a num)~.
@@ -1113,6 +1294,9 @@ What the runner does with those files:
 - With ~VERITAS_REPORTER=junit-reporter~, aggregates the run into one JUnit XML document at ~VERITAS_JUNIT_PATH~, failures and their output included.
 
 * Command line interface
+:PROPERTIES:
+:CUSTOM_ID: command-line-interface
+:END:
 
 /PROGRAMMA AD PEDEM/ - /a program at your fingertips/
 
@@ -1141,6 +1325,9 @@ The CLI adds ~SCAN_DIR/TEST_TOP_DIR~ (by default ~./test~) to Guile's load
 path automatically, so no ~-L ./test~ is needed.
 
 ** Options
+:PROPERTIES:
+:CUSTOM_ID: options
+:END:
 
 - ~-d, --scan-dir DIR~ maps to ~VERITAS_SCAN_DIR~
 - ~-T, --test-top-dir DIR~ maps to ~VERITAS_TEST_TOP_DIR~
@@ -1166,6 +1353,9 @@ would corrupt measurements and results. Tests and suites keep running
 concurrently.
 
 ** Man page
+:PROPERTIES:
+:CUSTOM_ID: man-page
+:END:
 
 The full reference is available as a man page at ~man/veritas.1~:
 
@@ -1174,6 +1364,9 @@ man ./man/veritas.1
 #+end_src
 
 ** Interactive use
+:PROPERTIES:
+:CUSTOM_ID: interactive-use
+:END:
 
 The CLI is also usable from a Guile REPL:
 
@@ -1191,6 +1384,9 @@ To run with the current environment without parsing a command line, call the
 runner directly, as shown in the Runner section above.
 
 * How Veritas compares
+:PROPERTIES:
+:CUSTOM_ID: how-veritas-compares
+:END:
 
 /SUI GENERIS/ - /of its own kind/
 
@@ -1204,28 +1400,34 @@ use.
 *●* built in  *○* needs a plugin or library (named in the cell)  *◐* partial  *—* no such feature
 
 ** Running tests
+:PROPERTIES:
+:CUSTOM_ID: running-tests
+:END:
 
-| capability                  | veritas                                     | pytest            | RSpec                            | Jest                     | Vitest                        | go test                                | JUnit 5                            | ExUnit              |
-|-----------------------------+---------------------------------------------+-------------------+----------------------------------+--------------------------+-------------------------------+----------------------------------------+------------------------------------+---------------------|
-| per-unit timeouts           | ● test, suite, benchmark or a single assertion | ○ pytest-timeout | —                                | ● ~testTimeout~         | ● ~testTimeout~              | ◐ one -timeout for the whole package   | ● ~@Timeout~                      | ● ~@tag timeout:~  |
-| reproducible random order   | ● shuffled by default; --seed replays the order the run reported | ○ pytest-randomly | ● ~--seed~                     | ● ~--randomize --seed~   | ● ~sequence.shuffle~ + seed   | ● ~-shuffle~                           | ● ~MethodOrderer.Random~ (per class) | ● ~--seed~         |
-| parallel execution          | ● files in worker processes (~--jobs~); cases over fibers | ○ pytest-xdist    | ○ parallel_tests                 | ● worker pool            | ● test files in parallel      | ● ~t.Parallel~                         | ● opt-in                           | ● ~async: true~     |
-| shard a run across machines | ● ~--partition 2/4~, the same seed on every slice | ○ pytest-split (~--splits~/~--group~) | ○ parallel_tests ~--only-group~ | ● ~--shard~             | ● ~--shard~                  | — (no index flag)                      | — (no index flag)                    | ● ~mix test --partitions~ |
-| code coverage               | ● LCOV from ~#:with-coverage? #t~, HTML via the project tasks | ○ pytest-cov | ○ SimpleCov                    | ● built in               | ○ ~@vitest/coverage-v8~       | ● ~-cover~                             | ○ JaCoCo                           | ● ~mix test --cover~ |
-| benchmarks                  | ● ~#:runs~, statistics from statprof        | ○ pytest-benchmark | ○ rspec-benchmark               | —                        | ● ~vitest bench~              | ● ~go test -bench~                     | — (JMH is separate)                | ○ Benchee          |
-| JUnit XML report            | ● junit-reporter, ~VERITAS_JUNIT_PATH~          | ● ~--junitxml~    | ○ rspec_junit_formatter          | ○ jest-junit             | ● ~--reporter=junit~          | ○ gotestsum                            | ● Surefire and Gradle write it     | ○ junit_formatter   |
+| capability                  | veritas                                                          | pytest                                | RSpec                           | Jest                   | Vitest                      | go test                              | JUnit 5                              | ExUnit                    |
+|-----------------------------+------------------------------------------------------------------+---------------------------------------+---------------------------------+------------------------+-----------------------------+--------------------------------------+--------------------------------------+---------------------------|
+| per-unit timeouts           | ● test, suite, benchmark or a single assertion                   | ○ pytest-timeout                      | —                               | ● ~testTimeout~        | ● ~testTimeout~             | ◐ one -timeout for the whole package | ● ~@Timeout~                         | ● ~@tag timeout:~         |
+| reproducible random order   | ● shuffled by default; --seed replays the order the run reported | ○ pytest-randomly                     | ● ~--seed~                      | ● ~--randomize --seed~ | ● ~sequence.shuffle~ + seed | ● ~-shuffle~                         | ● ~MethodOrderer.Random~ (per class) | ● ~--seed~                |
+| parallel execution          | ● files in worker processes (~--jobs~); cases over fibers        | ○ pytest-xdist                        | ○ parallel_tests                | ● worker pool          | ● test files in parallel    | ● ~t.Parallel~                       | ● opt-in                             | ● ~async: true~           |
+| shard a run across machines | ● ~--partition 2/4~, the same seed on every slice                | ○ pytest-split (~--splits~/~--group~) | ○ parallel_tests ~--only-group~ | ● ~--shard~            | ● ~--shard~                 | — (no index flag)                    | — (no index flag)                    | ● ~mix test --partitions~ |
+| code coverage               | ● LCOV from ~#:with-coverage? #t~, HTML via the project tasks    | ○ pytest-cov                          | ○ SimpleCov                     | ● built in             | ○ ~@vitest/coverage-v8~     | ● ~-cover~                           | ○ JaCoCo                             | ● ~mix test --cover~      |
+| benchmarks                  | ● ~#:runs~, statistics from statprof                             | ○ pytest-benchmark                    | ○ rspec-benchmark               | —                      | ● ~vitest bench~            | ● ~go test -bench~                   | — (JMH is separate)                  | ○ Benchee                 |
+| JUnit XML report            | ● junit-reporter, ~VERITAS_JUNIT_PATH~                           | ● ~--junitxml~                        | ○ rspec_junit_formatter         | ○ jest-junit           | ● ~--reporter=junit~        | ○ gotestsum                          | ● Surefire and Gradle write it       | ○ junit_formatter         |
 
 ** Writing tests
+:PROPERTIES:
+:CUSTOM_ID: writing-tests
+:END:
 
-| capability                | veritas                                                      | pytest                        | RSpec                     | Jest                  | Vitest                | go test                          | JUnit 5                              | ExUnit                  |
-|---------------------------+--------------------------------------------------------------+-------------------------------+---------------------------+-----------------------+-----------------------+---------------------------------+--------------------------------------+-------------------------|
-| built-in assertions       | ● 24 matchers, plus Latin aliases (proba, aequalis, ...)      | ● ~assert~, ~pytest.raises~   | ● rspec-expectations      | ● ~expect~            | ● ~expect~            | — (Error/Fatal only)            | ● Assertions                         | ● ~assert~, ~refute~    |
-| BDD / Given-When-Then     | ● scenario, given, when-step, then (+ Given/When/Then, Latin) | ○ pytest-bdd                  | ○ Cucumber                | ○ jest-cucumber       | ○ vitest-cucumber     | ○ Godog                         | ○ cucumber-junit-platform-engine     | ○ WhiteBread            |
-| filter tests by tag       | ◐ ~#:tags~ with --only-tag; matched per unit, not inherited | ● ~-m~ markers                | ● ~--tag~                 | — (name patterns)     | — (name patterns)     | — (~-run~ names)                | ● ~@Tag~                             | ● --include/--exclude   |
-| table-driven tests        | ● test-each, suite-each, cases->table                        | ● parametrize                 | ● shared examples         | ● ~test.each~         | ● ~test.each~         | ● table tests + subtests        | ● ~@ParameterizedTest~               | ● generated tests       |
-| mocking / test doubles    | ● ~(veritas mock)~: spies, stubs, temporary bindings                                                            | ● monkeypatch + unittest.mock | ● rspec-mocks             | ● jest.fn, module mocks | ● vi.fn, vi.mock      | — (testify/mock)                | ○ Mockito                            | ○ Mox                   |
-| snapshot testing          | ● ~(veritas snapshot)~: any value Guile can read back                                                            | —                             | —                         | ● toMatchSnapshot     | ● toMatchSnapshot     | —                               | —                                    | —                       |
-| rerun only what failed    | ● ~--only-failed~, applied to reports/last-failed.scm                                                            | ● ~--lf~                      | ● ~--only-failures~       | ● ~--onlyFailures~    | — (retry during a run) | —                              | ○ Surefire/Gradle retry              | ● ~mix test --failed~    |
+| capability             | veritas                                                       | pytest                        | RSpec                | Jest                    | Vitest                 | go test                  | JUnit 5                          | ExUnit                |
+|------------------------+---------------------------------------------------------------+-------------------------------+----------------------+-------------------------+------------------------+--------------------------+----------------------------------+-----------------------|
+| built-in assertions    | ● 24 matchers, plus Latin aliases (proba, aequalis, ...)      | ● ~assert~, ~pytest.raises~   | ● rspec-expectations | ● ~expect~              | ● ~expect~             | — (Error/Fatal only)     | ● Assertions                     | ● ~assert~, ~refute~  |
+| BDD / Given-When-Then  | ● scenario, given, when-step, then (+ Given/When/Then, Latin) | ○ pytest-bdd                  | ○ Cucumber           | ○ jest-cucumber         | ○ vitest-cucumber      | ○ Godog                  | ○ cucumber-junit-platform-engine | ○ WhiteBread          |
+| filter tests by tag    | ◐ ~#:tags~ with --only-tag; matched per unit, not inherited   | ● ~-m~ markers                | ● ~--tag~            | — (name patterns)       | — (name patterns)      | — (~-run~ names)         | ● ~@Tag~                         | ● --include/--exclude |
+| table-driven tests     | ● test-each, suite-each, cases->table                         | ● parametrize                 | ● shared examples    | ● ~test.each~           | ● ~test.each~          | ● table tests + subtests | ● ~@ParameterizedTest~           | ● generated tests     |
+| mocking / test doubles | ● ~(veritas mock)~: spies, stubs, temporary bindings          | ● monkeypatch + unittest.mock | ● rspec-mocks        | ● jest.fn, module mocks | ● vi.fn, vi.mock       | — (testify/mock)         | ○ Mockito                        | ○ Mox                 |
+| snapshot testing       | ● ~(veritas snapshot)~: any value Guile can read back         | —                             | —                    | ● toMatchSnapshot       | ● toMatchSnapshot      | —                        | —                                | —                     |
+| rerun only what failed | ● ~--only-failed~, applied to reports/last-failed.scm         | ● ~--lf~                      | ● ~--only-failures~  | ● ~--onlyFailures~      | — (retry during a run) | —                        | ○ Surefire/Gradle retry          | ● ~mix test --failed~ |
 
 Three footnotes for the tables: RSpec and ExUnit reach the table-driven row
 through composition rather than a dedicated API (shared examples in RSpec;
@@ -1235,6 +1437,9 @@ row is an em dash for Go and JUnit 5 because neither ships a numbered slice of
 its own, leaving that split to test selection and build tooling.
 
 ** What the Veritas column buys
+:PROPERTIES:
+:CUSTOM_ID: what-the-veritas-column-buys
+:END:
 
 - *Nothing to add and nothing to wire up.* Every ● above arrives with the runner:
   one manifest, no plugins, no configuration file, no compatibility matrix.
@@ -1265,6 +1470,9 @@ its own, leaving that split to test selection and build tooling.
   their JUnit reports; combine it with ~--partition~ to fill a CI matrix.
 
 * Why GNU Guix?
+:PROPERTIES:
+:CUSTOM_ID: why-gnu-guix
+:END:
 
 A build should never fail because "it worked on my machine." Reliable software development requires explicit, bit-for-bit reproducibility and a functional approach to package management and system deployment.
 
@@ -1281,10 +1489,16 @@ A build should never fail because "it worked on my machine." Reliable software d
 - *Unified Tooling:* One tool manages development shells, isolated containers, package builds, and full system configurations.
 
 * Ecosystem
+:PROPERTIES:
+:CUSTOM_ID: ecosystem
+:END:
 
 Projects that test themselves with veritas, and the tools that know how to run it.
 
 ** Projects using veritas
+:PROPERTIES:
+:CUSTOM_ID: projects-using-veritas
+:END:
 
 /OPERA UTENS VERITAS/ - works using Veritas
 
@@ -1300,6 +1514,9 @@ Projects that test themselves with veritas, and the tools that know how to run i
 - [[https://codeberg.org/jjba23/sss][Supreme Sexp System]] -  SSS is a GNU Linux Guix system / Lisp machine adventure, where the hacking culture is celebrated. Let me help you achieve GNUrvana.
 
 ** Editor integrations
+:PROPERTIES:
+:CUSTOM_ID: editor-integrations
+:END:
 
 Veritas reports in plain text, exits with a status, and reads its configuration
 from the environment, which is everything a tool needs to drive it:
@@ -1308,10 +1525,16 @@ from the environment, which is everything a tool needs to drive it:
   the report into a compilation buffer — failures become clickable.
 
 * /IN VINO VERITAS/ - /IN AQUA SANITAS/
+:PROPERTIES:
+:CUSTOM_ID: in-vino-veritas-in-aqua-sanitas
+:END:
 
 [[https://jointhefreeworld.org/static-assets/veritas/vino-veritas-small.png]]
 
 * Contributing
+:PROPERTIES:
+:CUSTOM_ID: contributing
+:END:
 
 You are warmly invited to the veritas project. There is no contribution too
 small here and no question too basic: contribution comes in many shapes, and all
@@ -1334,6 +1557,9 @@ of them are welcome.
   ~test/veritas/unit~, is fair game for a clarification.
 
 ** Running the tests
+:PROPERTIES:
+:CUSTOM_ID: running-the-tests
+:END:
 
 The project is developed with [[https://codeberg.org/jjba23/maak][maak]] in a Guix shell:
 
@@ -1382,6 +1608,9 @@ A few conventions that keep the codebase pleasant:
   behaviour without a test is a behaviour nobody can keep.
 
 ** Code of conduct
+:PROPERTIES:
+:CUSTOM_ID: code-of-conduct
+:END:
 
 /CODEX MORUM/ - moral code
 
@@ -1392,6 +1621,9 @@ https://jointhefreeworld.org/blog/articles/personal/jointhefreeworld-code-of-con
 In summary, we foster an inclusive, respectful, and cooperative environment for all contributors and users of this free software project. Inspired by the ideals of the GNU Project, we strive to uphold freedom, equality, and community as guiding principles. We believe that collaboration in a community of mutual respect is essential to creating excellent free software.
 
 ** AI policy
+:PROPERTIES:
+:CUSTOM_ID: ai-policy
+:END:
 
 /POLITICA  MACHINORUM/
 
@@ -1404,6 +1636,9 @@ While tools like Large Language Models (LLMs) and interactive chatbots can be be
 We require a human in the loop for all contributions. The use of autonomous AI agents to automatically generate and submit pull requests to this project is strictly prohibited.
 
 ** Chat, backlog and what comes next
+:PROPERTIES:
+:CUSTOM_ID: chat-backlog-and-what-comes-next
+:END:
 
 /OPERA VERITAS/ - the Veritas project
 
@@ -1414,6 +1649,9 @@ We welcome everyone to feel invited to the veritas Project, and encourage active
 Find here the Backlog and Kanban boards for veritas: https://lucidplan.jointhefreeworld.org/tickets/veritas
 
 * License
+:PROPERTIES:
+:CUSTOM_ID: license
+:END:
 
 /DE LICENTIIS/
 
