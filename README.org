@@ -12,11 +12,20 @@
 
 /One run of [[./examples/demo.scm][examples/demo.scm]]: a suite of assertions, a table of cases, a Given/When/Then scenario — and one check that fails on purpose, so you can see both halves of a report. [[./assets/veritas-run.png][Still image]] · [[./examples/demo.scm][Read the spec]]./
 
+#+begin_export html
+<div style="display: flex; align-items: center; flex-wrap: wrap; gap: 1.75rem; margin: 0 0 1.75rem;">
+  <p style="flex: 1 1 18rem; margin: 0; font-size: 1.1rem; font-style: italic; line-height: 1.55;">
+    An expressive, free and extensible test framework is a good instrument for
+    exploring systems and algorithms.
+  </p>
+  <img src="assets/veritas-logo.png" alt="Veritas logo" width="140"
+       style="flex: 0 0 auto; height: auto;" />
+</div>
+#+end_export
+
 Veritas helps you check that your software is correct, and see how it behaves. It gives tests a clear structure — *suites* group related *tests*, and *tests* hold *assertions* — and it reports what happened in a format you can read.
 
 What makes ~veritas~ pleasant to use is the embedded domain-specific language: tests are ordinary Scheme, written with ~suite~, ~test~ and the ~assert-*~ procedures. Shuffling, concurrency, timeouts, table-driven tests, doubles, snapshots and a JUnit report come along for free: one Guile dependency, no plugins, no configuration file.
-
-/An expressive, free and extensible test framework is a good instrument for exploring systems and algorithms./
 
 * At a glance
 :PROPERTIES:
@@ -68,7 +77,6 @@ In a hurry? [[#install][Install]] is two commands and [[#quick-start][Quick star
 - [[#how-veritas-compares][How Veritas compares]]
 - [[#why-gnu-guix][Why GNU Guix?]]
 - [[#ecosystem][Ecosystem]]
-- [[#in-vino-veritas-in-aqua-sanitas][In vino veritas]]
 - [[#contributing][Contributing]]
 - [[#license][License]]
 
@@ -1698,13 +1706,6 @@ from the environment, which is everything a tool needs to drive it:
 
 - *Emacs*: [[https://codeberg.org/jjba23/veritas.el][veritas.el]] runs a test file, a suite or the test at point, and turns
   the report into a compilation buffer — failures become clickable.
-
-* /IN VINO VERITAS/ - /IN AQUA SANITAS/
-:PROPERTIES:
-:CUSTOM_ID: in-vino-veritas-in-aqua-sanitas
-:END:
-
-[[https://jointhefreeworld.org/static-assets/veritas/vino-veritas-small.png]]
 
 * Contributing
 :PROPERTIES:
