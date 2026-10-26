@@ -4,7 +4,7 @@
 .\" This documentation is free documentation: you can redistribute it and/or
 .\" modify it under the terms of the GNU Free Documentation License, version
 .\" 1.3 or (at your option) any later version.
-.TH VERITAS 1 "2026" "veritas 0.1.0" "User Commands"
+.TH VERITAS 1 "2026" "veritas 0.9.0" "User Commands"
 .SH NAME
 veritas \- discover and run Veritas test suites, tests and benchmarks
 .SH SYNOPSIS
@@ -118,6 +118,36 @@ only one shown, so the log reads as a single-process run's would - and their
 records of failures and their JUnit reports are merged
 .RB ( VERITAS_JOBS ).
 .TP
+.B \-\-coverage
+Measure code coverage and write the LCOV trace, the JSON summary and the HTML
+report
+.RB ( VERITAS_COVERAGE ).
+.TP
+.B \-\-no\-coverage
+Do not measure coverage (default).
+.TP
+.BR \-\-coverage\-dir " " DIR
+Directory the LCOV trace and the JSON summary are written to, defaults to
+.BR reports/lcov
+.RB ( VERITAS_COVERAGE_DIR ).
+.TP
+.BR \-\-coverage\-html\-dir " " DIR
+Directory the HTML report is written to, defaults to
+.BR reports/html ;
+the value
+.B false
+turns the HTML report off
+.RB ( VERITAS_COVERAGE_HTML_DIR ).
+.TP
+.BR \-\-coverage\-include " " DIRS
+Colon-separated source roots the report is limited to, defaulting to the current
+directory
+.RB ( VERITAS_COVERAGE_INCLUDE ).
+.TP
+.BR \-\-coverage\-exclude " " DIRS
+Colon-separated source roots left out of the report
+.RB ( VERITAS_COVERAGE_EXCLUDE ).
+.TP
 .BR \-s ", " \-\-shuffle
 Shuffle the order of discovered files (default;
 .BR VERITAS_SHUFFLE_FILES=true ).
@@ -218,6 +248,49 @@ which runs them in the process that discovered them; higher values spread the
 files over that many processes.  A file that fails exits only its own worker, so
 every file still runs and the runner exits 1 when any of them failed.
 .TP
+.B VERITAS_COVERAGE
+Either
+.B true
+or
+.BR false .
+When true, every test file the runner loads is measured, whether or not it asks
+for coverage with
+.BR #:with-coverage? .
+When false, nothing is measured, even a file that asks: an explicit refusal
+beats a file's own default.
+The LCOV trace and the JSON summary go to
+.B VERITAS_COVERAGE_DIR
+and the HTML report to
+.BR VERITAS_COVERAGE_HTML_DIR .
+.TP
+.B VERITAS_COVERAGE_DIR
+Directory the LCOV trace and the JSON summary are written to.  Defaults to
+.BR reports/lcov .
+.TP
+.B VERITAS_COVERAGE_HTML_DIR
+Directory the HTML report is written to.  Defaults to
+.BR reports/html ;
+.B false
+turns it off.
+.TP
+.B VERITAS_COVERAGE_INCLUDE
+Colon-separated source roots the report is limited to.  Defaults to the current
+directory, which keeps Guile and the other dependencies out of the report.
+.TP
+.B VERITAS_COVERAGE_EXCLUDE
+Colon-separated source roots left out of the report.  Nothing is excluded by
+default.
+.TP
+.B VERITAS_COBERTURA_PATH
+Where the Cobertura XML document is written.  Defaults to
+.B coverage.xml
+next to the LCOV trace.
+.TP
+.B VERITAS_JACOCO_PATH
+Where the JaCoCo XML document is written.  Defaults to
+.B jacoco.xml
+next to the LCOV trace.
+.TP
 .B VERITAS_LAST_FAILED_PATH
 Where a run records the names of the tests that failed.  Defaults to
 .BR reports/last-failed.scm ;
@@ -300,6 +373,14 @@ Run one third of the test files, and write a JUnit XML report:
 veritas \-\-partition 1/3
 veritas \-r junit\-reporter
 veritas \-\-jobs 4
+.EE
+.RE
+.PP
+Measure coverage of the sources, leaving the tests out of the report:
+.PP
+.RS 4
+.EX
+veritas \-\-coverage \-\-coverage\-exclude test
 .EE
 .RE
 .PP

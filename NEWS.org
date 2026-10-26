@@ -13,6 +13,79 @@ This project adheres loosely to [[https://semver.org/spec/v2.0.0.html][Semantic 
 
 *[Released]*
 
+** v0.9.0 (2026-10-26)
+
+Coverage is the release.  A run now switches Guile's VM to the engine that
+counts instructions for the measured part, so the reports carry real numbers
+instead of a page of zeroes, and it writes them in every shape a dashboard
+reads: LCOV, JSON, Cobertura, JaCoCo and one self-contained HTML page for the
+whole project.  Two bugs found on the way - a suite hiding a child that raised,
+and helpers losing their bracket when a test yielded - are fixed too.
+
+*** Code coverage that works
+
+- Coverage used to write reports whose every line had a count of zero: Guile
+  fires the counting hook only on its debugging VM, and the run never switched
+  engines.  The measured part of a run now happens on that engine, and the
+  engine found before it is put back afterwards.
+- Coverage is asked for with ~#:with-coverage? #t~ on ~veritas-run~, or once for
+  a whole run with ~VERITAS_COVERAGE=true~, which measures every test file the
+  runner loads rather than only the files that ask.  ~VERITAS_COVERAGE=false~
+  (or ~--no-coverage~) is the opposite and wins over a file that asks for it,
+  which is what makes a quick run quick.
+- The project's own ~maak test~ task measures coverage by default; ~maak
+  test-fast~ runs the same suite with measurement refused.
+- The reports of a run are merged instead of overwritten: one LCOV trace file
+  (~reports/lcov/veritas.info~), one JSON summary
+  (~reports/lcov/coverage-summary.json~), a Cobertura document
+  (~reports/lcov/cobertura.xml~), a JaCoCo document
+  (~reports/lcov/jacoco.xml~) and an HTML report
+  (~reports/html/index.html~).  With ~--jobs~ the fragments of every worker are
+  merged into the same report.
+- The HTML report is now *one page* that holds the whole project: the summary,
+  a filterable table of files and the annotated source of every file, with a
+  switch that hides covered lines.  It needs no other tool and opens from a
+  ~file://~ URL.
+- Cobertura and JaCoCo are written for the Java-world dashboards: SonarQube,
+  Jenkins, GitLab, Azure DevOps and IDE coverage gutters read them.  The source
+  roots of the run are named and the files are reported relative to them.
+  ~VERITAS_COBERTURA_PATH~ and ~VERITAS_JACOCO_PATH~ move the documents.
+- ~#:coverage-dir~, ~#:coverage-html-dir~, ~#:coverage-include~ and
+  ~#:coverage-exclude~ (or ~VERITAS_COVERAGE_DIR~, ~VERITAS_COVERAGE_HTML_DIR~,
+  ~VERITAS_COVERAGE_INCLUDE~, ~VERITAS_COVERAGE_EXCLUDE~, or the ~--coverage-*~
+  flags) say where the reports go and which sources they cover.  By default only
+  the current directory is measured, which keeps Guile and the dependencies out
+  of the report; a run that measured nothing now says so instead of passing
+  silently.
+- Benchmarks run outside the measured extent, so the per-instruction hook does
+  not distort a measurement about timing.
+- New ~(veritas coverage)~ module: ~collect-coverage~, ~coverage-report-files~,
+  ~coverage-report-percentage~, ~write-lcov-file~, ~read-lcov-file~,
+  ~merge-coverage-reports~, ~merge-lcov-files~, ~write-html-report~,
+  ~write-coverage-json~, ~write-cobertura-xml~, ~write-jacoco-xml~,
+  ~publish-coverage!~ and ~regenerate-coverage-reports~.
+- ~test/veritas/unit/coverage.scm~ compiles a fixture module and checks the
+  counts, the include filter, the LCOV round trip, the merge, the Cobertura and
+  JaCoCo documents, the all-in-one HTML page, the JSON summary and a full
+  ~veritas-run~ with coverage.
+
+*** Fixes
+
+- A test whose thunk raised inside a suite is now reported: the exception
+  arrives as a string, and the report used to drop a string child of a suite
+  without a word, which made a failed suite look empty.
+- ~with-container~ and ~with-temporary-binding~ keep their bracket across a
+  fiber suspension.  Fibers unwinds a plain ~dynamic-wind~ whenever a task
+  yields - a ~sleep~ or a port operation is enough - so the container was
+  removed, or the binding put back, in the middle of the thunk.  Both now use
+  ~dynamic-wind*~ from ~(fibers scheduler)~ when it is there, with the old
+  behaviour as a fallback; ~call-with-fiber-safe-wind~ in ~(veritas prelude)~ is
+  the shared helper, and the coverage engine switch uses it too.
+- ~test/veritas/unit/container.scm~ gains a test that a yielding thunk keeps its
+  container until it is done, and installs its fake runtime with ~chmod~ instead
+  of ~(system* "chmod" ...)~: spawning a process while a module is being loaded
+  deadlocks on some Guile builds.
+
 ** v0.8.1 (2026-10-22)
 
 A maintenance release: the sources are identical to *v0.8.0*, and the tag gives

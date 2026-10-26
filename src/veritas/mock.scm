@@ -45,6 +45,7 @@
   #:use-module (ice-9 format)
   #:use-module (srfi srfi-9)
   #:use-module (veritas assert)
+  #:use-module (veritas prelude)
   #:export (make-spy
                     make-stub
                     spy?
@@ -204,6 +205,7 @@ when the code under test reaches the binding at run time.
                                                     (resolve-module '(my app))))))
 @end example"
   (let ((original (module-ref module var)))
-    (dynamic-wind (lambda () (module-set! module var value))
-                  thunk
-                  (lambda () (module-set! module var original)))))
+    (call-with-fiber-safe-wind
+     (lambda () (module-set! module var value))
+     thunk
+     (lambda () (module-set! module var original)))))

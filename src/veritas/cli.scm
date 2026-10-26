@@ -45,7 +45,7 @@
                     veritas-man-page-name))
 
 (define veritas-version
-  "0.1.0")
+  "0.9.0")
 
 (define veritas-man-page-name
   "veritas(1)")
@@ -78,6 +78,12 @@
     (partition (value #t))
     (jobs (single-char #\j)
           (value #t))
+    (coverage (value #f))
+    (no-coverage (value #f))
+    (coverage-dir (value #t))
+    (coverage-html-dir (value #t))
+    (coverage-include (value #t))
+    (coverage-exclude (value #t))
     (shuffle (single-char #\s)
              (value #f))
     (no-shuffle (value #f))
@@ -147,6 +153,36 @@
 "
    "                           file per process (VERITAS_JOBS)
 "
+   "      --coverage           measure code coverage and write the reports
+"
+   "                           (VERITAS_COVERAGE)
+"
+   "      --no-coverage        do not measure coverage (the default)
+"
+   "      --coverage-dir DIR   where the LCOV trace and the JSON summary go
+"
+   "                           (VERITAS_COVERAGE_DIR, default reports/lcov)
+"
+   "      --coverage-html-dir DIR
+"
+   "                           where the HTML report goes, or \"false\" to skip
+"
+   "                           it (VERITAS_COVERAGE_HTML_DIR, default reports/html)
+"
+   "      --coverage-include DIRS
+"
+   "                           colon-separated source roots the report covers
+"
+   "                           (VERITAS_COVERAGE_INCLUDE, default the current
+"
+   "                           directory)
+"
+   "      --coverage-exclude DIRS
+"
+   "                           colon-separated source roots left out
+"
+   "                           (VERITAS_COVERAGE_EXCLUDE)
+"
    "  -s, --shuffle            shuffle the order of discovered files (default)
 "
    "      --no-shuffle         keep the discovered file order (VERITAS_SHUFFLE_FILES=false)
@@ -193,6 +229,30 @@
 "
    "                            defaults to 1 and then they run in this process
 "
+   "  VERITAS_COVERAGE          \"true\" to measure code coverage
+"
+   "  VERITAS_COVERAGE_DIR      where the LCOV trace is written, defaults to
+"
+   "                            reports/lcov
+"
+   "  VERITAS_COVERAGE_HTML_DIR where the HTML report is written, defaults to
+"
+   "                            reports/html, and \"false\" turns it off
+"
+   "  VERITAS_COVERAGE_INCLUDE  colon-separated source roots to report on,
+"
+   "                            defaults to the current directory
+"
+   "  VERITAS_COVERAGE_EXCLUDE  colon-separated source roots to leave out
+"
+   "  VERITAS_COBERTURA_PATH    where the Cobertura XML is written, defaults to
+"
+   "                            cobertura.xml in the coverage directory
+"
+   "  VERITAS_JACOCO_PATH       where the JaCoCo XML is written, defaults to
+"
+   "                            jacoco.xml in the coverage directory
+"
    "  VERITAS_LAST_FAILED_PATH  where the failing names are recorded, defaults
 "
    "                            to reports/last-failed.scm
@@ -222,6 +282,12 @@
    "  veritas --partition 1/3          run one third of the test files
 "
    "  veritas --jobs 4                 run the files in four worker processes
+"
+   "  veritas --coverage               measure coverage and write LCOV and HTML
+"
+   "  veritas --coverage --coverage-exclude test
+"
+   "                                   measure the sources, not the tests
 "
    "  veritas --reporter junit-reporter  write a JUnit XML report
 "
@@ -284,6 +350,17 @@ switch is present @var{default} is used."
                       'partition "VERITAS_PARTITION")
   (setenv-if-present! opts
                       'jobs "VERITAS_JOBS")
+  (setenv-if-present! opts
+                      'coverage-dir "VERITAS_COVERAGE_DIR")
+  (setenv-if-present! opts
+                      'coverage-html-dir "VERITAS_COVERAGE_HTML_DIR")
+  (setenv-if-present! opts
+                      'coverage-include "VERITAS_COVERAGE_INCLUDE")
+  (setenv-if-present! opts
+                      'coverage-exclude "VERITAS_COVERAGE_EXCLUDE")
+  (setenv-boolean! opts
+                   'coverage
+                   'no-coverage "VERITAS_COVERAGE" #f)
   (setenv-boolean! opts
                    'only-failed
                    'no-only-failed "VERITAS_ONLY_FAILED" #f)

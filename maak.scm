@@ -84,28 +84,47 @@
       #:expand? #t)
   (delete-file-recursively "doc"))
 
+;; The project's own test run measures coverage: the numbers are the point of
+;; `maak test', and a run that measures nothing is a bug worth seeing rather
+;; than a setting to remember.  `test-fast' runs the same suite without the
+;; measurement, for the edit-run loop.
+(define coverage-environment
+  '("VERITAS_COVERAGE=true"
+    ;; The test tree is the instrument, not the subject, and the vendored
+    ;; fibers override is a dependency the project builds on.
+    "VERITAS_COVERAGE_EXCLUDE=test:override"))
+
 (define (test)
-  "Run the test suite."
-  (delete-file-recursively "reports/lcov/coverage*"
+  "Run the test suite with coverage of the sources."
+  (delete-file-recursively "reports/lcov"
                            #:expand? #t)
   (delete-file-recursively "reports/html")
+  ;; The runner writes the five reports itself (LCOV, JSON, Cobertura, JaCoCo
+  ;; and the one-page HTML), merged over every test file.
   (manifest-shell (list "guile" "-L" "./src" "-L" "./test"
                         "-c" "'((@ (veritas runner) run-tests))'")
+                  #:env (append '("VERITAS_TEST_TYPE=unit"
+                                  "VERITAS_RUN_BENCHMARKS=true")
+                                coverage-environment)))
+
+(define (test-fast)
+  "Run the test suite without measuring coverage."
+  (manifest-shell (list "guile" "-L" "./src" "-L" "./test"
+                        "-c" "'((@ (veritas runner) run-tests))'")
+                  ;; The explicit `false' wins over the test files that ask for
+                  ;; coverage themselves, so this really is the quick loop.
                   #:env '("VERITAS_TEST_TYPE=unit"
-                          "VERITAS_RUN_BENCHMARKS=true"))
-  (coverage-report))
+                          "VERITAS_RUN_BENCHMARKS=true"
+                          "VERITAS_COVERAGE=false")))
 
 (define (coverage-report)
-  "Build the HTML coverage report."
-  ;; `genhtml' reads the fixture files the test run left, so the pattern is
-  ;; expanded by the shell (`#:expand?').  The report is a convenience rather
-  ;; than a verdict: a run that produced no coverage must not fail a task that
-  ;; already tested, hence `#:allow-failure?'.
-  (run (list "genhtml" "reports/lcov/*.info"
-             "--output-directory" "reports/html")
-       #:expand? #t
-       #:dev-null? #t
-       #:allow-failure? #t))
+  "Rebuild the coverage reports from the LCOV trace of the last run."
+  ;; The run already writes them; this is for rebuilding after the fact, and it
+  ;; needs nothing but Guile - no `genhtml', no extra tool to install.
+  (manifest-shell (list "guile" "-L" "./src"
+                        "-c"
+                        "'((@ (veritas coverage) regenerate-coverage-reports))'")
+                  #:allow-failure? #t))
 
 (define (validate)
   "Format, compile and test, in that order."

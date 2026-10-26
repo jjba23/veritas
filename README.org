@@ -24,7 +24,7 @@ What makes ~veritas~ pleasant to use is the embedded domain-specific language: t
 :END:
 
 - *A test is a sentence.* ~(test "the cart is empty" (assert-true (cart-empty? cart)))~ is a whole test, and any assertion can carry a ~#:name~, so the report reads like the specification it is checking.
-- *A full toolkit in one dependency.* 24 matchers (with Latin aliases), Given/When/Then scenarios, table-driven suites, spies and stubs, snapshots, generators, deadlines at four granularities, benchmarks, LCOV coverage, tag filters, JSON and JUnit reports.
+- *A full toolkit in one dependency.* 24 matchers (with Latin aliases), Given/When/Then scenarios, table-driven suites, spies and stubs, snapshots, generators, deadlines at four granularities, benchmarks, LCOV, Cobertura and JaCoCo coverage, tag filters, JSON and JUnit reports.
 - *Fast, and reproducible when it matters.* Suites run over fibers, whole files run in worker processes (~--jobs~), a run can be sharded across machines (~--partition~), and every shuffled run prints the seed that replays it.
 - *A failure you can act on.* The report names the suite, the test and the assertion, shows what was expected and what was got, and the run can be narrowed with ~--only-test~, ~--only-suite~, ~--only-tag~ or ~--only-failed~.
 - *Yours to extend.* Assertions, reporters and generators are ordinary Guile procedures: a project-specific matcher is a function, not a plugin against an extension API.
@@ -129,7 +129,7 @@ keep in sync.
   [[#reporters][Reporters]].
 - Benchmarks report statistics from Guile's ~statprof~, next to the tests they
   measure.
-- LCOV coverage with one keyword. See [[#code-coverage][Code coverage]].
+- LCOV, Cobertura, JaCoCo, JSON and one-page HTML coverage with one keyword, merged across a whole run. See [[#code-coverage][Code coverage]].
 - The exit status is part of the contract: ~0~ when everything passed, ~1~ when
   anything failed.
 
@@ -138,7 +138,7 @@ keep in sync.
 :CUSTOM_ID: ways-to-install
 :END:
 
-/Four routes to the same 0.8.2, from the most automated to the most manual.  They all build the tag this README documents./
+/Four routes to the same 0.9.0, from the most automated to the most manual.  They all build the tag this README documents./
 
 ** From the Guix channel
 :PROPERTIES:
@@ -146,7 +146,7 @@ keep in sync.
 :END:
 *GNU Guix* is the functional package manager this project is developed with: a build is a pure function of its inputs, so the same recipe gives the same result everywhere, and an upgrade that goes wrong can be rolled back.
 
-The jointhefreeworld channel carries ~guile-veritas~ at 0.8.2, so a checkout of the channel is enough — no package definition to write:
+The jointhefreeworld channel carries ~guile-veritas~ at 0.9.0, so a checkout of the channel is enough — no package definition to write:
 
 #+begin_src shell
 git clone https://codeberg.org/jjba23/guix-jointhefreeworld.git
@@ -1114,9 +1114,173 @@ The unit tests under ~test/veritas/unit~ are the other good place to look. A sim
 
 /AMBITUS PROBATIONIS CODICIS/: the testing scope of the code
 
-It is off by default; pass ~#:with-coverage? #t~ to ~veritas-run~ to turn it on. Reports are written for each test file into ~./reports/lcov~ and ~./reports/html~. Make sure those directories are writable, and clear them before each run (the ~maak.scm~ task does that).
+Coverage answers one question with numbers: which lines of the code did the
+tests actually run?  It is off by default.  Turn it on with
+~#:with-coverage? #t~ on ~veritas-run~, or once for a whole run with
+~VERITAS_COVERAGE=true~ (which measures every test file the runner loads, not
+only the files that ask).  The run then ends with a summary like
 
-We are in experimental phase still for this feature, using LCOV + HTML method, more improvements to come yet!
+#+begin_src shell
+Code coverage: 82.4% of 340 lines (280 covered) in 12 files
+#+end_src
+
+and leaves these artifacts behind:
+
+| path                                  | what it is                                                        |
+|---------------------------------------+-------------------------------------------------------------------|
+| ~reports/lcov/veritas.info~           | LCOV trace file, merged over the whole run                        |
+| ~reports/lcov/coverage-summary.json~  | totals and, per file, the lines that never ran                    |
+| ~reports/lcov/cobertura.xml~          | Cobertura XML, for Jenkins, GitLab, Azure DevOps and SonarQube    |
+| ~reports/lcov/jacoco.xml~             | JaCoCo XML, for IDE coverage gutters and Jenkins' JaCoCo plugin   |
+| ~reports/html/index.html~             | one self-contained page: the summary and every file's source      |
+
+The LCOV file is what ~genhtml~, editor extensions and CI dashboards read, and
+the two XML documents are what the Java world reads: Cobertura is the format
+Azure DevOps, GitLab, Jenkins and SonarQube accept most readily, JaCoCo is what
+IDEs and SonarQube's JaCoCo importer speak.  Both name the source roots of the
+run and report the files relative to them, so a dashboard can link a line back
+to the repository; both are line oriented and carry no branch data, because a
+Scheme report has none.
+
+The HTML report is written by ~veritas~ itself, so nothing else has to be
+installed, and it is *one page*: the totals, a table of every file, and the
+annotated source of every file, in a single document that opens from a
+~file://~ URL.  There is a filter box (press ~f~), a switch that hides covered
+lines so only the gaps are left, and colours that follow the system's light or
+dark preference.  Because every line of every file is embedded, the page grows
+with the project - a few megabytes for a large one - and the filter box is what
+keeps it quick to navigate.
+
+** What is measured, and how
+:PROPERTIES:
+:CUSTOM_ID: what-is-measured-and-how
+:END:
+
+Guile counts coverage by firing a VM hook on every instruction it retires.  That
+hook only exists on the *debugging* VM engine: on the regular engine the same
+code runs silently and records nothing, which is why an early version of this
+feature wrote reports where every line had a count of zero.  ~veritas~ now runs
+the measured part of a run on the debugging engine and puts the engine it found
+back afterwards, so the switch is invisible to the rest of the run.
+
+Three consequences are worth knowing:
+
+- *The code under test must be compiled with debug information.*  That is what
+  Guile does by default: a module auto-compiled on first load, or compiled with
+  ~guild compile~, keeps the source locations that coverage maps counts to.  A
+  file interpreted without compilation (auto-compilation turned off), or a form
+  handed to ~eval~, has no source locations and cannot be counted.  If a module
+  of yours is missing from the report, this is the first thing to check.
+- *Benchmarks run outside the measured extent.*  The hook costs a procedure call
+  per instruction, which would distort a measurement whose whole point is
+  timing, and a benchmark is not the code a test suite covers.  Benchmarks still
+  run and still report; they are simply not instrumented.
+- *Inlining moves hits into the caller.*  Guile inlines a small procedure it can
+  see at compile time into the code that calls it (the default
+  ~-Ocross-module-inlining~), so a tiny function may legitimately show no hits
+  of its own while the lines of its caller account for the work.  Compiling the
+  sources with ~guild compile -Ono-cross-module-inlining~ keeps each procedure
+  in its own body when that distinction matters.
+
+Coverage is per line: a line counts as covered when any instruction attributed
+to it ran.  A branch that was never taken, and a procedure that was never
+called, keep a count of zero - the two cases that ~test/veritas/unit/coverage.scm~
+checks against a fixture compiled for the purpose.
+
+** What ends up in the report
+:PROPERTIES:
+:CUSTOM_ID: what-ends-up-in-the-report
+:END:
+
+Files are selected by absolute path, so a dependency cannot masquerade as your
+code:
+
+- ~#:coverage-include~ (or ~VERITAS_COVERAGE_INCLUDE~) is a list of directory
+  prefixes the report is limited to.  It defaults to the current directory,
+  which keeps Guile, Fibers and the other dependencies out.
+- ~#:coverage-exclude~ (or ~VERITAS_COVERAGE_EXCLUDE~) is a list of prefixes
+  left out of it.  Nothing is excluded by default; for a project whose tests
+  live under ~test/~, ~VERITAS_COVERAGE_EXCLUDE=test~ reports on the subject
+  rather than on the instrument.
+- Both accept either a list or, in the environment, a colon-separated string.
+
+Every file that was *loaded* during the run is listed, including files that
+never ran a line: a file with no hit at all is what "never exercised" looks like,
+and leaving it out would flatter the percentage.  A file that the run never
+loaded is not in the report, because the VM has no source information for it.
+
+The reports of a run are merged, not overwritten: a process that runs several
+test files ends with all of them in one LCOV file, and ~--jobs~ merges the
+fragments of every worker into the same report.
+
+** Configuration
+:PROPERTIES:
+:CUSTOM_ID: coverage-configuration
+:END:
+
+| keyword (on ~veritas-run~) | default      | what it does                                    |
+|----------------------------+--------------+-------------------------------------------------|
+| ~#:with-coverage?~         | ~#f~         | measure coverage for this run                   |
+| ~#:coverage-dir~           | ~reports/lcov~ | where the LCOV trace and the JSON summary go  |
+| ~#:coverage-html-dir~      | ~reports/html~ | where the HTML report goes; ~"false"~ skips it |
+| ~#:coverage-include~       | current dir  | directory prefixes the report is limited to     |
+| ~#:coverage-exclude~       | ~'()~        | directory prefixes left out of it               |
+
+The same knobs exist as environment variables - ~VERITAS_COVERAGE~,
+~VERITAS_COVERAGE_DIR~, ~VERITAS_COVERAGE_HTML_DIR~, ~VERITAS_COVERAGE_INCLUDE~
+and ~VERITAS_COVERAGE_EXCLUDE~ - and as command line flags (~--coverage~,
+~--coverage-dir~, ~--coverage-html-dir~, ~--coverage-include~,
+~--coverage-exclude~), so CI needs no Scheme at all:
+
+#+begin_src shell
+veritas --coverage --coverage-exclude test
+#+end_src
+
+~VERITAS_COVERAGE=false~ (or ~--no-coverage~) refuses measurement outright: it
+wins over a test file that asks for it with ~#:with-coverage? #t~, which is what
+keeps a quick run quick.  The project's own tasks follow the same rule: ~maak
+test~ measures the sources by default, and ~maak test-fast~ runs the same suite
+with measurement refused.
+
+A minimal in-process run looks like this:
+
+#+begin_src scheme
+(veritas-run #:with-coverage? #t
+             #:coverage-include (list "src")
+             #:coverage-exclude (list "src/generated")
+             (test "the cart adds up"
+                   (assert-equal #:expect 3 #:got (cart-total '(1 2)))))
+#+end_src
+
+** Rebuilding the reports
+:PROPERTIES:
+:CUSTOM_ID: rebuilding-the-reports
+:END:
+
+The run writes every report; if you only want the HTML, JSON, Cobertura and
+JaCoCo documents rebuilt from the LCOV file of the last run, ask for that
+directly:
+
+#+begin_src scheme
+(use-modules (veritas coverage))
+(regenerate-coverage-reports)          ;; reads reports/lcov/veritas.info
+#+end_src
+
+Every writer is available on its own too, which is how a tool of your own can
+skip the files it does not need:
+
+#+begin_src scheme
+(use-modules (veritas coverage))
+
+(define report (read-lcov-file "reports/lcov/veritas.info"))
+
+(write-html-report report #:directory "reports/html")
+(write-coverage-json report #:path "reports/coverage.json")
+(write-cobertura-xml report #:path "coverage.xml"
+                      #:sources (list (getcwd)))
+(write-jacoco-xml report #:path "jacoco.xml"
+                   #:sources (list (getcwd)))
+#+end_src
 
 * Configuration
 :PROPERTIES:
@@ -1174,7 +1338,11 @@ sequence, so body forms run in the order you wrote them.
 | ~#:concurrent?~            | ~#t~    | run them over fibers                           |
 | ~#:reporter~               | ~#f~    | pick a reporter, overriding ~VERITAS_REPORTER~ |
 | ~#:seed~                   | ~#f~    | fix the shuffle seed for a reproducible order  |
-| ~#:with-coverage?~         | ~#f~    | collect LCOV coverage (see [[#code-coverage][Code coverage]])      |
+| ~#:with-coverage?~         | ~#f~    | measure coverage (see [[#code-coverage][Code coverage]])          |
+| ~#:coverage-dir~           | ~reports/lcov~ | where the LCOV trace and JSON go        |
+| ~#:coverage-html-dir~      | ~reports/html~ | where the HTML report goes              |
+| ~#:coverage-include~       | current directory | source roots the report is limited to |
+| ~#:coverage-exclude~       | ~'()~   | source roots left out of the report            |
 | ~#:debug?~                 | ~#f~    | print the raw results                          |
 
 Assertions take ~#:name~ and ~#:timeout~ everywhere, plus their own keywords:
@@ -1228,6 +1396,8 @@ Some functionalities, including the runner, are configured via environment varia
 
 - ~VERITAS_REPORTER~ is an optional variable, interpreted as symbol in Lisp, by default ~emoji-reporter~. Other choices are ~monotone-reporter~, ~json-reporter~ and ~junit-reporter~, the last of which writes a JUnit XML report to ~VERITAS_JUNIT_PATH~ (default ~reports/junit/veritas-junit.xml~) when the run finishes.
 
+- ~VERITAS_COVERAGE~ set to ~true~ measures code coverage for every test file the runner loads, whether or not the file asks for it with ~#:with-coverage?~. ~VERITAS_COVERAGE_DIR~ (default ~reports/lcov~) and ~VERITAS_COVERAGE_HTML_DIR~ (default ~reports/html~, ~false~ to skip) decide where the reports go; ~VERITAS_COVERAGE_INCLUDE~ and ~VERITAS_COVERAGE_EXCLUDE~ are colon-separated source roots the report is limited to and left out of. ~VERITAS_COBERTURA_PATH~ and ~VERITAS_JACOCO_PATH~ move the two XML documents somewhere else (a CI job often wants ~coverage.xml~ at the repository root). See [[#code-coverage][Code coverage]].
+
 ** Reporters
 :PROPERTIES:
 :CUSTOM_ID: reporters
@@ -1252,8 +1422,8 @@ VERITAS_REPORTER=junit-reporter ./bin/veritas
 guile -c '(use-modules (veritas veritas)) (veritas-run #:reporter (quote junit-reporter))'
 #+end_src
 
-Coverage is not a reporter: it is a keyword on the run, and it writes LCOV and
-HTML beside the reports.
+Coverage is not a reporter: it is a keyword on the run (or ~VERITAS_COVERAGE~),
+and it writes LCOV, JSON and HTML beside the other reports.
 
 * Runner
 :PROPERTIES:
@@ -1288,7 +1458,7 @@ What the runner does with those files:
 
 - Shuffles them, unless ~VERITAS_SHUFFLE_FILES=false~, and prints the seed it used so the order can be replayed with ~VERITAS_SEED~.
 - Runs them one file at a time in a single process; inside a file, suites and tests run concurrently over fibers, and benchmarks stay sequential so the profiler measures soundly.
-- Runs the files in worker processes when ~VERITAS_JOBS~ is more than one: one file per process, at most that many at a time, so the files really are on several cores. The output is streamed in file order - each worker writes to a capture of its own and the parent follows the earliest file it has not printed in full - so the log arrives while the run is going and still reads exactly as a single-process run's log would. The records of what failed and the JUnit reports are merged, and a file that fails exits only its own worker, which means every file still runs and the runner reports all the failures instead of stopping at the first one. The run exits 1 when any file failed, exactly as a single-process run does.
+- Runs the files in worker processes when ~VERITAS_JOBS~ is more than one: one file per process, at most that many at a time, so the files really are on several cores. The output is streamed in file order - each worker writes to a capture of its own and the parent follows the earliest file it has not printed in full - so the log arrives while the run is going and still reads exactly as a single-process run's log would. The records of what failed, the JUnit reports and the coverage fragments are merged, and a file that fails exits only its own worker, which means every file still runs and the runner reports all the failures instead of stopping at the first one. The run exits 1 when any file failed, exactly as a single-process run does.
 - Runs only one slice of them when ~VERITAS_PARTITION~ is set, after sorting the list so every machine splits it the same way and the slices stay disjoint.
 - Every ~veritas-run~ records the names that failed in ~reports/last-failed.scm~ (an empty list when everything passed), which is what ~VERITAS_ONLY_FAILED=true~ reads on the next run to rerun just those.
 - With ~VERITAS_REPORTER=junit-reporter~, aggregates the run into one JUnit XML document at ~VERITAS_JUNIT_PATH~, failures and their output included.
@@ -1342,6 +1512,11 @@ path automatically, so no ~-L ./test~ is needed.
 - ~--seed N~ maps to ~VERITAS_SEED~
 - ~--partition I/T~ maps to ~VERITAS_PARTITION~
 - ~-j, --jobs N~ maps to ~VERITAS_JOBS~
+- ~--coverage~ / ~--no-coverage~ map to ~VERITAS_COVERAGE~
+- ~--coverage-dir DIR~ maps to ~VERITAS_COVERAGE_DIR~
+- ~--coverage-html-dir DIR~ maps to ~VERITAS_COVERAGE_HTML_DIR~
+- ~--coverage-include DIRS~ maps to ~VERITAS_COVERAGE_INCLUDE~
+- ~--coverage-exclude DIRS~ maps to ~VERITAS_COVERAGE_EXCLUDE~
 - ~-s, --shuffle~ / ~--no-shuffle~ map to ~VERITAS_SHUFFLE_FILES~
 - ~-b, --benchmarks~ / ~--no-benchmarks~ map to ~VERITAS_RUN_BENCHMARKS~
 - ~-h, --help~ prints the help page
@@ -1410,7 +1585,7 @@ use.
 | reproducible random order   | ● shuffled by default; --seed replays the order the run reported | ○ pytest-randomly                     | ● ~--seed~                      | ● ~--randomize --seed~ | ● ~sequence.shuffle~ + seed | ● ~-shuffle~                         | ● ~MethodOrderer.Random~ (per class) | ● ~--seed~                |
 | parallel execution          | ● files in worker processes (~--jobs~); cases over fibers        | ○ pytest-xdist                        | ○ parallel_tests                | ● worker pool          | ● test files in parallel    | ● ~t.Parallel~                       | ● opt-in                             | ● ~async: true~           |
 | shard a run across machines | ● ~--partition 2/4~, the same seed on every slice                | ○ pytest-split (~--splits~/~--group~) | ○ parallel_tests ~--only-group~ | ● ~--shard~            | ● ~--shard~                 | — (no index flag)                    | — (no index flag)                    | ● ~mix test --partitions~ |
-| code coverage               | ● LCOV from ~#:with-coverage? #t~, HTML via the project tasks    | ○ pytest-cov                          | ○ SimpleCov                     | ● built in             | ○ ~@vitest/coverage-v8~     | ● ~-cover~                           | ○ JaCoCo                             | ● ~mix test --cover~      |
+| code coverage               | ● LCOV, Cobertura, JaCoCo, JSON and HTML from ~#:with-coverage? #t~ | ○ pytest-cov                          | ○ SimpleCov                     | ● built in             | ○ ~@vitest/coverage-v8~     | ● ~-cover~                           | ○ JaCoCo                             | ● ~mix test --cover~      |
 | benchmarks                  | ● ~#:runs~, statistics from statprof                             | ○ pytest-benchmark                    | ○ rspec-benchmark               | —                      | ● ~vitest bench~            | ● ~go test -bench~                   | — (JMH is separate)                  | ○ Benchee                 |
 | JUnit XML report            | ● junit-reporter, ~VERITAS_JUNIT_PATH~                           | ● ~--junitxml~                        | ○ rspec_junit_formatter         | ○ jest-junit           | ● ~--reporter=junit~        | ○ gotestsum                          | ● Surefire and Gradle write it       | ○ junit_formatter         |
 
@@ -1564,7 +1739,8 @@ of them are welcome.
 The project is developed with [[https://codeberg.org/jjba23/maak][maak]] in a Guix shell:
 
 #+begin_src shell
-guix shell -m manifest.scm -- maak test      # the whole suite + coverage report
+guix shell -m manifest.scm -- maak test      # the whole suite, with coverage
+guix shell -m manifest.scm -- maak test-fast # the whole suite, without measuring
 guix shell -m manifest.scm -- maak validate  # format, compile and test
 #+end_src
 
@@ -1633,7 +1809,7 @@ Our core principle is simple: *AI should assist human creativity and problem-sol
 
 While tools like Large Language Models (LLMs) and interactive chatbots can be beneficial for reviewing, refactoring small functions, or acting as a sounding board, they should be used with moderation.
 
-We require a human in the loop for all contributions. The use of autonomous AI agents to automatically generate and submit pull requests to this project is strictly prohibited.
+We require a human in the loop for all contributions.
 
 ** Chat, backlog and what comes next
 :PROPERTIES:

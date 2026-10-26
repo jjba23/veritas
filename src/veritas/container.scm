@@ -49,6 +49,7 @@
   #:use-module (srfi srfi-1)
   #:use-module (srfi srfi-13)
   #:use-module (veritas reporter)
+  #:use-module (veritas prelude)
   #:export (run-command run-command!
                         container-runtime
                         container-runtime-available?
@@ -332,15 +333,15 @@ container running for debugging."
                                   #:command command
                                   #:detach? detach?
                                   #:extra-args extra-args)))
-    (dynamic-wind (lambda ()
-                    #t)
-                  (lambda ()
-                    (when wait
-                      (wait container))
-                    (thunk container))
-                  (lambda ()
-                    (unless keep?
-                      (container-remove container))))))
+    (call-with-fiber-safe-wind
+     (lambda () #t)
+     (lambda ()
+       (when wait
+         (wait container))
+       (thunk container))
+     (lambda ()
+       (unless keep?
+         (container-remove container))))))
 
 ;; ====== Assertion ======
 

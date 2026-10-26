@@ -51,6 +51,9 @@
                       "--only-test" "--only-suite" "--only-tag"
                       "--only-failed" "--no-only-failed"
                       "--seed" "--partition" "--jobs"
+                      "--coverage" "--no-coverage" "--coverage-dir"
+                      "--coverage-html-dir" "--coverage-include"
+                      "--coverage-exclude"
                       "--shuffle" "--no-shuffle"
                       "--benchmarks" "--no-benchmarks" "--help"
                       "--version")))
@@ -62,6 +65,9 @@
                     '(scan-dir test-top-dir test-type entrypoint test-module
                                reporter only-test only-suite only-tag
                                only-failed no-only-failed seed partition jobs
+                               coverage no-coverage coverage-dir
+                               coverage-html-dir coverage-include
+                               coverage-exclude
                                shuffle no-shuffle benchmarks no-benchmarks help
                                version)))))
 

@@ -26,11 +26,13 @@
   #:use-module (veritas prelude)
   #:use-module (veritas veritas)
   #:use-module (veritas reporter)
+  #:use-module (veritas coverage)
   #:use-module (veritas shuffle)
   #:export (run-tests run-test-file discover-tests
                     parse-partition
                     partition-files
-                    parse-jobs))
+                    parse-jobs
+                    merge-worker-coverage))
 
 ;; Where the worker processes of `--jobs' leave their captures, their record of
 ;; failing names and their JUnit data, for the parent to print and merge.
@@ -109,6 +111,7 @@ why a failure cannot stop the files scheduled after it."
          (capture (string-append base ".out"))
          (names-path (string-append base ".last-failed.scm"))
          (junit-path (string-append base ".junit.scm"))
+         (coverage-path (string-append base ".lcov.info"))
          (port (open-file capture "w")))
     ;; Nothing must be buffered before the fork, or the child would flush the
     ;; parent's words into its own capture file.
@@ -118,6 +121,7 @@ why a failure cannot stop the files scheduled after it."
           (begin
             (veritas-last-failed-path names-path)
             (veritas-junit-data-path junit-path)
+            (veritas-coverage-data-path coverage-path)
             (dup2 (fileno port) 1)
             (dup2 (fileno port) 2)
             ;; Line buffering, so the parent following this file sees each line
@@ -184,6 +188,13 @@ reporter looks like."
                              (read-junit-data (worker-path i ".junit.scm")))
                            indexes)))
     (if (null? datas) #f (merge-junit-data datas))))
+
+(define (merge-worker-coverage indexes)
+  "Return the coverage of the workers at @var{indexes} merged into one report.
+
+A worker that was not asked for coverage left no fragment, and a run without
+coverage merges to an empty report, which is then left alone."
+  (merge-lcov-files (map (lambda (i) (worker-path i ".lcov.info")) indexes)))
 
 (define worker-poll-microseconds
   ;; How often the parent looks at the capture it is following.  Short enough
@@ -312,6 +323,7 @@ happens once the last worker is in, and the run exits 1 if any worker failed."
            (records (map (lambda (i) (worker-record i (failed? i))) indexes))
            (names (merge-failed-names records))
            (junit (merge-worker-junit indexes))
+           (coverage (merge-worker-coverage indexes))
            (end-time (gettimeofday))
            ;; The wall clock of the whole parallel run, to the microsecond: it
            ;; belongs in the report and in the JUnit document's total time.
@@ -330,6 +342,12 @@ happens once the last worker is in, and the run exits 1 if any worker failed."
                                #:default "reports/junit/veritas-junit.xml")))
           (write-junit-document junit #:seconds seconds #:path path)
           (display (format #f "\nJUnit XML report written to ~a\n" path))))
+      ;; One coverage report out of the fragments of every worker, so `--jobs'
+      ;; measures the same code as a single process would.
+      (unless (null? (coverage-report-files coverage))
+        (publish-coverage! coverage
+                           #:log (lambda (message)
+                                   (display (format #f "\n~a\n" message)))))
       (display (format #f
                        "\n\n~a files in ~a worker processes: ~a passed, ~a failed in ~,2f seconds\n"
                        (length files) jobs
@@ -356,6 +374,7 @@ Behaviour comes from the environment:
 @item @code{VERITAS_SEED}: the seed every shuffle of this run uses, reported when a run is shuffled so a failing order can be replayed.
 @item @code{VERITAS_PARTITION}: @code{INDEX/TOTAL} to run only one slice of the discovered files, which is how a run is split across CI machines.
 @item @code{VERITAS_JOBS}: how many worker processes to run the discovered files in.  Absent or @code{1} means one process, as before; @code{2} and up run one file per process and merge their output, their record of failures and their JUnit reports.
+@item @code{VERITAS_COVERAGE}: @code{\"true\"} measures code coverage even for a test file that does not ask for it, and the worker fragments are merged into one report.
 @end itemize"
   (let* ((scan-dir (getenv-or 'VERITAS_SCAN_DIR
                               #:default "./"))

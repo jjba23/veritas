@@ -41,6 +41,7 @@
                                          collect-assertion-successful
                                          collect-assertion-successful*
                                          call-with-timeout
+                                         call-with-fiber-safe-wind
                                          make-timeout-assertion-result
                                          current-collector
                                          make-collector
@@ -165,11 +166,13 @@ down the reporter."
                        (format #t "could not display assertion: ~a: ~a" key
                                args)))) assertion-results))
 
-(define (display-test-results test-results)
+(define (display-test-results vc test-results)
   "Print the output and inner assertions of each record in @var{test-results}.
 
 Walks into suites as well, including a suite that arrives wrapped in a
-@code{test-result}.
+@code{test-result}.  @var{vc} is the reporter client, used to report a child
+whose thunk raised - an exception arrives here as a string, and dropping it
+would hide a failure of a suite's own child.
 
 This has to stay a procedure.  As a macro it would re-expand the recursive call
 forever and eat memory instead of printing the report."
@@ -180,7 +183,8 @@ forever and eat memory instead of printing the report."
                 ((suite-result? x)
                  (begin
                    (display (suite-result-output x))
-                   (display-test-results (suite-result-test-results x)))
+                   (display-test-results vc
+                                         (suite-result-test-results x)))
                  '())
                 ((test-result? x)
                  (begin
@@ -196,8 +200,21 @@ forever and eat memory instead of printing the report."
                                                     inner)))
                        ((suite-result? inner)
                         (display (suite-result-output inner))
-                        (display-test-results (suite-result-test-results inner)))
+                        (display-test-results vc
+                                              (suite-result-test-results
+                                               inner)))
+                       ;; A test whose thunk raised reports its exception as a
+                       ;; string.  Say so instead of dropping the failing child
+                       ;; of a suite without a word.
+                       ((string? inner)
+                        (log-error vc
+                                   (format #f "task raised an error: ~a"
+                                           inner)))
                        (else '()))))
+                 '())
+                ((string? x)
+                 (log-error vc
+                            (format #f "task raised an error: ~a" x))
                  '())
                 (else '()))) test-results))
 
@@ -217,7 +234,8 @@ Throws an explicit error if an unrecognized result type is processed."
                 ((suite-result? x)
                  (begin
                    (display (suite-result-output x))
-                   (display-test-results (suite-result-test-results x))))
+                   (display-test-results vc
+                                         (suite-result-test-results x))))
                 ((pre-test-result? x)
                  (begin
                    (log-test vc
@@ -322,6 +340,35 @@ the same case both recorded and returned by one form is one."
       ((null? rest) (reverse out))
       ((memq (car rest) seen) (loop (cdr rest) seen out))
       (else (loop (cdr rest) (cons (car rest) seen) (cons (car rest) out))))))
+
+(define %fiber-safe-wind
+  ;; `(fibers scheduler)' exports `dynamic-wind*', which brackets a form like
+  ;; `dynamic-wind' but leaves the guards alone while a fiber is suspended.
+  ;; Older Fibers versions do not have it, so plain `dynamic-wind' is the
+  ;; fallback: it runs the guards across a suspension, which is wrong, but it
+  ;; never stops a module from loading.
+  (false-if-exception
+   (module-ref (resolve-module '(fibers scheduler)) 'dynamic-wind*)))
+
+(define (call-with-fiber-safe-wind before thunk after)
+  "Call @var{thunk} between @var{before} and @var{after}, safely under fibers.
+
+Fibers suspends a task by unwinding to the scheduler and resumes it by winding
+back in, so a plain @code{dynamic-wind} runs its guards again every time the
+task yields - and a port operation is enough to yield.  A guard that has a side
+effect - a module binding swapped, a directory removed, a VM engine changed -
+would then fire in the middle of the thunk.  @code{dynamic-wind*} from
+@code{(fibers scheduler)} skips the guards during those round trips and runs
+them when the extent is really entered and really left, which is what every
+bracketing helper here wants.
+
+@example
+(call-with-fiber-safe-wind
+ (lambda () (module-set! module 'now 0))
+ (lambda () (read-the-clock))
+ (lambda () (module-set! module 'now original)))
+@end example"
+  ((or %fiber-safe-wind dynamic-wind) before thunk after))
 
 (define (procedure-required-arity proc)
   "Return how many arguments @var{proc} needs, or @code{#f} when that is unknown.

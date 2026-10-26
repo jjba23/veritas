@@ -25,8 +25,8 @@
   #:use-module (veritas shuffle)
   #:use-module (veritas model)
   #:use-module (veritas generator)
+  #:use-module (veritas coverage)
   #:use-module (statprof)
-  #:use-module (system vm coverage)
   #:re-export (generate-integer generate-char
                                 generate-list
                                 generate-symbol
@@ -99,7 +99,8 @@
                   write-last-failed-names!
                   merge-failed-names
                   veritas-rerun-all-marker
-                  veritas-junit-data-path))
+                  veritas-junit-data-path
+                  veritas-coverage-data-path))
 
 ;; ====== Environment variables ======
 (define veritas-only-test
@@ -201,6 +202,13 @@ filtered."
 ;; path to write the JUnit data to instead of the document.
 
 (define veritas-junit-data-path
+  (make-parameter #f))
+
+;; Set (in a worker process, after the fork) when the run is one of several and
+;; its coverage is to be merged by the process that runs the other files.  It
+;; holds the path of an LCOV fragment instead of the report of the whole run.
+
+(define veritas-coverage-data-path
   (make-parameter #f))
 
 (define* (failed-test-wanted? name #:key (only (veritas-only-failed)))
@@ -878,20 +886,31 @@ dying on an \"unknown evaluation structure\"."
                                          "Unknown evaluation structure parsed: ~a"
                                          sr) #f)))) all-results))
 
-(define (%write-coverage-report coverage-data vc)
-  "Write the VM @var{coverage-data} to an LCOV trace file.
+(define* (%publish-coverage-report! report vc
+                                    #:key (dir #f) (html-dir #f) (sources #f))
+  "Write the coverage @var{report} of this run and log where it went.
 
-@var{vc} is used to log where the report was written."
-  (let* ((t (gettimeofday))
-         (report-name (string-append "reports/lcov/coverage-"
-                                     (format #f "~a-~a"
-                                             (car t)
-                                             (cdr t)) ".info")))
-    (call-with-output-file report-name
-      (lambda (port)
-        (coverage-data->lcov coverage-data port)))
-    (log-info vc
-              (format #f "Code coverage report written to ~a" report-name))))
+@var{vc} is used to log the summary and the paths written.  In a worker process
+the report is left as an LCOV fragment for the process that merges the files of
+the run; otherwise it is merged with what the earlier files of this run measured
+and the LCOV, HTML, JSON, Cobertura and JaCoCo reports are rewritten.
+@var{sources} names the roots the XML reports keep their filenames relative to."
+  (let ((data-path (veritas-coverage-data-path)))
+    (if data-path
+        (write-lcov-file report data-path)
+        (let ((merged (publish-coverage! report
+                                         #:dir dir
+                                         #:html-dir html-dir
+                                         #:sources sources
+                                         #:log (lambda (message)
+                                                 (log-info vc message)))))
+          (when (null? (coverage-report-files merged))
+            ;; Silence is what made a broken coverage run look like a covered
+            ;; one, so say out loud that nothing was measured.
+            (log-info vc
+                      (format #f
+                              "coverage collected no source file; set VERITAS_COVERAGE_INCLUDE to the source directories of the project (currently ~a)"
+                              (string-join (coverage-include-paths) ":"))))))))
 
 (define (%process-execution-lifecycle vc all-results task-count start-time
                                       debug?)
@@ -944,6 +963,10 @@ dying on an \"unknown evaluation structure\"."
                       (debug? #f)
                       (reporter #f)
                       (with-coverage? #f)
+                      (coverage-dir #f)
+                      (coverage-html-dir #f)
+                      (coverage-include #f)
+                      (coverage-exclude #f)
                       (seed #f)
                       #:rest tasks)
   "Run @var{tasks}, the top-level tests, suites and benchmarks.
@@ -952,8 +975,16 @@ dying on an \"unknown evaluation structure\"."
 in parallel fibers.  @var{reporter} names a reporter, otherwise
 @code{VERITAS_REPORTER} decides.  @var{seed} makes the shuffle reproducible, and
 the seed actually used is reported, so a failing order can be replayed by
-setting @code{VERITAS_SEED} to it.  @var{with-coverage?} writes an LCOV report
-and @var{debug?} prints the raw results."
+setting @code{VERITAS_SEED} to it.  @var{with-coverage?} measures coverage -
+@code{VERITAS_COVERAGE=true} asks for it too - and @var{debug?} prints the raw
+results.
+
+Coverage is written where @var{coverage-dir} (default
+@code{VERITAS_COVERAGE_DIR}, @code{\"reports/lcov\"}) says, with the HTML report
+in @var{coverage-html-dir} (default @code{VERITAS_COVERAGE_HTML_DIR},
+@code{\"reports/html\"}).  Only the files under @var{coverage-include} (default
+@code{VERITAS_COVERAGE_INCLUDE}, the current directory) are reported, minus the
+ones under @var{coverage-exclude} (default @code{VERITAS_COVERAGE_EXCLUDE})."
   (let* ((start-time (gettimeofday))
          (made-reporter (%make-reporter reporter))
          (vc (list (cons 'reporter made-reporter)))
@@ -969,33 +1000,54 @@ and @var{debug?} prints the raw results."
          (regular-thunks (%prepare-task-thunks regular-tasks shuffle? vc))
          (benchmark-thunks (%prepare-task-thunks benchmark-tasks shuffle? vc))
          (task-count (+ (length regular-thunks)
-                        (length benchmark-thunks))))
-    (catch #t
-           (lambda ()
-             (mkdir "reports")
-             (mkdir "reports/lcov"))
-           (lambda (key . args)
-             #f))
+                        (length benchmark-thunks)))
+         (coverage? (and (not (coverage-disabled-by-environment?))
+                         (or with-coverage?
+                             (coverage-enabled-by-environment?)))))
+    ;; No report directory is made here: every writer (LCOV, JSON, the XML
+    ;; documents, the HTML page, the JUnit document and the record of failing
+    ;; tests) creates the directories it needs, so a run without coverage does
+    ;; not leave an empty `reports/lcov' behind.
     (when run-seed
       (log-info vc
                 (format #f
                         "shuffled with seed ~a (replay with VERITAS_SEED=~a)"
                         run-seed run-seed)))
     (call-with-values (lambda ()
-                        (if with-coverage?
-                            (with-code-coverage (lambda ()
-                                                  (%execute-tasks
-                                                   regular-thunks
-                                                   benchmark-thunks
-                                                   concurrent?)))
-                            ;; Force a two-value return matching the signature
+                        (if coverage?
+                            ;; The report comes first, the results of the run
+                            ;; after it, so neither can be forgotten.  Benchmarks
+                            ;; stay outside the measured extent: the hook costs
+                            ;; a procedure call per instruction, which would
+                            ;; distort a measurement whose whole point is
+                            ;; timing, and a benchmark is not the code a test
+                            ;; suite covers.
+                            (call-with-values
+                             (lambda ()
+                               (collect-coverage
+                                (lambda ()
+                                  (%execute-tasks regular-thunks
+                                                  '() concurrent?))
+                                #:include coverage-include
+                                #:exclude coverage-exclude))
+                             (lambda (report regular-results)
+                               (values report
+                                       (append regular-results
+                                               (%execute-tasks '()
+                                                               benchmark-thunks
+                                                               concurrent?)))))
                             (values #f
                                     (%execute-tasks regular-thunks
                                                     benchmark-thunks
                                                     concurrent?))))
-                      (lambda (coverage-data all-results)
-                        (when (and with-coverage? coverage-data)
-                          (%write-coverage-report coverage-data vc))
+                      (lambda (coverage-report all-results)
+                        (when (and coverage? coverage-report)
+                          (%publish-coverage-report! coverage-report
+                                                     vc #:dir coverage-dir
+                                                     #:html-dir
+                                                     coverage-html-dir
+                                                     #:sources
+                                                     coverage-include))
 
                         (%process-execution-lifecycle vc all-results
                                                       task-count start-time
