@@ -51,11 +51,65 @@
            (rmdir dir))
          (lambda (key . args) #f)))
 
-;; Both hooks leave the tree absent: the files under test are the ones the code
-;; creates, and a suite that leaks its scratch directory is a suite that fails
-;; for someone else later.
+;; ====== Fixtures the runner loads ======
+;;
+;; The file loop is checked on real files, because what a failing file does -
+;; exiting the process, or raising while it loads - is exactly what the loop has
+;; to survive.
+
+(define saved-load-path %load-path)
+
+(define marker-path
+  (string-append (getcwd) "/" scratch-dir "/ran.log"))
+
+(define (make-dirs! path)
+  "Create @var{path} and every directory in front of it."
+  (let ((dir (dirname path)))
+    (unless (string=? dir ".")
+      (make-dirs! dir))
+    (catch #t (lambda () (mkdir path)) (lambda (key . args) #f))))
+
+(define (write-file! path text)
+  "Write @var{text} to @var{path}."
+  (call-with-output-file path
+    (lambda (port) (display text port))))
+
+(define (count-lines text)
+  "Return how many lines of @var{text} end in a newline."
+  (let loop ((i 0) (n 0))
+    (cond ((= i (string-length text)) n)
+          ((char=? (string-ref text i) #\newline) (loop (+ i 1) (+ n 1)))
+          (else (loop (+ i 1) n)))))
+
+(define (write-fixtures!)
+  "Write the probe files the file loop is checked on and make them loadable."
+  (make-dirs! (scratch "veritas/probe"))
+  ;; A passing file leaves a mark, so the test can see that it ran after the
+  ;; file which failed.
+  (write-file! (scratch "veritas/probe/pass.scm")
+               (format #f "(define-module (veritas probe pass) #:export (spec))
+(define (spec)
+  (let ((port (open-file ~s \"a\")))
+    (display \"ran\\n\" port)
+    (close-port port))
+  #t)"
+                       marker-path))
+  ;; `veritas-run' reports a failing file by exiting, so this is the shape the
+  ;; loop has to survive.
+  (write-file! (scratch "veritas/probe/exit-one.scm")
+               "(define-module (veritas probe exit-one) #:export (spec))
+(define (spec) (exit 1))")
+  (write-file! (scratch "veritas/probe/raise.scm")
+               "(define-module (veritas probe raise) #:export (spec))
+(define (spec) (error \"the fixture raised\"))")
+  (set! %load-path (cons scratch-dir %load-path)))
+
+;; Both hooks leave the tree absent and the load path as it was: the files under
+;; test are the ones the code creates, and a suite that leaks its scratch
+;; directory is a suite that fails for someone else later.
 (define (clean-scratch!)
-  (remove-tree! scratch-dir))
+  (remove-tree! scratch-dir)
+  (set! %load-path saved-load-path))
 
 (define (junit-data tests failures)
   "Return JUnit data with @var{tests} cases of which @var{failures} failed."
@@ -69,7 +123,9 @@
   (suite "worker processes"
          #:concurrent? #f
          #:shuffle? #f
-         #:before-all (lambda (vc) (clean-scratch!))
+         #:before-all (lambda (vc)
+                        (clean-scratch!)
+                        (write-fixtures!))
          #:after-all (lambda (vc) (clean-scratch!))
          (test "a job count is a whole number of processes"
                (lambda (vc)
@@ -163,7 +219,46 @@
                       vc)
                      ((assert-contains #:expect text
                                        #:got (assoc-ref data 'xml))
-                      vc)))))))
+                      vc)))))
+         (test "a file that passes is reported as passed"
+               (lambda (vc)
+                 ((assert-true (run-test-file-guarded #:test-file "pass.scm"
+                                                      #:test-type "probe"
+                                                      #:entrypoint-function
+                                                      "spec"))
+                  vc)))
+         (test "a file that exits is reported as failed, not as the end of the run"
+               (lambda (vc)
+                 ((assert-false (run-test-file-guarded #:test-file
+                                                       "exit-one.scm"
+                                                       #:test-type "probe"
+                                                       #:entrypoint-function
+                                                       "spec"))
+                  vc)))
+         (test "a file that raises is reported as failed"
+               (lambda (vc)
+                 ((assert-false (run-test-file-guarded #:test-file "raise.scm"
+                                                       #:test-type "probe"
+                                                       #:entrypoint-function
+                                                       "spec"))
+                  vc)))
+         (test "the files after a failing one still run"
+               (lambda (vc)
+                 (catch #t (lambda () (delete-file marker-path))
+                        (lambda (key . args) #f))
+                 (let* ((failed (run-test-files (list "pass.scm"
+                                                      "exit-one.scm"
+                                                      "pass.scm")
+                                                #:test-type "probe"
+                                                #:entrypoint-function "spec"))
+                        (marks (call-with-input-file marker-path
+                                 get-string-all)))
+                   ((assert-equal #:expect '("exit-one.scm")
+                                  #:got failed)
+                    vc)
+                   ;; Two marks: the passing file ran again after the one which
+                   ;; exited, so its failure did not end the run.
+                   ((assert-equal #:expect 2 #:got (count-lines marks)) vc))))))
 
 (define (spec)
   (veritas-run #:debug? #f

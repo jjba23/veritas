@@ -9,6 +9,21 @@ This project adheres loosely to [[https://semver.org/spec/v2.0.0.html][Semantic 
 
 *[Unreleased]*
 
+** Unreleased
+
+- A single-process run keeps going after a failing test file.  ~veritas-run~
+  reports a failing file by exiting 1, which ended the whole run there: the
+  files scheduled after it never ran, and the global totals were never printed
+  - precisely when a run is failing and the numbers matter.  The file loop now
+  catches that exit, and an error raised while a file loads, names the file and
+  carries on, then reports the failures together and exits 1 once every file
+  has had its turn.  Single-process runs now behave the way ~--jobs~ already
+  did, and ~run-test-files~ / ~run-test-file-guarded~ in ~(veritas runner)~ are
+  the two procedures that do it.
+- ~test/veritas/unit/jobs.scm~ gains probe files that pass, exit and raise, and
+  checks that a file which exits or raises is reported rather than ending the
+  run, and that the file after it still runs.
+
 ---------
 
 *[Released]*

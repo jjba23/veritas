@@ -34,6 +34,10 @@ many suites, tests and assertions they held between them.  With
 .BR \-\-jobs
 the counts of the workers are merged, so the line describes the whole run and
 not one process of it.
+.PP
+A file that fails does not end the run.  The files after it still run, the
+failures are named together at the end, and the run exits 1 once every file has
+had its turn.
 .SH OPTIONS
 .TP
 .BR \-d ", " \-\-scan\-dir " " DIR

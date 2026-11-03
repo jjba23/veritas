@@ -32,6 +32,8 @@
                     parse-partition
                     partition-files
                     parse-jobs
+                    run-test-files
+                    run-test-file-guarded
                     merge-worker-counts
                     merge-worker-coverage
                     display-result-counts))
@@ -72,6 +74,73 @@ running ~a tests from file: ~a, entrypoint: ~a
                                  (string->symbol entrypoint-function))))
     (apply entrypoint
            '())))
+
+(define (passing-exit? status)
+  "Return @code{#t} when the exit @var{status} is the status of a passing exit."
+  (or (eq? status #t) (eq? status #f) (eqv? status 0)))
+
+(define* (run-test-file-guarded #:key test-file test-type entrypoint-function)
+  "Run one test file, returning @code{#t} when it passed and @code{#f} when not.
+
+@code{veritas-run} reports a failing file by exiting the process, and a file
+that cannot even be loaded raises; either would end the whole single-process run
+and take the files after it, and the totals of the run, with it.  Both are
+caught here and turned into a returned answer, with what went wrong printed
+against the file."
+  (catch #t
+         (lambda ()
+           (run-test-file #:test-file test-file
+                          #:test-type test-type
+                          #:entrypoint-function entrypoint-function)
+           #t)
+         (lambda (key . args)
+           (cond
+             ((eq? key 'quit)
+              ;; `exit' is a `quit' exception in Guile; the status says whether
+              ;; the file left as a pass or as a failure.
+              (if (passing-exit? (and (pair? args) (car args)))
+                  #t
+                  (begin
+                    (display (format #f "\nthe file ~a failed\n" test-file))
+                    #f)))
+             (else
+              ;; A file that cannot be loaded is a failure, not a pass.
+              (display (format #f "\nthe file ~a raised ~a: ~s\n"
+                               test-file key args))
+              #f)))))
+
+(define* (run-test-files files #:key test-type entrypoint-function)
+  "Run @var{files} one after another in this process, returning the failed ones.
+
+A file that fails no longer ends the run: the files after it still run, so the
+run reports every failure and its global totals before it exits, which is what
+@code{--jobs} already did for the files it spread over workers."
+  (reverse
+   (fold (lambda (file failed)
+           (if (run-test-file-guarded #:test-file file
+                                      #:test-type test-type
+                                      #:entrypoint-function
+                                      entrypoint-function)
+               failed
+               (cons file failed)))
+         '() files)))
+
+(define* (run-test-files-here files #:key test-type entrypoint-function)
+  "Run @var{files} in this process, print the totals, and exit 1 if any failed.
+
+Printing the totals before the exit is the point: a run that is failing is
+exactly when its numbers matter, and the failures are named together rather than
+one file at a time."
+  (let ((failed (run-test-files files
+                                #:test-type test-type
+                                #:entrypoint-function entrypoint-function)))
+    (display-result-counts (veritas-result-counts))
+    (if (null? failed)
+        (display (format #f "\n\nfinished running tests\n"))
+        (begin
+          (display (format #f "\n\n~a of ~a files failed: ~{~a~^, ~}\n"
+                           (length failed) (length files) failed))
+          (exit 1)))))
 
 (define (parse-jobs value)
   "Return the number of worker processes @var{value} asks for, or @code{#f}.
@@ -476,14 +545,9 @@ scanning present working directory for ~a tests..."
                                     #:jobs jobs
                                     #:test-type test-type
                                     #:entrypoint-function entrypoint-function)
-              (begin
-                (for-each (lambda (file)
-                            (run-test-file #:test-file file
-                                           #:test-type test-type
-                                           #:entrypoint-function entrypoint-function))
-                          interesting-files)
-                (display-result-counts (veritas-result-counts))
-                (display (format #f "\n\nfinished running tests\n")))))
+              (run-test-files-here interesting-files
+                                   #:test-type test-type
+                                   #:entrypoint-function entrypoint-function)))
         (begin
           (display (format #f "\ncould not find any ~a tests!" test-type))))))
 
