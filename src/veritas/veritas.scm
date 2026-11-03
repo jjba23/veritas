@@ -100,7 +100,11 @@
                   merge-failed-names
                   veritas-rerun-all-marker
                   veritas-junit-data-path
-                  veritas-coverage-data-path))
+                  veritas-coverage-data-path
+                  veritas-result-counts
+                  veritas-result-counts-data-path
+                  write-result-counts
+                  read-result-counts))
 
 ;; ====== Environment variables ======
 (define veritas-only-test
@@ -210,6 +214,50 @@ filtered."
 
 (define veritas-coverage-data-path
   (make-parameter #f))
+
+;; Set (in a worker process, after the fork) when the run is one of several and
+;; its totals are to be handed to the process that runs the other files.  It
+;; holds the path the counts are written to instead of being added to the tally
+;; of this process.
+
+(define veritas-result-counts-data-path
+  (make-parameter #f))
+
+;; The files, suites, tests and assertions of every file this process has run so
+;; far.  Every run adds its own counts here, so the runner can print one global
+;; total once the last file is in.
+
+(define veritas-result-counts
+  (make-parameter empty-result-counts))
+
+(define* (write-result-counts counts
+                               #:key (path "reports/counts.scm"))
+  "Write @var{counts} to @var{path} so another process can add them up.
+
+An alist is plain Scheme data, so @code{read} restores it exactly: this is how a
+worker process hands its totals to the process that runs the other files.
+Returns @var{path}."
+  (ensure-parent-directories path)
+  (call-with-output-file path
+    (lambda (port)
+      (write counts port)
+      (newline port)))
+  path)
+
+(define (read-result-counts path)
+  "Return the counts recorded at @var{path}, or @code{#f}.
+
+@code{#f} means there is nothing to add up: the file is missing, unreadable or
+not the alist @code{write-result-counts} writes."
+  (if (file-exists? path)
+      (catch #t
+             (lambda ()
+               (let ((counts (call-with-input-file path read)))
+                 (if (and (list? counts)
+                          (assoc-ref counts 'assertions))
+                     counts #f)))
+             (lambda (key . args) #f))
+      #f))
 
 (define* (failed-test-wanted? name #:key (only (veritas-only-failed)))
   "Return @code{#t} when @var{name} should run in a last-failed rerun.
@@ -917,6 +965,9 @@ and the LCOV, HTML, JSON, Cobertura and JaCoCo reports are rewritten.
   "Print the report for @var{all-results} and exit 1 if anything failed."
   (let* ((test-results (%extract-test-results all-results))
          (assertion-results (collect-assertion-successful test-results))
+         ;; What this file held.  A file is one file whether its entry point ran
+         ;; a handful of tests or a thousand.
+         (counts (result-counts all-results #:files 1))
          (end-time (gettimeofday))
          (seconds-elapsed (- (car end-time)
                              (car start-time)))
@@ -943,11 +994,19 @@ and the LCOV, HTML, JSON, Cobertura and JaCoCo reports are rewritten.
                                   #:path path)
               (log-info vc
                         (format #f "JUnit XML report written to ~a" path))))))
+    ;; The totals of this file, and - unless this process is one worker of
+    ;; several - the tally the runner reports once the last file is in.
+    (let ((counts-path (veritas-result-counts-data-path)))
+      (if counts-path
+          (write-result-counts counts #:path counts-path)
+          (veritas-result-counts (add-result-counts counts
+                                                    (veritas-result-counts)))))
     ;; Leaving the failures on disk is what lets the next run rerun just those.
     (write-last-failed! all-results)
     (log-info vc
               (format #f "ran ~a tasks in: ~a seconds, ~a microseconds"
                       task-count seconds-elapsed microseconds-elapsed))
+    (log-info vc (format #f "counted ~a" (result-counts-summary counts)))
 
     (when debug?
       (log-debug vc

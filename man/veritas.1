@@ -4,7 +4,7 @@
 .\" This documentation is free documentation: you can redistribute it and/or
 .\" modify it under the terms of the GNU Free Documentation License, version
 .\" 1.3 or (at your option) any later version.
-.TH VERITAS 1 "2026" "veritas 0.9.0" "User Commands"
+.TH VERITAS 1 "2026" "veritas 0.10.0" "User Commands"
 .SH NAME
 veritas \- discover and run Veritas test suites, tests and benchmarks
 .SH SYNOPSIS
@@ -28,6 +28,12 @@ Every option is a thin syntactic sugar over a
 environment variable.  The command line therefore produces exactly the same
 configuration as setting the environment by hand, which keeps local runs,
 CI pipelines and programmatic runs reproducible and in sync.
+.PP
+Every run ends with its totals: one line names how many test files ran and how
+many suites, tests and assertions they held between them.  With
+.BR \-\-jobs
+the counts of the workers are merged, so the line describes the whole run and
+not one process of it.
 .SH OPTIONS
 .TP
 .BR \-d ", " \-\-scan\-dir " " DIR
@@ -115,7 +121,7 @@ Run the discovered test files in
 worker processes, one file per process.  Their output is streamed in file order
 as it is written - the earliest file that has not been printed in full is the
 only one shown, so the log reads as a single-process run's would - and their
-records of failures and their JUnit reports are merged
+records of failures, their JUnit reports and their counts are merged
 .RB ( VERITAS_JOBS ).
 .TP
 .B \-\-coverage

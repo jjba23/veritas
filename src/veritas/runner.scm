@@ -32,7 +32,9 @@
                     parse-partition
                     partition-files
                     parse-jobs
-                    merge-worker-coverage))
+                    merge-worker-counts
+                    merge-worker-coverage
+                    display-result-counts))
 
 ;; Where the worker processes of `--jobs' leave their captures, their record of
 ;; failing names and their JUnit data, for the parent to print and merge.
@@ -111,6 +113,7 @@ why a failure cannot stop the files scheduled after it."
          (capture (string-append base ".out"))
          (names-path (string-append base ".last-failed.scm"))
          (junit-path (string-append base ".junit.scm"))
+         (counts-path (string-append base ".counts.scm"))
          (coverage-path (string-append base ".lcov.info"))
          (port (open-file capture "w")))
     ;; Nothing must be buffered before the fork, or the child would flush the
@@ -121,6 +124,7 @@ why a failure cannot stop the files scheduled after it."
           (begin
             (veritas-last-failed-path names-path)
             (veritas-junit-data-path junit-path)
+            (veritas-result-counts-data-path counts-path)
             (veritas-coverage-data-path coverage-path)
             (dup2 (fileno port) 1)
             (dup2 (fileno port) 2)
@@ -188,6 +192,23 @@ reporter looks like."
                              (read-junit-data (worker-path i ".junit.scm")))
                            indexes)))
     (if (null? datas) #f (merge-junit-data datas))))
+
+(define (merge-worker-counts indexes)
+  "Return the totals of the workers at @var{indexes} added up.
+
+A worker that left no counts - it failed before its file ran - contributes
+nothing, because there is nothing to count."
+  (fold (lambda (i total)
+          (let ((counts (read-result-counts (worker-path i ".counts.scm"))))
+            (if counts
+                (add-result-counts total counts)
+                total)))
+        empty-result-counts indexes))
+
+(define (display-result-counts counts)
+  "Print the global totals of a run: its files, suites, tests and assertions."
+  (display (format #f "\nglobal totals: ~a\n"
+                   (result-counts-summary counts))))
 
 (define (merge-worker-coverage indexes)
   "Return the coverage of the workers at @var{indexes} merged into one report.
@@ -348,6 +369,9 @@ happens once the last worker is in, and the run exits 1 if any worker failed."
         (publish-coverage! coverage
                            #:log (lambda (message)
                                    (display (format #f "\n~a\n" message)))))
+      ;; One total out of every worker: the files ran in processes of their
+      ;; own, so nothing else adds their counts up.
+      (display-result-counts (merge-worker-counts indexes))
       (display (format #f
                        "\n\n~a files in ~a worker processes: ~a passed, ~a failed in ~,2f seconds\n"
                        (length files) jobs
@@ -394,6 +418,9 @@ Behaviour comes from the environment:
          (partition (parse-partition (getenv-or 'VERITAS_PARTITION
                                                 #:default #f)))
          (_ (begin
+              ;; The tally is per run, so a second run in the same process
+              ;; starts from zero rather than from the counts of the first.
+              (veritas-result-counts empty-result-counts)
               (display (format #f "\nscanning directories for ~a tests..."
                                test-type))
               (display (format #f
@@ -455,6 +482,7 @@ scanning present working directory for ~a tests..."
                                            #:test-type test-type
                                            #:entrypoint-function entrypoint-function))
                           interesting-files)
+                (display-result-counts (veritas-result-counts))
                 (display (format #f "\n\nfinished running tests\n")))))
         (begin
           (display (format #f "\ncould not find any ~a tests!" test-type))))))

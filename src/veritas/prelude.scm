@@ -40,6 +40,10 @@
                                          display-assertion-results
                                          collect-assertion-successful
                                          collect-assertion-successful*
+                                         empty-result-counts
+                                         add-result-counts
+                                         result-counts
+                                         result-counts-summary
                                          call-with-timeout
                                          call-with-fiber-safe-wind
                                          make-timeout-assertion-result
@@ -150,6 +154,94 @@ unrecognized type raises."
 
 Booleans only: @code{#t} for a pass, @code{#f} for a failure."
   (flatten-list (collect-assertion-successful* xs)))
+
+;; ====== Counting what a run did ======
+;;
+;; The totals of a run are read off the result tree rather than bumped by a
+;; counter while it runs: the tree is what the report is printed from, so the
+;; numbers and the report cannot disagree.
+
+(define empty-result-counts
+  '((files . 0) (suites . 0) (tests . 0) (assertions . 0)))
+
+(define (count-of-kind kind n)
+  "Return a count alist holding @var{n} under @var{kind} and zero elsewhere."
+  (map (lambda (key)
+         (cons key (if (eq? key kind) n 0)))
+       '(files suites tests assertions)))
+
+(define (add-result-counts a b)
+  "Return the sum of the count alists @var{a} and @var{b}."
+  (map (lambda (key)
+         (cons key (+ (assoc-ref a key) (assoc-ref b key))))
+       '(files suites tests assertions)))
+
+(define (result-counts* result)
+  "Return the counts of @var{result} itself, without a file of its own."
+  (cond
+    ((unspecified? result)
+     empty-result-counts)
+    ((assertion-result? result)
+     (count-of-kind 'assertions 1))
+    ((pre-test-result? result)
+     (add-result-counts (count-of-kind 'tests 1)
+                        (result-counts* (pre-test-result-results result))))
+    ((suite-result? result)
+     (add-result-counts (count-of-kind 'suites 1)
+                        (result-counts* (suite-result-test-results result))))
+    ;; A test result wraps one child result - the assertions of a test or the
+    ;; child suites of a suite - and counts what it wraps, not itself.
+    ((test-result? result)
+     (result-counts* (test-result-results result)))
+    ((benchmark-result? result)
+     empty-result-counts)
+    ((list? result)
+     (fold add-result-counts empty-result-counts
+           (map result-counts* result)))
+    ((equal? #t result)
+     empty-result-counts)
+    ;; A task that raised arrives as the error string; the failure is reported
+    ;; on its own, and there is no suite, test or assertion to count.
+    ((string? result)
+     empty-result-counts)
+    (else (error (format #f
+                  "could not count results of unknown type: ~a" result)))))
+
+(define* (result-counts result #:key (files 0))
+  "Return the files, suites, tests and assertions @var{result} records.
+
+@var{result} is a result record or a list of them, at any depth: an assertion
+counts as one assertion, a test as one test, a suite as one suite, and a suite
+or a test that holds further results counts what it holds as well.  @var{files}
+is how many test files the results stand for - one for the run of a single file -
+and is added to the @code{files} count.
+
+A benchmark measures instead of asserting, and a task that raised arrives as the
+error string, so neither contributes a test or an assertion of its own.
+
+@example
+(result-counts (list a-suite a-test) #:files 1)
+@result{} ((files . 1) (suites . 1) (tests . 3) (assertions . 7))
+@end example"
+  (add-result-counts (result-counts* result)
+                     (count-of-kind 'files files)))
+
+(define (count-noun n noun)
+  "Return @var{n} with @var{noun}, plural unless @var{n} is one."
+  (format #f "~a ~a~a" n noun (if (= 1 n) "" "s")))
+
+(define (result-counts-summary counts)
+  "Return @var{counts} as one readable line.
+
+@example
+(result-counts-summary '((files . 2) (suites . 3) (tests . 12) (assertions . 48)))
+@result{} \"2 files, 3 suites, 12 tests and 48 assertions\"
+@end example"
+  (format #f "~a, ~a, ~a and ~a"
+          (count-noun (assoc-ref counts 'files) "file")
+          (count-noun (assoc-ref counts 'suites) "suite")
+          (count-noun (assoc-ref counts 'tests) "test")
+          (count-noun (assoc-ref counts 'assertions) "assertion")))
 
 (define (display-assertion-results assertion-results)
   "Print the captured output of each record in @var{assertion-results}.

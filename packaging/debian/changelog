@@ -1,3 +1,10 @@
+veritas (0.10.0-1) unstable; urgency=medium
+
+  * Every run ends with its totals: the files, suites, tests and assertions of
+    the whole run, merged across the workers of --jobs.
+
+ -- Josep Bigorra <jjbigorra@gmail.com>  Tue, 03 Nov 2026 12:00:00 +0100
+
 veritas (0.9.0-1) unstable; urgency=medium
 
   * Coverage that works: the VM engine is switched for the measured part of a

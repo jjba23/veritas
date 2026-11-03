@@ -13,6 +13,31 @@ This project adheres loosely to [[https://semver.org/spec/v2.0.0.html][Semantic 
 
 *[Released]*
 
+** v0.10.0 (2026-11-03)
+
+A run now ends with its totals.  One line says how many test files ran and how
+many suites, tests and assertions they held between them, whether the files ran
+in one process or across the workers of ~--jobs~.
+
+*** Global counts
+
+- Every ~veritas-run~ reads the numbers off its own result tree - the same tree
+  the report is printed from, so the two cannot disagree - and adds them to the
+  tally of the process.
+- The runner prints one ~global totals~ line at the end of the run: the files,
+  suites, tests and assertions of every file added up.  With ~--jobs~ each
+  worker leaves its counts for the parent, which merges them the way it already
+  merges the record of failures, the JUnit reports and the coverage fragments.
+- A benchmark measures instead of asserting, and a task that raised is reported
+  as an error, so neither is counted as a test or an assertion of its own.
+- New in ~(veritas prelude)~: ~empty-result-counts~, ~add-result-counts~,
+  ~result-counts~ and ~result-counts-summary~.  New in ~(veritas veritas)~: the
+  ~veritas-result-counts~ tally, plus ~write-result-counts~ and
+  ~read-result-counts~, which are how a worker hands its numbers over.
+- ~test/veritas/unit/counts.scm~ checks the counts of a nested tree, the file
+  count, what a benchmark and a raising task contribute, the summary line and
+  the round trip through a file.
+
 ** v0.9.0 (2026-10-26)
 
 Coverage is the release.  A run now switches Guile's VM to the engine that
