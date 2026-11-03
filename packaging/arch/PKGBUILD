@@ -17,7 +17,7 @@
 
 # Maintainer: Josep Bigorra <jjbigorra@gmail.com>
 pkgname=veritas
-pkgver=0.10.0
+pkgver=0.10.1
 pkgrel=1
 pkgdesc="Testing framework for Guile Scheme"
 arch=('any')

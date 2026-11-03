@@ -148,7 +148,7 @@ keep in sync.
 :CUSTOM_ID: ways-to-install
 :END:
 
-/Four routes to the same 0.10.0, from the most automated to the most manual.  They all build the tag this README documents./
+/Four routes to the same 0.10.1, from the most automated to the most manual.  They all build the tag this README documents./
 
 ** From the Guix channel
 :PROPERTIES:
@@ -156,7 +156,7 @@ keep in sync.
 :END:
 *GNU Guix* is the functional package manager this project is developed with: a build is a pure function of its inputs, so the same recipe gives the same result everywhere, and an upgrade that goes wrong can be rolled back.
 
-The jointhefreeworld channel carries ~guile-veritas~ at 0.10.0, so a checkout of the channel is enough — no package definition to write:
+The jointhefreeworld channel carries ~guile-veritas~ at 0.10.1, so a checkout of the channel is enough — no package definition to write:
 
 #+begin_src shell
 git clone https://codeberg.org/jjba23/guix-jointhefreeworld.git

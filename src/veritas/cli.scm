@@ -45,7 +45,7 @@
                     veritas-man-page-name))
 
 (define veritas-version
-  "0.10.0")
+  "0.10.1")
 
 (define veritas-man-page-name
   "veritas(1)")
