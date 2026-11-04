@@ -49,7 +49,8 @@ expressions cheap; put expensive work in =#:before-all= or in a test body.
 Ordering is deterministic everywhere it can be:
 
 - test files are sorted by path before running;
-- a suite runs its children in declaration order, unless =#:shuffle? #t=;
+- a suite shuffles its children by default; =#:shuffle? #f= keeps declaration
+  order;
 - results are collected in declaration order even under =#:concurrent? #t=;
 - JUnit classes appear in first-seen order, cases in declaration order;
 - coverage is reported sorted by file path;

@@ -36,13 +36,13 @@ import time.
 :CUSTOM_ID: order
 :END:
 
-A suite runs its tests in declaration order by default.  Pass =#:shuffle? #t= to
-shuffle a suite, or set =VERITAS_SHUFFLE_FILES=true= (=--shuffle-files=) to
-shuffle the files.  Both use one seed for the run, printed at the end and
-stored in reports, so an order can be replayed with =VERITAS_SEED=.
+A suite shuffles its tests by default: shuffling exposes an order dependency
+instead of hiding it.  Pass =#:shuffle? #f= to keep declaration order, or set
+=VERITAS_SHUFFLE_FILES=true= (=--shuffle-files=) to shuffle the files too.  Both
+use one seed for the run, printed at the end and stored in reports, so an order
+can be replayed with =VERITAS_SEED=.
 
-1.0 changed the default: suites used to shuffle unless told otherwise, which
-made two runs of the same code differ for no visible reason.  See
+1.0.0 briefly made declaration order the default; 1.0.1 restored shuffling.  See
 [[file:migration.org][Migration guide]].
 
 * Parallel runs

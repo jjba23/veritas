@@ -13,6 +13,26 @@ This project adheres loosely to [[https://semver.org/spec/v2.0.0.html][Semantic 
 
 *[Released]*
 
+** v1.0.1 (2026-11-04)
+
+Restores shuffling as the default order for a suite.
+
+*** Fixed
+
+- A suite shuffles its tests again unless it passes ~#:shuffle? #f~.  v1.0.0
+  made declaration order the default; that is reverted, because a shuffled
+  suite with a reported seed is reproducible, and shuffling is what exposes an
+  order dependency instead of hiding it.  ~VERITAS_SEED~ pins the order, and the
+  seed is printed at the end of a run and stored in the report.
+- The determinism tests pin ~#:shuffle? #f~ where they assert declaration order,
+  and now also cover a seeded shuffle giving the same order twice.
+
+*** Unchanged
+
+- Test results still record their source file, JUnit still writes ~file~ and the
+  optional ~line~, the clock and location parameters are unchanged, and the docs
+  split stands.
+
 ** v1.0.0 (2026-11-04)
 
 A quality pass over the whole framework: the lazy model is stated and tested,
@@ -27,7 +47,8 @@ this is a major release.
   unchanged code differed, an order dependency could hide behind a lucky
   shuffle, and a failure could not be reproduced without the seed.  Passing
   ~#:shuffle? #t~ restores the old behaviour; ~VERITAS_SHUFFLE_FILES=true~
-  still shuffles whole files.  See ~docs/migration.org~.
+  still shuffles whole files.  See ~docs/migration.org~.  (This
+  default was restored in v1.0.1; see above.)
 - ~pre-test-result~ gained a ~line~ slot next to ~file~, and
   ~make-pre-test-result~ accepts ~#:line~.
 

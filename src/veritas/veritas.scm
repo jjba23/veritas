@@ -824,11 +824,10 @@ built, or a list of either."
 
 (define* (%suite name
                  #:key (debug? #f)
-                 ;; Declaration order unless a suite asks otherwise: a shuffled
-                 ;; suite is reproducible only with a seed, and a default that
-                 ;; shuffles makes two runs of the same suite differ for no
-                 ;; reason a reader can see.
-                 (shuffle? #f)
+                 ;; Shuffling is the default: it catches an order dependency
+                 ;; instead of hiding one, and the seed is reported, so the
+                 ;; order is reproducible when it matters.
+                 (shuffle? #t)
                  (skip? #f)
                  (timeout #f)
                  (tags '())

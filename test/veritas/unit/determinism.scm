@@ -23,6 +23,7 @@
   #:use-module (veritas model)
   #:use-module (veritas prelude)
   #:use-module (veritas reporter)
+  #:use-module (veritas shuffle)
   #:export (spec))
 
 ;; Two runs of the same suite, with a fixed clock, have to produce the same
@@ -46,13 +47,13 @@
 ;; ====== Fixtures ======
 
 (define (flat-suite)
-  (suite "flat"
+  (suite "flat" #:shuffle? #f
          (test "one" (assert-true #t))
          (test "two" (assert-equal #:expect 4 #:got (+ 2 2)))
          (test "three" (assert-equal #:expect 6 #:got (* 2 3)))))
 
 (define (nested-suite)
-  (suite "outer"
+  (suite "outer" #:shuffle? #f
          (test "before"
                (assert-equal #:expect 1 #:got 1))
          (suite "inner"
@@ -91,6 +92,17 @@
                    ((assert-equal #:expect (car documents)
                                   #:got (caddr documents))
                     vc))))
+
+         (test "a seeded shuffle gives the same order twice"
+               (lambda (vc)
+                 ((assert-equal
+                   #:expect (fisher-yates-shuffle '(1 2 3 4 5) #:seed 7)
+                   #:got (fisher-yates-shuffle '(1 2 3 4 5) #:seed 7))
+                  vc)
+                 ((assert-equal #:expect 5
+                                #:got (length (fisher-yates-shuffle
+                                               '(1 2 3 4 5) #:seed 7)))
+                  vc)))
 
          (test "timestamps come from the clock seam"
                (lambda (vc)

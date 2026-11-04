@@ -9,9 +9,8 @@
 :END:
 
 - [[#upgrading][Upgrading to 1.0]]
-- [[#shuffle][Suites no longer shuffle by default]]
+- [[#shuffle][Shuffling is still the default]]
 - [[#results][Test results carry a line]]
-- [[#bench][=benchmark= forms]]
 - [[#breaking][Summary of breaking changes]]
 - [[#related][Related]]
 
@@ -20,31 +19,38 @@
 :CUSTOM_ID: upgrading
 :END:
 
-1.0 is a major release because one default changed: a suite now runs its tests
-in declaration order.  Everything else is additive; a suite that passed on 0.11
-passes on 1.0, but it may run in a different order, and a test that depended on
-shuffling has to ask for it.
+The suite you have keeps running the way it did: a suite shuffles its tests by
+default, exactly as before 1.0, and the seed of the shuffle is printed so a
+failure can be replayed.  Two changes need a look:
 
-* Suites no longer shuffle by default
+- =pre-test-result= gained a =line= slot, and =make-pre-test-result= accepts
+  =#:line=;
+- a test result now records the file it was declared in, which reports write
+  out.
+
+Nothing else changed shape.
+
+* Shuffling is still the default
 :PROPERTIES:
 :CUSTOM_ID: shuffle
 :END:
 
-=suite= used to shuffle its children unless told =#:shuffle? #f=.  That made two
-runs of unchanged code differ, hid order dependencies rather than exposing them,
-and made a failure impossible to reproduce without the seed.  A default that
-produces a reproducible report is worth the break.
-
-To keep the old behaviour, pass =#:shuffle? #t=:
+A suite runs its children in a shuffled order unless it passes
+=#:shuffle? #f=:
 
 #+begin_src scheme
-(suite "order independent" #:shuffle? #t
+(suite "order independent" #:shuffle? #f
        (test "a" ...) (test "b" ...))
 #+end_src
 
-To shuffle the files instead, set =VERITAS_SHUFFLE_FILES=true= (=--shuffle-files=).
-Either way the seed is printed and stored, so an order can be replayed with
-=VERITAS_SEED=.
+The shuffle uses one seed for the whole run.  The seed is printed at the end
+(=shuffled with seed 757909024 (replay with VERITAS_SEED=757909024)=) and stored
+in the report, so an order that failed can be reproduced exactly.
+=VERITAS_SHUFFLE_FILES=true= (=--shuffle-files=) shuffles whole files as well.
+
+1.0.0 briefly made declaration order the default and 1.0.1 restored shuffling.
+If you pinned =#:shuffle? #t= to keep the old behaviour during that release, the
+keyword is now redundant, though harmless.
 
 * Test results carry a line
 :PROPERTIES:
@@ -59,21 +65,11 @@ Either way the seed is printed and stored, so an order can be replayed with
 
 The positional constructor is unchanged apart from the extra slot, and the
 accessors =pre-test-result-file=, =pre-test-result-line= and
-=pre-test-result-duration= are the supported way to read a result.  Code that
-built a =pre-test-result= through the public wrapper keeps working; code that
-pattern-matched on the record's shape needs the extra slot.
+=pre-test-result-duration= are the supported way to read a result.
 
 Guile 3.0 does not expose a syntax object's line, so =#:line= is only filled in
-when a caller supplies it.  Files are captured automatically.
-
-* =benchmark= forms
-:PROPERTIES:
-:CUSTOM_ID: bench
-:END:
-
-Nothing changed in how =benchmark= is written; =VERITAS_RUN_BENCHMARKS=false=
-still skips them.  The new =bench/bench.scm= measures veritas itself and is not
-part of a normal run.
+when a caller supplies it.  Files are captured automatically, from the
+declaration site or, failing that, from the file the runner is reading.
 
 * Summary of breaking changes
 :PROPERTIES:
@@ -82,12 +78,12 @@ part of a normal run.
 
 | Change                                   | Why                                                        |
 |------------------------------------------+------------------------------------------------------------|
-| =suite= defaults to =#:shuffle? #f=      | two runs of the same suite should agree                    |
 | =pre-test-result= has a =line= slot      | a failure should be clickable in an editor                 |
 | JUnit cases carry =file= and =line=      | CI annotations need a source position                      |
 
 Additive, not breaking: =veritas-clock=, =veritas-current-location=,
 =docs/=, =bench/bench.scm=, the JUnit schema at =test/veritas/junit.xsd=.
+Suite shuffling is unchanged: still the default, still seeded and replayable.
 
 * Related
 :PROPERTIES:

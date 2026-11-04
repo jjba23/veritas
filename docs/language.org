@@ -37,7 +37,7 @@ Both accept the same keywords:
 | =#:timeout=    | seconds before the body is abandoned                          |
 | =#:before=     | thunk run before the test or suite                            |
 | =#:after=      | thunk run after it, even if it failed                         |
-| =#:shuffle?=   | run this suite's children in a random order (=#f= by default)  |
+| =#:shuffle?=   | shuffle this suite's children (=#t= by default; the seed is reported) |
 | =#:concurrent?=| run a suite's children in parallel fibers (=#t= by default)    |
 | =#:before-all= | run once before a suite's children                            |
 | =#:after-all=  | run once after them, even if some failed                      |

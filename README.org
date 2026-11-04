@@ -99,10 +99,9 @@ file, each with its own table of contents and a link back here.
 :CUSTOM_ID: what-changed-in-1-0
 :END:
 
-- A suite runs its tests in declaration order unless it asks for =#:shuffle? #t=.
-  This is the one breaking change; the
-  [[file:docs/migration.org][migration guide]] explains why and how to
-  get the old behaviour back.
+- A suite shuffles its tests by default, as it always has.  The seed is printed
+  and replays the order; =#:shuffle? #f= keeps declaration order.  (1.0.0 briefly
+  changed this default; 1.0.1 restored it.)
 - Every test result carries the file it was declared in, written into the JUnit
   document and used by CI annotations.
 - Assertion execution is about 11% faster, and report generation no longer scans
