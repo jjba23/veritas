@@ -84,6 +84,7 @@ The runner is configured by the environment when no flag says otherwise:
 | =VERITAS_SRC_DIR=        | source root of the change graph (default =src=)             |
 | =VERITAS_RETRIES=        | extra attempts for a failing test (default =0=)             |
 | =VERITAS_TRACE=          | =true= records every step of the run to =reports/traces/=  |
+| =VERITAS_LIST=           | =true= prints the selected test files and runs none        |
 
 * Next
 :PROPERTIES:

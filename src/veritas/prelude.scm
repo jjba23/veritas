@@ -162,19 +162,32 @@ Booleans only: @code{#t} for a pass, @code{#f} for a failure."
 ;; numbers and the report cannot disagree.
 
 (define empty-result-counts
-  '((files . 0) (suites . 0) (tests . 0) (assertions . 0)))
+  '((files . 0) (suites . 0) (tests . 0) (assertions . 0) (flaky . 0)))
 
 (define (count-of-kind kind n)
   "Return a count alist holding @var{n} under @var{kind} and zero elsewhere."
   (map (lambda (key)
          (cons key (if (eq? key kind) n 0)))
-       '(files suites tests assertions)))
+       '(files suites tests assertions flaky)))
 
 (define (add-result-counts a b)
   "Return the sum of the count alists @var{a} and @var{b}."
   (map (lambda (key)
          (cons key (+ (assoc-ref a key) (assoc-ref b key))))
-       '(files suites tests assertions)))
+       '(files suites tests assertions flaky)))
+
+(define (flaky-test-result? result)
+  "Return @code{#t} when @var{result} passed only after a retry.
+
+A test that failed and then passed is a pass, and also the one thing a run
+should report separately: it is the test that will fail again, and a total that
+counts it as a clean pass is a total that hides it."
+  (and (pre-test-result? result)
+       (> (pre-test-result-attempts result) 1)
+       (let ((outcomes (collect-assertion-successful
+                        (pre-test-result-results result))))
+         (and (pair? outcomes)
+              (every (lambda (outcome) outcome) outcomes)))))
 
 (define (result-counts* result)
   "Return the counts of @var{result} itself, without a file of its own."
@@ -184,8 +197,10 @@ Booleans only: @code{#t} for a pass, @code{#f} for a failure."
     ((assertion-result? result)
      (count-of-kind 'assertions 1))
     ((pre-test-result? result)
-     (add-result-counts (count-of-kind 'tests 1)
-                        (result-counts* (pre-test-result-results result))))
+     (add-result-counts
+      (add-result-counts (count-of-kind 'tests 1)
+                         (result-counts* (pre-test-result-results result)))
+      (count-of-kind 'flaky (if (flaky-test-result? result) 1 0))))
     ((suite-result? result)
      (add-result-counts (count-of-kind 'suites 1)
                         (result-counts* (suite-result-test-results result))))
@@ -237,11 +252,15 @@ error string, so neither contributes a test or an assertion of its own.
 (result-counts-summary '((files . 2) (suites . 3) (tests . 12) (assertions . 48)))
 @result{} \"2 files, 3 suites, 12 tests and 48 assertions\"
 @end example"
-  (format #f "~a, ~a, ~a and ~a"
-          (count-noun (assoc-ref counts 'files) "file")
-          (count-noun (assoc-ref counts 'suites) "suite")
-          (count-noun (assoc-ref counts 'tests) "test")
-          (count-noun (assoc-ref counts 'assertions) "assertion")))
+  (let ((flaky (or (assoc-ref counts 'flaky) 0)))
+    (format #f "~a, ~a, ~a and ~a~a"
+            (count-noun (assoc-ref counts 'files) "file")
+            (count-noun (assoc-ref counts 'suites) "suite")
+            (count-noun (assoc-ref counts 'tests) "test")
+            (count-noun (assoc-ref counts 'assertions) "assertion")
+            (if (> flaky 0)
+                (format #f "; ~a flaky" (count-noun flaky "test"))
+                ""))))
 
 (define (display-assertion-results assertion-results)
   "Print the captured output of each record in @var{assertion-results}.

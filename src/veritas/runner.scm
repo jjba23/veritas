@@ -597,6 +597,9 @@ Behaviour comes from the environment:
          (tracing? (equal? "true"
                            (getenv-or 'VERITAS_TRACE
                                       #:default "false")))
+         (listing? (equal? "true"
+                           (getenv-or 'VERITAS_LIST
+                                      #:default "false")))
          (shuffle-files (equal? "true"
                                 (getenv-or 'VERITAS_SHUFFLE_FILES
                                            #:default "true")))
@@ -664,7 +667,14 @@ scanning present working directory for ~a tests..."
                        (- (length sorted-files)
                           (length partitioned-files)))))
     
-    (if (not (null? interesting-files))
+    (if listing?
+        ;; The selection, on stdout, one file per line, with nothing run: a
+        ;; script or a CI job can choose what to do with it.
+        (begin
+          (for-each (lambda (file) (display (format #f "~a\n" file)))
+                    interesting-files)
+          #t)
+        (if (not (null? interesting-files))
         (begin
           (display (format #f "\nfound ~a tests: ~a\n" test-type
                            interesting-files))
@@ -677,7 +687,7 @@ scanning present working directory for ~a tests..."
                                    #:test-type test-type
                                    #:entrypoint-function entrypoint-function)))
         (begin
-          (display (format #f "\ncould not find any ~a tests!" test-type))))))
+          (display (format #f "\ncould not find any ~a tests!" test-type)))))))
 
 (define* (discover-tests #:key test-type
                          scan-dir

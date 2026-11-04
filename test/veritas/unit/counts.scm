@@ -80,7 +80,7 @@
                  (test "counts add up"
                        (assert-equal #:expect
                                      '((files . 0) (suites . 4) (tests . 6)
-                                       (assertions . 8))
+                                       (assertions . 8) (flaky . 0))
                                      #:got (add-result-counts (result-counts
                                                                sample-results)
                                                               (result-counts
@@ -90,6 +90,26 @@
                                      #:got (result-counts-summary
                                             '((files . 1) (suites . 2)
                                               (tests . 3) (assertions . 4)))))
+                 (test "a test that passed on a retry is counted as flaky"
+                       (let ((flaky (make-pre-test-result
+                                     "flaky"
+                                     (list (assertion-result-named "a" #t))
+                                     #:attempts 2))
+                             (steady (make-pre-test-result
+                                      "steady"
+                                      (list (assertion-result-named "b" #t)))))
+                         (assert-equal #:expect 1
+                                       #:got (count-of 'flaky
+                                                       (result-counts
+                                                        (list flaky))))
+                         (assert-equal #:expect 0
+                                       #:got (count-of 'flaky
+                                                       (result-counts
+                                                        (list steady))))
+                         (assert-contains
+                          #:expect (result-counts-summary
+                                    (result-counts (list flaky)))
+                          #:got "flaky")))
                  (test "counts survive a trip through a file"
                        (let* ((path "reports/counts-test.scm")
                               (counts (result-counts sample-results #:files 1)))

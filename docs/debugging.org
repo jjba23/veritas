@@ -27,6 +27,8 @@ records exactly that, as the run happens, and leaves it on disk for the reader.
 
 Every step is a frame:
 
+- =suite-start= / =suite-end= - a suite opened and closed, with how many tests
+  it held, so the timeline shows nesting as well as steps;
 - =test-start= - a test began, named, with the file it was declared in;
 - =assertion= - one check ran, with its index, its name and =pass= or =fail=;
 - =test-end= - the test finished, with how many attempts it took.
@@ -167,6 +169,10 @@ calls it flaky and prints how many attempts it took, and =attempts= is on the
 That is the difference between an intermittent infrastructure hiccup and a real
 bug: the first leaves a trace saying =2 attempt(s)=, the second keeps failing no
 matter how large the budget.
+
+A flaky test is counted apart as well.  The run's totals end with =1 test
+flaky= rather than folding it in with the passes, and the JUnit =testcase=
+carries =flaky="true"=, which is what a dashboard filters on.
 
 * Limits
 :PROPERTIES:

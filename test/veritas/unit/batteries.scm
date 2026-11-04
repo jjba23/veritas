@@ -40,7 +40,29 @@
                (assert-true (procedure? make-spy)))
 
          (test "one import reaches the table helpers"
-               (assert-true (procedure? cases->table)))))
+               (assert-true (procedure? cases->table))
+               (assert-true (procedure? test-each))
+               (assert-true (procedure? suite-each)))
+
+         (test "one import reaches the generators"
+               (assert-true (procedure? generate-integer))
+               (assert-true (procedure? generate-string)))
+
+         (test "one import reaches the BDD steps"
+               (assert-true (procedure? %scenario))
+               (assert-true (procedure? %step)))
+
+         (test "one import reaches the snapshot helpers"
+               (assert-true (procedure? assert-snapshot))
+               (assert-true (procedure? snapshot-path)))
+
+         (test "one import reaches the trace recorder"
+               (assert-true (parameter? veritas-tracing?))
+               (assert-true (procedure? read-trace))
+               (assert-true (procedure? render-trace)))
+
+         (test "one import reaches the retry count"
+               (assert-true (parameter? veritas-retries)))))
 
 (define (spec)
   (veritas-run #:debug? #f

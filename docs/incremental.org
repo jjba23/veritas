@@ -61,6 +61,13 @@ VERITAS_CHANGED=true veritas
 Without =--changed= nothing is filtered, and the suite is the whole suite it
 always was; the flag is opt-in, so a run that forgets it is slow, never wrong.
 
+=--list= prints the files a run would run, one per line, and runs none of them -
+the way to check a selection, and what a CI job uses to decide what to do next:
+
+#+begin_src sh
+veritas --changed --list
+#+end_src
+
 * How a test is selected
 :PROPERTIES:
 :CUSTOM_ID: how-a-test-is-selected

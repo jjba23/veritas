@@ -1,3 +1,18 @@
+veritas (1.1.0-1) unstable; urgency=medium
+
+  * Change-aware runs: --changed/--since select the test files a diff reaches
+    through #:use-module imports, and --list prints that selection without
+    running it.
+  * #:retries, veritas-retries and VERITAS_RETRIES rerun a failing test; a test
+    that then passes is counted as flaky and marked flaky="true" in the JUnit
+    document.
+  * --trace records suites, tests and assertions step by step, and --show-trace
+    prints the timeline of the last run.
+  * (veritas all) re-exports the whole framework behind one import.
+  * docs/incremental.org, docs/debugging.org and docs/batteries.org.
+
+ -- Josep Bigorra <jjbigorra@gmail.com>  Wed, 04 Nov 2026 12:00:00 +0100
+
 veritas (1.0.0-1) unstable; urgency=medium
 
   * Assertions defer work with (lazy expr) instead of the quoted (comp ...)

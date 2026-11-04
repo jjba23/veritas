@@ -20,6 +20,7 @@
   #:use-module (srfi srfi-1)
   #:use-module (veritas veritas)
   #:use-module (veritas model)
+  #:use-module (veritas reporter)
   #:export (spec))
 
 ;; A retry is for an intermittent failure.  A test that fails and then passes
@@ -84,8 +85,36 @@
                                     #:got (pre-test-result-attempts result))
                       vc)))))))
 
+(define junit-attempts 0)
+
+;; The run summary is not the only place flakiness belongs: a CI dashboard reads
+;; the JUnit document, so the case that needed a retry says so there too.
+(define junit-flaky-suite
+  (suite "flaky in the JUnit document"
+         #:shuffle? #f
+         (test "a retried pass carries flaky=true"
+               (lambda (vc)
+                 (let ((result (run (test "flaky junit" #:retries 1
+                                          (lambda (vc)
+                                            (set! junit-attempts
+                                                  (+ junit-attempts 1))
+                                            ((assert-equal
+                                              #:expect 2
+                                              #:got junit-attempts)
+                                             vc))))))
+                   ((assert-equal #:expect 2
+                                  #:got (pre-test-result-attempts result))
+                    vc)
+                   (let ((xml (assoc-ref (junit-report-data (list result)
+                                                            #:seconds 1)
+                                         'xml)))
+                     ((assert-contains #:expect xml
+                                       #:got "flaky=\"true\"")
+                      vc)))))))
+
 (define (spec)
   (veritas-run #:debug? #f
                #:shuffle? #f
                #:concurrent? #f
-               retry-suite))
+               retry-suite
+               junit-flaky-suite))

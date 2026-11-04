@@ -9,6 +9,16 @@ This project adheres loosely to [[https://semver.org/spec/v2.0.0.html][Semantic 
 
 *[Unreleased]*
 
+Nothing yet.
+
+*[Released]*
+
+** v1.1.0 (2026-11-04)
+
+A release about the edit loop: run only what a change can reach, retry what
+fails intermittently without hiding it, and keep a step-by-step trace of the run
+that can be read afterwards.
+
 ** Change-aware runs
 
 - `veritas --changed` (or `VERITAS_CHANGED=true`) runs only the test files the
@@ -21,6 +31,8 @@ This project adheres loosely to [[https://semver.org/spec/v2.0.0.html][Semantic 
 - The graph is a module of its own, `(veritas impact)`: `module-name-of-file`,
   `module-imports`, `git-changed-files`, `affected-test-files` and
   `changed-selection` answer the same questions from a script.
+- `--list` (`VERITAS_LIST=true`) prints the files a run would run, one per line,
+  and runs none of them, so a CI job can inspect a selection before trusting it.
 
 ** Retries for intermittent failures
 
@@ -30,6 +42,8 @@ This project adheres loosely to [[https://semver.org/spec/v2.0.0.html][Semantic 
 - A test that fails and then passes is reported as flaky with its attempt count:
   `attempts` is a slot of `pre-test-result`, so a report can tell an
   intermittent hiccup from a real failure instead of hiding either.
+- Flakiness is counted apart from passes: the run's totals end with `N flaky
+  tests`, and the JUnit `testcase` carries `flaky="true"`.
 
 ** Traces
 
@@ -40,6 +54,8 @@ This project adheres loosely to [[https://semver.org/spec/v2.0.0.html][Semantic 
 - `(veritas trace)` exposes the recorder: `veritas-tracing?`,
   `veritas-trace-frames`, `trace-event!`, `write-trace!`, `read-trace`,
   `render-trace` and `show-last-trace`.
+- The timeline records suites as well as tests: `suite-start` and `suite-end`
+  frames show the nesting and how many tests a suite held.
 
 ** One import
 
@@ -55,10 +71,6 @@ This project adheres loosely to [[https://semver.org/spec/v2.0.0.html][Semantic 
   table point at them.
 - `--changed`, `--since`, `--src-dir`, `--retries`, `--trace`, `--no-trace` and
   `--show-trace` are in `veritas --help` and the man page.
-
----------
-
-*[Released]*
 
 ** v1.0.0 (2026-11-04)
 

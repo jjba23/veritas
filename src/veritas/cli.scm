@@ -45,7 +45,7 @@
                     veritas-man-page-name))
 
 (define veritas-version
-  "1.0.0")
+  "1.1.0")
 
 (define veritas-man-page-name
   "veritas(1)")
@@ -82,6 +82,7 @@
     (no-changed (value #f))
     (since (value #t))
     (src-dir (value #t))
+    (list (value #f))
     (trace (value #f))
     (no-trace (value #f))
     (show-trace (value #f))
@@ -173,6 +174,8 @@
    "                           reports/traces/last.scm (VERITAS_TRACE)\n"
    "      --no-trace           do not record a trace (the default)\n"
    "      --show-trace         print the timeline of the last run and exit\n"
+   "      --list               print the test files this run would run, one\n"
+   "                           per line, and run none of them (VERITAS_LIST)\n"
    "      --coverage           measure code coverage and write the reports
 "
    "                           (VERITAS_COVERAGE)
@@ -254,6 +257,7 @@
    "  VERITAS_SRC_DIR           source root of the change graph, defaults to src\n"
    "  VERITAS_RETRIES           extra attempts for a failing test, defaults to 0\n"
    "  VERITAS_TRACE             \"true\" to record a trace of the run\n"
+   "  VERITAS_LIST              \"true\" to print the selected files and run none\n"
    "  VERITAS_COVERAGE          \"true\" to measure code coverage
 "
    "  VERITAS_COVERAGE_DIR      where the LCOV trace is written, defaults to
@@ -312,6 +316,7 @@
    "  veritas --retries 2              ride out an intermittent failure\n"
    "  veritas --trace                  record the run, then\n"
    "  veritas --show-trace             print the recorded timeline\n"
+   "  veritas --changed --list         show what --changed would run\n"
    "  veritas --coverage               measure coverage and write LCOV and HTML
 "
    "  veritas --coverage --coverage-exclude test
@@ -410,7 +415,9 @@ switch is present @var{default} is used."
                    'no-changed "VERITAS_CHANGED" #f)
   (setenv-boolean! opts
                    'trace
-                   'no-trace "VERITAS_TRACE" #f))
+                   'no-trace "VERITAS_TRACE" #f)
+  (when (option-ref opts 'list #f)
+    (setenv "VERITAS_LIST" "true")))
 
 ;; ====== Driver ======
 

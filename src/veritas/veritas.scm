@@ -908,6 +908,7 @@ in shuffled order unless @var{shuffle?} is @code{#f}.  @var{before-all} and
 seconds including those hooks, @var{skip?} drops it from the run and @var{tags}
 decide which filter may select it."
   (let* ((func (lambda (vc)
+                 (trace-event! 'suite-start name "")
                  (let* ((forms (get-tests-for-suite tests))
                         (children (append-map expand-task-form forms))
                         (ordered (if shuffle?
@@ -955,6 +956,9 @@ decide which filter may select it."
                      (newline)
                      (write final-suite-data)
                      (newline))
+                   (trace-event! 'suite-end name
+                                 (format #f "~a test(s)"
+                                         (length test-results)))
                    final-suite-data))))
     (if skip? #f
         (if (not (tag-matches? #:tags tags

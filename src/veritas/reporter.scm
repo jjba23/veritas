@@ -569,15 +569,20 @@ its @code{test-result} parent rather than on the @code{pre-test-result} itself."
      (junit-cases (test-result-results result)
                   path (test-result-output result)))
     ((pre-test-result? result)
-     (let ((file (pre-test-result-file result)))
-       (list (junit-case (pre-test-result-name result)
-                         (junit-classname path file)
-                         file
-                         (pre-test-result-line result)
-                         (junit-suite-name path)
-                         (pre-test-result-results result)
-                         output
-                         (pre-test-result-duration result)))))
+     (let* ((file (pre-test-result-file result))
+            (case (junit-case (pre-test-result-name result)
+                              (junit-classname path file)
+                              file
+                              (pre-test-result-line result)
+                              (junit-suite-name path)
+                              (pre-test-result-results result)
+                              output
+                              (pre-test-result-duration result))))
+       ;; The attempt count goes with the case: a test that needed a retry is a
+       ;; pass a CI dashboard should be able to single out.
+       (list (append case
+                     (list (cons 'attempts
+                                 (pre-test-result-attempts result)))))))
     ((benchmark-result? result)
      (list (list (cons 'name (benchmark-result-name result))
                  (cons 'classname (junit-classname path #f))
@@ -621,7 +626,10 @@ in the hierarchy of suites at once."
     (when (assoc-ref c 'line)
       (format port " line=\"~a\"" (assoc-ref c 'line)))
     (when (and suite (not (string-null? (format #f "~a" suite))))
-      (format port " suite=\"~a\"" (xml-escape (format #f "~a" suite)))))
+      (format port " suite=\"~a\"" (xml-escape (format #f "~a" suite))))
+    (when (and (assoc-ref c 'attempts)
+               (> (assoc-ref c 'attempts) 1))
+      (format port " flaky=\"true\"")))
   (format port " time=\"~,3f\"" (exact->inexact (or (assoc-ref c 'duration) 0)))
   (cond
     ((case-skipped? c)
