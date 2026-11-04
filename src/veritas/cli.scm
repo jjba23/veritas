@@ -45,7 +45,7 @@
                     veritas-man-page-name))
 
 (define veritas-version
-  "0.10.1")
+  "0.11.0")
 
 (define veritas-man-page-name
   "veritas(1)")
@@ -127,9 +127,9 @@
 "
    "  -r, --reporter NAME      reporter to use, e.g. emoji-reporter,
 "
-   "                           monotone-reporter, json-reporter or
+   "                           monotone-reporter, json-reporter,
 "
-   "                           junit-reporter (VERITAS_REPORTER)
+   "                           junit-reporter or github-reporter (VERITAS_REPORTER)
 "
    "      --only-test SUBSTR   only run tests whose name contains SUBSTR (VERITAS_ONLY_TEST)
 "

@@ -13,6 +13,44 @@ This project adheres loosely to [[https://semver.org/spec/v2.0.0.html][Semantic 
 
 *[Released]*
 
+** v0.11.0 (2026-11-04)
+
+The reports now carry what a consumer outside the terminal needs, and there is a
+reporter for GitHub Actions.
+
+*** Report data
+
+- Every test result records the file it came from and how long it took.  The
+  JUnit document writes both out: a ~testcase~ carries ~classname~ (the file,
+  from the project root), ~file~, ~suite~ (the path through the suites) and its
+  own ~time~, and each ~testsuite~ sums the durations of its cases.  That is what
+  IntelliJ shows as durations and what a CI action uses to attach a failure to a
+  file.
+- Line numbers are not written: Guile gives no reliable line for an interpreted
+  test, and a wrong line is worse than none.
+- A raised task is now written as one ~error~ element.  The failure data for it
+  was shaped as two half-entries, so writing the document for a run with a
+  raising task failed outright.
+
+*** github-reporter
+
+- ~VERITAS_REPORTER=github-reporter~ writes
+  ~::error file=...,title=...::message~ annotations for the failures of each file
+  - the first ten, which is GitHub's per-step limit, plus a notice naming how
+  many more the JUnit document holds - and appends a row per file to
+  ~$GITHUB_STEP_SUMMARY~.  The log stays quiet; outside a workflow the same
+  setting reads like ~monotone-reporter~, so it is never a switch that silently
+  hides a local run.
+
+*** Keeping it true
+
+- ~test/veritas/junit.xsd~ is the schema of the document, and
+  ~.github/workflows/tests.yml~ validates the report of the project's own run
+  against it before ~mikepenz/action-junit-report~ publishes it.
+- ~test/veritas/unit/jobs.scm~ compares a whole document - files, durations,
+  escaping, counts and header - against an expected one, and checks the
+  annotation line and the summary row.
+
 ** v0.10.1 (2026-11-03)
 
 A single-process run keeps going after a failing file.  ~veritas-run~ reports a

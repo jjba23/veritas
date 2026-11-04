@@ -99,6 +99,7 @@
                   write-last-failed-names!
                   merge-failed-names
                   veritas-rerun-all-marker
+                  veritas-current-file
                   veritas-junit-data-path
                   veritas-coverage-data-path
                   veritas-result-counts
@@ -204,6 +205,14 @@ filtered."
 ;; Set (in a worker process, after the fork) when the run is one of several and
 ;; the report is to be handed to the process that merges them.  It holds the
 ;; path to write the JUnit data to instead of the document.
+
+;; The test file the current run is reading, as a path from the project root.
+;; `veritas-run' is called from inside a loaded test file, so the runner tells
+;; it which file that was; a spec called directly leaves it unset.  Every test
+;; result records it, which is what lets a report point at a file.
+
+(define veritas-current-file
+  (make-parameter #f))
 
 (define veritas-junit-data-path
   (make-parameter #f))
@@ -429,7 +438,9 @@ gets reported."
   (make-pre-test-result name
                         (list (make-timeout-assertion-result #:vc vc
                                                              #:name name
-                                                             #:timeout timeout))))
+                                                             #:timeout timeout))
+                        #:file (veritas-current-file)
+                        #:duration timeout))
 
 (define* (suite-timeout-result vc name timeout)
   "Build the result reported when a suite exceeds its @var{timeout}."
@@ -604,6 +615,12 @@ an assertion result is a failure with a reason, not a failure in silence."
                                                                           vc message))))
                                  message #f)))))
 
+(define (seconds-since start)
+  "Return how many seconds have passed since @var{start}, a @code{gettimeofday}."
+  (let ((end (gettimeofday)))
+    (+ (- (car end) (car start))
+       (/ (- (cdr end) (cdr start)) 1000000.0))))
+
 (define (run-test-forms forms vc)
   "Run the assertions each of @var{forms} stands for, numbering them as they run.
 
@@ -686,7 +703,8 @@ accident.
 @end example"
   (let* ((func (lambda (vc)
                  (log-test vc name)
-                 (let* ((forms (get-cases-for-test cases))
+                 (let* ((started (gettimeofday))
+                        (forms (get-cases-for-test cases))
                         (ordered (if shuffle?
                                      (fisher-yates-shuffle forms)
                                      forms))
@@ -704,7 +722,9 @@ accident.
                      (newline)
                      (write test-results)
                      (newline))
-                   (make-pre-test-result name test-results)))))
+                   (make-pre-test-result name test-results
+                                         #:file (veritas-current-file)
+                                         #:duration (seconds-since started))))))
     (if (or skip?
             (not (failed-test-wanted? name))) #f
         (if (not (tag-matches? #:tags tags
@@ -975,6 +995,15 @@ and the LCOV, HTML, JSON, Cobertura and JaCoCo reports are rewritten.
                                   (cdr start-time))))
     
     (display-all-results vc all-results)
+    ;; GitHub reads annotations from the log and the totals from the step
+    ;; summary; both are written from the same results the JUnit document is.
+    (when (and (equal? 'github-reporter
+                       (assoc-ref vc 'reporter))
+               (github-actions?))
+      (write-github-annotations all-results)
+      (append-github-summary-row counts
+                                 #:name (or (veritas-current-file)
+                                            "run")))
     (when (equal? 'junit-reporter
                   (assoc-ref vc 'reporter))
       (let ((data-path (veritas-junit-data-path)))

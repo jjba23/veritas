@@ -4,7 +4,7 @@
 .\" This documentation is free documentation: you can redistribute it and/or
 .\" modify it under the terms of the GNU Free Documentation License, version
 .\" 1.3 or (at your option) any later version.
-.TH VERITAS 1 "2026" "veritas 0.10.1" "User Commands"
+.TH VERITAS 1 "2026" "veritas 0.11.0" "User Commands"
 .SH NAME
 veritas \- discover and run Veritas test suites, tests and benchmarks
 .SH SYNOPSIS
@@ -77,13 +77,20 @@ default
 .BR emoji-reporter ).
 Other built-in choices include
 .BR monotone-reporter ,
-.B json-reporter
+.B json-reporter ,
+.B junit-reporter
 and
-.BR junit-reporter ,
-the last of which writes a JUnit XML report at the end of the run
+.BR github-reporter .
+.B junit-reporter
+writes a JUnit XML report at the end of the run
 .RB ( VERITAS_JUNIT_PATH ,
 default
 .BR reports/junit/veritas-junit.xml ).
+.B github-reporter
+writes check annotations and a step summary inside a GitHub Actions workflow,
+and reads like
+.B monotone-reporter
+anywhere else.
 .TP
 .B \-\-only\-test " " SUBSTR
 Only run tests whose name contains
@@ -330,9 +337,10 @@ Reporter symbol.  Defaults to
 The built-in choices are
 .BR emoji-reporter ,
 .BR monotone-reporter ,
-.B json-reporter
+.B json-reporter ,
+.B junit-reporter
 and
-.BR junit-reporter .
+.BR github-reporter .
 .SH EXIT STATUS
 .TP
 .B 0

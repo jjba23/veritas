@@ -50,6 +50,16 @@
      (list name
            (map remove-stat children)))))
 
+(define (test-file-path file test-type)
+  "Return where @var{file} of @var{test-type} lives, from the project root.
+
+A path that already names its directories is taken as it is; a bare file name,
+which is what the runner discovers, is placed under the test tree."
+  (if (or (string-prefix? "/" file)
+          (string-prefix? "test/" file))
+      file
+      (string-append "test/veritas/" test-type "/" file)))
+
 (define* (run-test-file #:key test-file test-type entrypoint-function)
   "Load one test file and call its entrypoint.
 
@@ -72,8 +82,10 @@ running ~a tests from file: ~a, entrypoint: ~a
                                     module-parts)))
          (entrypoint (module-ref m
                                  (string->symbol entrypoint-function))))
-    (apply entrypoint
-           '())))
+    ;; The run records this path in every test result, so a JUnit document or a
+    ;; CI annotation can name the file a test came from.
+    (parameterize ((veritas-current-file (test-file-path test-file test-type)))
+      (apply entrypoint '()))))
 
 (define (passing-exit? status)
   "Return @code{#t} when the exit @var{status} is the status of a passing exit."
@@ -109,21 +121,72 @@ against the file."
                                test-file key args))
               #f)))))
 
-(define* (run-test-files files #:key test-type entrypoint-function)
+(define (junit-reporter-requested?)
+  "Return @code{#t} when this run asked for the JUnit reporter."
+  (equal? (getenv "VERITAS_REPORTER") "junit-reporter"))
+
+(define (seconds-since start)
+  "Return how many seconds have passed since @var{start}, a @code{gettimeofday}."
+  (let ((end (gettimeofday)))
+    (+ (- (car end) (car start))
+       (/ (- (cdr end) (cdr start)) 1000000.0))))
+
+(define (single-process-junit-paths count)
+  "Return one JUnit fragment path per file of a single-process run."
+  (map (lambda (i)
+         (format #f "reports/workers/single-~a.junit.scm" i))
+       (iota count)))
+
+(define* (write-merged-single-junit paths #:key since)
+  "Merge the JUnit data at @var{paths} into the document of the whole run.
+
+A single-process run loads every test file in turn, and each @code{veritas-run}
+finishes with a document of its own.  Written straight to
+@code{VERITAS_JUNIT_PATH} the last file would overwrite the report of every file
+before it, and a CI job would publish one file's worth of results; merging them
+here is what makes the document the whole run's.  @var{since} is when the run
+started, so the document's total time is the wall clock of the run."
+  (let ((datas (filter-map read-junit-data paths)))
+    (when (pair? datas)
+      (let ((path (getenv-or 'VERITAS_JUNIT_PATH
+                             #:default "reports/junit/veritas-junit.xml")))
+        (write-junit-document (merge-junit-data datas)
+                              #:seconds (seconds-since since)
+                              #:path path)
+        (display (format #f "\nJUnit XML report written to ~a\n" path))))
+    (for-each (lambda (path)
+                (catch #t (lambda () (delete-file path))
+                       (lambda (key . args) #f)))
+              paths)))
+
+(define* (run-test-files files
+                         #:key test-type entrypoint-function (junit-data-paths '()))
   "Run @var{files} one after another in this process, returning the failed ones.
 
 A file that fails no longer ends the run: the files after it still run, so the
 run reports every failure and its global totals before it exits, which is what
-@code{--jobs} already did for the files it spread over workers."
-  (reverse
-   (fold (lambda (file failed)
-           (if (run-test-file-guarded #:test-file file
-                                      #:test-type test-type
-                                      #:entrypoint-function
-                                      entrypoint-function)
-               failed
-               (cons file failed)))
-         '() files)))
+@code{--jobs} already did for the files it spread over workers.
+
+When @var{junit-data-paths} is given, the @var{i}th file leaves its JUnit report
+at that path as data instead of writing it as the run's document, so the caller
+can merge one document out of all of them."
+  (let loop ((fs files) (paths junit-data-paths) (failed '()))
+    (if (null? fs)
+        (reverse failed)
+        (let* ((file (car fs))
+               (path (and (pair? paths) (car paths)))
+               (run (lambda ()
+                      (run-test-file-guarded
+                       #:test-file file
+                       #:test-type test-type
+                       #:entrypoint-function entrypoint-function)))
+               (passed (if path
+                           (parameterize ((veritas-junit-data-path path))
+                             (run))
+                           (run))))
+          (loop (cdr fs)
+                (if (pair? paths) (cdr paths) '())
+                (if passed failed (cons file failed)))))))
 
 (define* (run-test-files-here files #:key test-type entrypoint-function)
   "Run @var{files} in this process, print the totals, and exit 1 if any failed.
@@ -131,9 +194,17 @@ run reports every failure and its global totals before it exits, which is what
 Printing the totals before the exit is the point: a run that is failing is
 exactly when its numbers matter, and the failures are named together rather than
 one file at a time."
-  (let ((failed (run-test-files files
-                                #:test-type test-type
-                                #:entrypoint-function entrypoint-function)))
+  (let* ((started (gettimeofday))
+         (junit? (junit-reporter-requested?))
+         (junit-paths (if junit?
+                          (single-process-junit-paths (length files))
+                          '()))
+         (failed (run-test-files files
+                                 #:test-type test-type
+                                 #:entrypoint-function entrypoint-function
+                                 #:junit-data-paths junit-paths)))
+    (when junit?
+      (write-merged-single-junit junit-paths #:since started))
     (display-result-counts (veritas-result-counts))
     (if (null? failed)
         (display (format #f "\n\nfinished running tests\n"))

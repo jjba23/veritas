@@ -21,12 +21,17 @@
   #:use-module (json)
   #:use-module (ice-9 format)
   #:use-module (ice-9 regex)
+  #:use-module (ice-9 string-fun)
   #:use-module (veritas model)
   #:export (emoji-reporter log
                            ansi-color-escapes
                            json-reporter
                            monotone-reporter
                            junit-reporter
+                           github-reporter
+                           github-actions?
+                           write-github-annotations
+                           append-github-summary-row
                            write-junit-report
                            junit-report-data
                            write-junit-document
@@ -79,6 +84,12 @@ The client names one under the key @code{'reporter}; anything else falls back to
                             json-reporter)
                            ((equal? 'junit-reporter reporter-sym)
                             junit-reporter)
+                           ;; GitHub's annotations and summary only exist inside a
+                           ;; workflow, so elsewhere the plain-text reporter
+                           ;; takes over rather than a silent run.
+                           ((equal? 'github-reporter reporter-sym)
+                            (if (github-actions?)
+                                github-reporter monotone-reporter))
                            (else emoji-reporter))))
     
     (apply (assoc-ref reporter-alist log-type)
@@ -448,11 +459,21 @@ of them."
                              separator
                              (join-with separator (cdr parts))))))
 
-(define (junit-classname path)
-  "Return the class name of a test reached through the suite names @var{path}."
-  (if (null? path)
-      "veritas"
-      (join-with " > " path)))
+(define (junit-suite-name path)
+  "Return the suite path @var{path} as one string, empty at the top level."
+  (join-with " > " path))
+
+(define (junit-classname path file)
+  "Return the class name of a test reached through @var{path}, in @var{file}.
+
+The file is the class name whenever a result knows it, because that is what an
+importer, a CI action and GitHub's annotations use to attach a test to a source
+file; the suite path goes into an attribute of its own so the hierarchy is not
+lost with it.  A spec called directly, with no runner around it, has no file,
+and then the suite path is all there is."
+  (cond (file file)
+        ((null? path) "veritas")
+        (else (join-with " > " path))))
 
 (define (case-failures c)
   (assoc-ref c 'failures))
@@ -460,7 +481,7 @@ of them."
 (define (case-skipped? c)
   (assoc-ref c 'skipped?))
 
-(define (junit-case name classname assertions output)
+(define (junit-case name classname file suite assertions output duration)
   "Return one test as a JUnit case alist, from its assertions and output.
 
 @var{output} is what the test printed - including the reporter's own failure
@@ -492,6 +513,9 @@ test failed without a rerun."
                                        acc)))))))
     (list (cons 'name name)
           (cons 'classname classname)
+          (cons 'file file)
+          (cons 'suite suite)
+          (cons 'duration (or duration 0))
           (cons 'failures failures)
           (cons 'skipped? #f)
           (cons 'error? #f))))
@@ -513,31 +537,55 @@ its @code{test-result} parent rather than on the @code{pre-test-result} itself."
      (junit-cases (test-result-results result)
                   path (test-result-output result)))
     ((pre-test-result? result)
-     (list (junit-case (pre-test-result-name result)
-                       (junit-classname path)
-                       (pre-test-result-results result) output)))
+     (let ((file (pre-test-result-file result)))
+       (list (junit-case (pre-test-result-name result)
+                         (junit-classname path file)
+                         file
+                         (junit-suite-name path)
+                         (pre-test-result-results result)
+                         output
+                         (pre-test-result-duration result)))))
     ((benchmark-result? result)
      (list (list (cons 'name (benchmark-result-name result))
-                 (cons 'classname (junit-classname path))
+                 (cons 'classname (junit-classname path #f))
+                 (cons 'file #f)
+                 (cons 'suite (junit-suite-name path))
+                 (cons 'duration 0)
                  (cons 'failures '())
                  (cons 'skipped? #t)
                  (cons 'error? #f)
                  (cons 'message "benchmark, not an assertion"))))
     ;; A task that raised inside a fiber arrives as the error string itself.
     ((string? result)
-     (list (list (cons 'name (junit-classname path))
-                 (cons 'classname (junit-classname path))
-                 (cons 'failures (list (cons 'message (strip-ansi result))
-                                       (cons 'body "")))
+     (list (list (cons 'name (junit-classname path #f))
+                 (cons 'classname (junit-classname path #f))
+                 (cons 'file #f)
+                 (cons 'suite (junit-suite-name path))
+                 (cons 'duration 0)
+                 ;; One failure, holding its message and its (empty) body: a
+                 ;; raised task has no output of its own to quote.
+                 (cons 'failures (list (list (cons 'message (strip-ansi result))
+                                            (cons 'body ""))))
                  (cons 'skipped? #f)
                  (cons 'error? #t))))
     (else '())))
 
 (define (write-junit-case port c)
-  "Write one JUnit @code{testcase} element for the case alist @var{c}."
+  "Write one JUnit @code{testcase} element for the case alist @var{c}.
+
+The case's file and the suite path it sat in are written as attributes along
+with its duration, so an importer can place the test in the project's files and
+in the hierarchy of suites at once."
   (format port "<testcase name=\"~a\" classname=\"~a\""
           (xml-escape (format #f "~a" (assoc-ref c 'name)))
-          (xml-escape (assoc-ref c 'classname)))
+          (xml-escape (format #f "~a" (assoc-ref c 'classname))))
+  (let ((file (assoc-ref c 'file))
+        (suite (assoc-ref c 'suite)))
+    (when (and file (not (string-null? (format #f "~a" file))))
+      (format port " file=\"~a\"" (xml-escape (format #f "~a" file))))
+    (when (and suite (not (string-null? (format #f "~a" suite))))
+      (format port " suite=\"~a\"" (xml-escape (format #f "~a" suite)))))
+  (format port " time=\"~,3f\"" (exact->inexact (or (assoc-ref c 'duration) 0)))
   (cond
     ((case-skipped? c)
      (format port ">~%")
@@ -551,8 +599,8 @@ its @code{test-result} parent rather than on the @code{pre-test-result} itself."
      (format port ">~%")
      (let ((tag (if (assoc-ref c 'error?) "error" "failure")))
        (for-each (lambda (f)
-                   (let ((message (xml-escape (assoc-ref f 'message)))
-                         (body (assoc-ref f 'body)))
+                   (let ((message (xml-escape (format #f "~a" (assoc-ref f 'message))))
+                         (body (or (assoc-ref f 'body) "")))
                      (if (string-null? body)
                          (format port "<~a message=\"~a\"/>~%" tag message)
                          (begin
@@ -570,10 +618,12 @@ its @code{test-result} parent rather than on the @code{pre-test-result} itself."
                                      (and (not (case-skipped? c))
                                           (not (assoc-ref c 'error?))
                                           (not (null? (case-failures c)))))
-                                   cases))))
+                                   cases)))
+         (seconds (apply + (map (lambda (c) (assoc-ref c 'duration)) cases))))
     (format port
-            "<testsuite name=\"~a\" tests=\"~a\" failures=\"~a\" errors=\"~a\" skipped=\"~a\">~%"
-            (xml-escape name) (length cases) failures errors skipped)
+            "<testsuite name=\"~a\" tests=\"~a\" failures=\"~a\" errors=\"~a\" skipped=\"~a\" time=\"~,3f\">~%"
+            (xml-escape name) (length cases) failures errors skipped
+            (exact->inexact seconds))
     (for-each (lambda (c) (write-junit-case port c)) cases)
     (format port "</testsuite>~%")))
 
@@ -624,8 +674,8 @@ document is made out of the parallel runs of @code{--jobs}."
 time; for a run split over worker processes it is the wall clock of the whole
 parallel run, not the sum of the workers.  Returns @var{path}.
 
-@code{testcase} elements carry no @code{time} attribute: the result records do
-not keep per-test timings."
+Every @code{testcase} carries the file it came from, the suite path it sat in
+and its own duration; each @code{testsuite} sums the durations of its cases."
   (ensure-parent-directories path)
   (call-with-output-file path
     (lambda (port)
@@ -690,8 +740,8 @@ A benchmark is reported as skipped, because it measures instead of asserting,
 and a task that raised is reported as an @code{error} rather than a failure.
 Returns @var{path}.
 
-@code{testcase} elements carry no @code{time} attribute: the result records do
-not keep per-test timings."
+Every @code{testcase} carries the file it came from, the suite path it sat in
+and its own duration; each @code{testsuite} sums the durations of its cases."
   (write-junit-document (junit-report-data all-results #:seconds seconds)
                         #:seconds seconds #:path path))
 
@@ -701,6 +751,132 @@ not keep per-test timings."
 
 (define junit-reporter
   `((reporter-name . junit-reporter) (log-pass unquote junit-quiet)
+    (log-assert unquote junit-quiet)
+    (log-test unquote junit-quiet)
+    (log-suite unquote junit-quiet)
+    (log-debug unquote junit-quiet)
+    (log-benchmark unquote junit-quiet)
+    (log-fail unquote
+              (lambda (msg)
+                (log (format #f "    [fail] ~a" msg))))
+    (log-error unquote
+               (lambda (msg)
+                 (log (format #f "\n[error] ~a\n" msg))))
+    (log-info unquote
+              (lambda (msg)
+                (log (format #f "[info] ~a" msg))))))
+
+;; ====== GitHub Actions ======
+;;
+;; GitHub parses no test results of its own: it offers line-anchored annotations
+;; and a Markdown job summary, both written as workflow commands on stdout.  The
+;; annotations are made from the same cases the JUnit document is built from, so
+;; a failure reads the same whichever surface shows it, and the summary gets the
+;; numbers the run prints even when it fails.
+
+(define (github-actions?)
+  "Return @code{#t} when the run is inside a GitHub Actions workflow."
+  (let ((value (getenv "GITHUB_ACTIONS")))
+    (and value (string=? (string-downcase value) "true"))))
+
+(define (github-escape-property value)
+  "Escape @var{value} for the property part of a workflow command."
+  (let* ((s (string-replace-substring (format #f "~a" value) "%" "%25"))
+         (s (string-replace-substring s "\r" "%0D"))
+         (s (string-replace-substring s "\n" "%0A"))
+         (s (string-replace-substring s ":" "%3A")))
+    (string-replace-substring s "," "%2C")))
+
+(define (github-escape-message value)
+  "Escape @var{value} for the message part of a workflow command."
+  (let* ((s (string-replace-substring (format #f "~a" value) "%" "%25"))
+         (s (string-replace-substring s "\r" "%0D")))
+    (string-replace-substring s "\n" "%0A")))
+
+(define* (github-annotation-line c)
+  "Return the workflow command annotating the failing case @var{c}, or @code{#f}.
+
+The file attribute is what places an annotation on the file in a pull request;
+a case that passed, or one with no file of its own, has nothing to annotate."
+  (let* ((failures (case-failures c))
+         (file (assoc-ref c 'file))
+         (suite (assoc-ref c 'suite))
+         (name (format #f "~a" (assoc-ref c 'name)))
+         (title (if (and suite (not (string-null? (format #f "~a" suite))))
+                    (string-append (format #f "~a" suite) " > " name)
+                    name))
+         (message (if (null? failures)
+                      "test failed"
+                      (format #f "~a" (assoc-ref (car failures) 'message)))))
+    (and (pair? failures)
+         (format #f "::error ~a::~a"
+                 (if file
+                     (format #f "file=~a,title=~a"
+                             (github-escape-property file)
+                             (github-escape-property title))
+                     (format #f "title=~a" (github-escape-property title)))
+                 (github-escape-message message)))))
+
+(define* (write-github-annotations all-results #:key (limit 10))
+  "Print workflow-command annotations for the failures in @var{all-results}.
+
+GitHub keeps ten error annotations per step, so only the first @var{limit} are
+written and a notice says how many were left out; the JUnit document carries
+every one of them.  Returns how many annotations were written."
+  (let* ((cases (append-map (lambda (result) (junit-cases result '() ""))
+                            all-results))
+         (failing (filter (lambda (c)
+                            (and (not (case-skipped? c))
+                                 (pair? (case-failures c))))
+                          cases))
+         (shown (if (> (length failing) limit)
+                    (take failing limit)
+                    failing)))
+    (for-each (lambda (c)
+                (let ((line (github-annotation-line c)))
+                  (when line
+                    (display line)
+                    (newline))))
+              shown)
+    (when (> (length failing) limit)
+      (format #t "::notice::~a more failing tests than annotations; see the JUnit report~%"
+              (- (length failing) limit)))
+    (length shown)))
+
+(define* (append-github-summary-row counts
+                                    #:key
+                                    (name "run")
+                                    (summary-path (getenv "GITHUB_STEP_SUMMARY")))
+  "Append one row of @var{counts} to the GitHub Actions step summary.
+
+The table header is written the first time, and every test file of the run adds
+a row, so the summary shows a file beside its numbers and still says something
+when the run is failing.  Returns @var{summary-path}, or @code{#f} when there is
+no summary to append to."
+  (if (and summary-path (not (string-null? summary-path)))
+      (let* ((fresh (not (file-exists? summary-path)))
+             (port (open-file summary-path "a")))
+        (dynamic-wind
+          (lambda () #t)
+          (lambda ()
+            (when fresh
+              (format port "### veritas test results~%~%")
+              (format port "| file | suites | tests | assertions |~%")
+              (format port "| --- | --- | --- | --- |~%"))
+            (format port "| ~a | ~a | ~a | ~a |~%"
+                    name
+                    (assoc-ref counts 'suites)
+                    (assoc-ref counts 'tests)
+                    (assoc-ref counts 'assertions)))
+          (lambda () (close-port port)))
+        summary-path)
+      #f))
+
+;; Quiet, because the annotations and the step summary are written from the
+;; result tree at the end of each file instead of line by line as the log
+;; scrolls.  Outside a workflow `dispatch-log' uses the monotone reporter.
+(define github-reporter
+  `((reporter-name . github-reporter) (log-pass unquote junit-quiet)
     (log-assert unquote junit-quiet)
     (log-test unquote junit-quiet)
     (log-suite unquote junit-quiet)

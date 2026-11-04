@@ -133,8 +133,8 @@ keep in sync.
 :CUSTOM_ID: reporting
 :END:
 
-- Four reporters: emoji (the default), monotone, JSON and JUnit XML. See
-  [[#reporters][Reporters]].
+- Five reporters: emoji (the default), monotone, JSON, JUnit XML, and one for
+  GitHub Actions. See [[#reporters][Reporters]].
 - Benchmarks report statistics from Guile's ~statprof~, next to the tests they
   measure.
 - LCOV, Cobertura, JaCoCo, JSON and one-page HTML coverage with one keyword, merged across a whole run. See [[#code-coverage][Code coverage]].
@@ -148,7 +148,7 @@ keep in sync.
 :CUSTOM_ID: ways-to-install
 :END:
 
-/Four routes to the same 0.10.1, from the most automated to the most manual.  They all build the tag this README documents./
+/Four routes to the same 0.11.0, from the most automated to the most manual.  They all build the tag this README documents./
 
 ** From the Guix channel
 :PROPERTIES:
@@ -156,7 +156,7 @@ keep in sync.
 :END:
 *GNU Guix* is the functional package manager this project is developed with: a build is a pure function of its inputs, so the same recipe gives the same result everywhere, and an upgrade that goes wrong can be rolled back.
 
-The jointhefreeworld channel carries ~guile-veritas~ at 0.10.1, so a checkout of the channel is enough — no package definition to write:
+The jointhefreeworld channel carries ~guile-veritas~ at 0.11.0, so a checkout of the channel is enough — no package definition to write:
 
 #+begin_src shell
 git clone https://codeberg.org/jjba23/guix-jointhefreeworld.git
@@ -1404,7 +1404,7 @@ Some functionalities, including the runner, are configured via environment varia
 
 - ~VERITAS_CONTAINER_RUNTIME~ is an optional variable that forces the executable used by the container helpers (for example ~podman~ or ~docker~). When unset, Podman is preferred and Docker is used as a fallback.
 
-- ~VERITAS_REPORTER~ is an optional variable, interpreted as symbol in Lisp, by default ~emoji-reporter~. Other choices are ~monotone-reporter~, ~json-reporter~ and ~junit-reporter~, the last of which writes a JUnit XML report to ~VERITAS_JUNIT_PATH~ (default ~reports/junit/veritas-junit.xml~) when the run finishes.
+- ~VERITAS_REPORTER~ is an optional variable, interpreted as symbol in Lisp, by default ~emoji-reporter~. Other choices are ~monotone-reporter~, ~json-reporter~, ~junit-reporter~ and ~github-reporter~. ~junit-reporter~ writes a JUnit XML report to ~VERITAS_JUNIT_PATH~ (default ~reports/junit/veritas-junit.xml~) when the run finishes; ~github-reporter~ writes check annotations and appends the totals to ~$GITHUB_STEP_SUMMARY~ inside a workflow, and reads like ~monotone-reporter~ anywhere else, so it is never a switch that silently hides a local run.
 
 - ~VERITAS_COVERAGE~ set to ~true~ measures code coverage for every test file the runner loads, whether or not the file asks for it with ~#:with-coverage?~. ~VERITAS_COVERAGE_DIR~ (default ~reports/lcov~) and ~VERITAS_COVERAGE_HTML_DIR~ (default ~reports/html~, ~false~ to skip) decide where the reports go; ~VERITAS_COVERAGE_INCLUDE~ and ~VERITAS_COVERAGE_EXCLUDE~ are colon-separated source roots the report is limited to and left out of. ~VERITAS_COBERTURA_PATH~ and ~VERITAS_JACOCO_PATH~ move the two XML documents somewhere else (a CI job often wants ~coverage.xml~ at the repository root). See [[#code-coverage][Code coverage]].
 
@@ -1422,6 +1422,7 @@ A reporter decides how a run is rendered. Pick one with ~#:reporter~ or with
 | ~monotone-reporter~ | plain text, no emoji — the one to reach for in a log file           |
 | ~json-reporter~     | one JSON object per event, for a dashboard or another program       |
 | ~junit-reporter~    | a JUnit XML document at ~VERITAS_JUNIT_PATH~, quiet on the terminal |
+| ~github-reporter~   | check annotations and a step summary in GitHub Actions only        |
 
 #+begin_src shell
 # a plain log for CI
@@ -1434,6 +1435,86 @@ guile -c '(use-modules (veritas veritas)) (veritas-run #:reporter (quote junit-r
 
 Coverage is not a reporter: it is a keyword on the run (or ~VERITAS_COVERAGE~),
 and it writes LCOV, JSON and HTML beside the other reports.
+
+** Reports in an editor and in CI
+:PROPERTIES:
+:CUSTOM_ID: reports-in-editors-and-ci
+:END:
+
+IntelliJ IDEA and GitHub Actions have one format in common: JUnit XML.  That is
+why ~junit-reporter~ is the reporter to reach for outside the terminal - it is
+the document both of them open.
+
+Every ~testcase~ carries the file it came from, the suite path it sat in and
+its own duration:
+
+#+begin_src xml
+<testcase name="a withdrawal lowers the balance" classname="test/bank.scm"
+          file="test/bank.scm" suite="account > withdrawal" time="0.004"/>
+#+end_src
+
+The file is the ~classname~, because that is what an importer and a CI action
+use to attach a test to a source file; the suite path is kept in ~suite~ so the
+hierarchy survives.  Durations are real measurements, so a dashboard can show
+which test is slow.  Line numbers are not written: Guile does not give a
+reliable line for an interpreted test, and a wrong line is worse than none.
+
+*** IntelliJ IDEA
+
+The import is a menu away, and there is nothing to install:
+
+1. Run the suite with ~VERITAS_REPORTER=junit-reporter ./bin/veritas~.
+2. In the Run tool window, use *Import tests from file* and pick
+   ~reports/junit/veritas-junit.xml~.
+3. Check that the tree shows one node per file, each test with its duration,
+   failures under ~failure~ and raised tasks under ~error~.
+
+This is report viewing rather than live test running: IDEA imports a finished
+file, so reruns happen in the shell (or a ~maak~ task) and the file is imported
+again.  ~F4~ jumps to a declaration only for test frameworks IDEA understands,
+which Guile is not, so expect the tree without navigation.
+
+*** GitHub Actions
+
+GitHub parses no test results itself.  It renders annotations, a job summary and
+artifacts, and the actions below turn a JUnit document into the first two:
+
+#+begin_src yaml
+- name: Run the suite
+  run: VERITAS_REPORTER=junit-reporter ./bin/veritas
+
+- name: Publish the report
+  if: always()
+  uses: mikepenz/action-junit-report@v5
+  with:
+    report_paths: reports/junit/veritas-junit.xml
+    check_name: veritas tests
+#+end_src
+
+The ~if: always()~ is the important line: without it the step is skipped exactly
+when the run failed and the report is what you needed.  The project's own
+workflow in ~.github/workflows/tests.yml~ does the same thing and validates the
+document first.
+
+~github-reporter~ is the alternative when no action is wanted.  It is quiet,
+and at the end of each file it writes ~::error file=...,title=...::message~
+annotations for the failures and appends a row per file to
+~$GITHUB_STEP_SUMMARY~.  GitHub keeps ten error annotations per step, so the
+first ten are written and a notice says how many more the JUnit document holds.
+Outside a workflow the same setting reads like ~monotone-reporter~.
+
+*** Keeping the document honest
+
+The schema in ~test/veritas/junit.xsd~ is the contract both consumers rely on:
+
+#+begin_src shell
+xmllint --noout --schema test/veritas/junit.xsd reports/junit/veritas-junit.xml
+#+end_src
+
+A test in ~test/veritas/unit/jobs.scm~ compares a whole document - files,
+durations, escaping, counts and the header - against an expected one, so a
+change in the report is a change in a test rather than a surprise in a
+dashboard.
 
 * Runner
 :PROPERTIES:

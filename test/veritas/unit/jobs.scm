@@ -21,6 +21,7 @@
   #:use-module (ice-9 format)
   #:use-module (ice-9 textual-ports)
   #:use-module (veritas veritas)
+  #:use-module (veritas model)
   #:use-module (veritas reporter)
   #:use-module (veritas runner)
   #:export (spec))
@@ -260,7 +261,129 @@
                    ;; exited, so its failure did not end the run.
                    ((assert-equal #:expect 2 #:got (count-lines marks)) vc))))))
 
+;; The reports are a second subject: what a consumer outside the run reads.
+;; Kept in a suite of its own so the fixtures above stay about the file loop,
+;; and with a scratch directory of its own because the two suites run at the
+;; same time and the file-loop fixtures clear theirs when they finish.
+(define junit-scratch-dir
+  "./tmp-junit-suite")
+
+(define (junit-scratch path)
+  (string-append junit-scratch-dir "/" path))
+
+(define junit-suite
+  (suite "JUnit reports and CI annotations"
+         #:after-all (lambda (vc) (remove-tree! junit-scratch-dir))
+         (test "the JUnit document places a test in its file and times it"
+               (lambda (vc)
+                 (let* ((results (list (make-suite-result
+                                        "checkout"
+                                        (list (make-test-result
+                                               0 ""
+                                               (make-pre-test-result
+                                                "pays"
+                                                (list (make-assertion-result
+                                                       0 "" "paid" #t))
+                                                #:file "test/cart.scm"
+                                                #:duration 0.25))
+                                              (make-test-result
+                                               1 ""
+                                               (make-pre-test-result
+                                                "refuses <&>"
+                                                (list (make-assertion-result
+                                                       0 "<no>" "refused" #f))
+                                                #:file "test/cart.scm"
+                                                #:duration 0.5)))
+                                        "")
+                                    "boom"))
+                        (data (junit-report-data results #:seconds 1))
+                        (xml (assoc-ref data 'xml))
+                        (expected (string-append
+                                   (string-append "<testsuite name=\"test/cart.scm\" tests=\"2\""
+                                                  " failures=\"1\" errors=\"0\" skipped=\"0\""
+                                                  " time=\"0.750\">\n")
+                                   (string-append "<testcase name=\"pays\" classname=\"test/cart.scm\""
+                                                  " file=\"test/cart.scm\" suite=\"checkout\""
+                                                  " time=\"0.250\"/>\n")
+                                   (string-append "<testcase name=\"refuses &lt;&amp;&gt;\""
+                                                  " classname=\"test/cart.scm\""
+                                                  " file=\"test/cart.scm\" suite=\"checkout\""
+                                                  " time=\"0.500\">\n")
+                                   "<failure message=\"refused\">\n"
+                                   "&lt;no&gt;\n"
+                                   "</failure>\n"
+                                   "</testcase>\n"
+                                   "</testsuite>\n"
+                                   (string-append "<testsuite name=\"veritas\" tests=\"1\""
+                                                  " failures=\"0\" errors=\"1\" skipped=\"0\""
+                                                  " time=\"0.000\">\n")
+                                   "<testcase name=\"veritas\" classname=\"veritas\" time=\"0.000\">\n"
+                                   "<error message=\"boom\"/>\n"
+                                   "</testcase>\n"
+                                   "</testsuite>\n")))
+                   ((assert-equal #:expect expected #:got xml) vc)
+                   ((assert-equal #:expect 3 #:got (assoc-ref data 'tests)) vc)
+                   ((assert-equal #:expect 1 #:got (assoc-ref data 'failures)) vc)
+                   ((assert-equal #:expect 1 #:got (assoc-ref data 'errors)) vc)
+                   ;; The whole document, not only the suites in it, is what a
+                   ;; consumer opens: the header has to agree with the cases.
+                   (let ((path (junit-scratch "golden.junit.xml")))
+                     (make-dirs! junit-scratch-dir)
+                     (write-junit-document data #:seconds 1 #:path path)
+                     (let ((document (call-with-input-file path get-string-all)))
+                       ((assert-contains
+                         #:expect document
+                         #:got (string-append
+                                "<testsuites name=\"veritas\" tests=\"3\""
+                                " failures=\"1\" errors=\"1\" skipped=\"0\""
+                                " time=\"1\">"))
+                        vc)
+                       ((assert-contains #:expect document #:got xml) vc))))))
+         (test "GitHub annotations name the failing test and its file"
+               (lambda (vc)
+                 (let* ((results (list (make-suite-result
+                                        "cart"
+                                        (list (make-test-result
+                                               0 ""
+                                               (make-pre-test-result
+                                                "pays, twice"
+                                                (list (make-assertion-result
+                                                       0 "" "totals differ" #f))
+                                                #:file "test/cart.scm")))
+                                        "")))
+                        (text (with-output-to-string
+                               (lambda ()
+                                 (write-github-annotations results)))))
+                   ((assert-equal
+                     #:expect
+                     "::error file=test/cart.scm,title=cart > pays%2C twice::totals differ\n"
+                     #:got text)
+                    vc))))
+         (test "the step summary gets a row per file and one header"
+               (lambda (vc)
+                 (let ((path (junit-scratch "summary.md")))
+                   (make-dirs! junit-scratch-dir)
+                   (catch #t (lambda () (delete-file path))
+                          (lambda (key . args) #f))
+                   (append-github-summary-row '((files . 1) (suites . 2)
+                                                (tests . 3) (assertions . 4))
+                                              #:name "test/a.scm"
+                                              #:summary-path path)
+                   (append-github-summary-row '((files . 1) (suites . 0)
+                                                (tests . 0) (assertions . 0))
+                                              #:name "test/b.scm"
+                                              #:summary-path path)
+                   (let ((text (call-with-input-file path get-string-all)))
+                     ((assert-contains #:expect text
+                                       #:got "| test/a.scm | 2 | 3 | 4 |")
+                      vc)
+                     ((assert-contains #:expect text
+                                       #:got "| test/b.scm | 0 | 0 | 0 |")
+                      vc)
+                     ((assert-equal #:expect 6 #:got (count-lines text)) vc)))))))
+
 (define (spec)
   (veritas-run #:debug? #f
                #:shuffle? #f
-               jobs-suite))
+               jobs-suite
+               junit-suite))
