@@ -1,3 +1,11 @@
+veritas (1.0.1-1) unstable; urgency=medium
+
+  * Restore shuffling as the default order for a suite.  v1.0.0 made
+    declaration order the default by mistake; the seed is reported and
+    VERITAS_SEED replays it, so a shuffled run stays reproducible.
+
+ -- Josep Bigorra <jjbigorra@gmail.com>  Wed, 04 Nov 2026 12:00:00 +0100
+
 veritas (1.0.0-1) unstable; urgency=medium
 
   * Major release.  A suite runs its tests in declaration order unless it asks
