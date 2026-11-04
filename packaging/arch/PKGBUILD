@@ -38,7 +38,7 @@ makedepends=(
 )
 
 source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
-sha256sums=('d5554449fc3e8787d9cab7409ccc25ce80c1311aba1a580b28be9b86f33c7218')
+sha256sums=('1118c759b815e0ad7996a9227a3f5e16b6b555cbf1f757763c25d4385ce1bffa')
 
 # Guile looks for byte-compiled modules under the site-ccache directory,
 # which differs between distributions, so ask Guile's pkg-config file
