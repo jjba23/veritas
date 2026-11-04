@@ -32,6 +32,9 @@
                            github-actions?
                            write-github-annotations
                            append-github-summary-row
+                           veritas-clock
+                           veritas-current-location
+                           now
                            write-junit-report
                            junit-report-data
                            write-junit-document
@@ -92,8 +95,9 @@ The client names one under the key @code{'reporter}; anything else falls back to
                                 github-reporter monotone-reporter))
                            (else emoji-reporter))))
     
-    (apply (assoc-ref reporter-alist log-type)
-           (list msg))))
+    ;; Called directly rather than through `apply' on a one-element list: this
+    ;; runs several times per assertion, which is the hottest path in a run.
+    ((assoc-ref reporter-alist log-type) msg)))
 
 (define-syntax-rule (log-pass vc msg)
   "Report a passing check."
@@ -314,9 +318,23 @@ The client names one under the key @code{'reporter}; anything else falls back to
                 (lambda (msg)
                   (log (format #f "    [assert] ~a" msg))))))
 
+;; ====== Seams ======
+;;
+;; Two things a run cannot make deterministic on its own: the wall clock and the
+;; place a failure happened.  Both are parameters, so a test can pin them and a
+;; report can be compared with another run's; the defaults are the real clock
+;; and no location.
+
+(define veritas-clock
+  (make-parameter (lambda ()
+                    (strftime "%c" (localtime (current-time))))))
+
+(define veritas-current-location
+  ;; "file:line" of the test being run, or #f outside a test.
+  (make-parameter #f))
+
 (define (now)
-  (strftime "%c"
-            (localtime (current-time))))
+  ((veritas-clock)))
 
 (define json-reporter
   `((reporter-name . json-reporter) (log-pass unquote
@@ -420,9 +438,16 @@ The client names one under the key @code{'reporter}; anything else falls back to
 Captured test output can hold colour escapes and other control characters; they
 are removed rather than escaped, because XML 1.0 has no representation for most
 of them."
-  (let loop ((i 0) (out '()))
+  ;; Runs of ordinary characters are copied in one substring instead of being
+  ;; built a character at a time: a report escapes every attribute of every
+  ;; test, and the per-character version spent most of a report's time making
+  ;; one-character strings.
+  (let loop ((start 0) (i 0) (out '()))
     (if (= i (string-length s))
-        (apply string-append (reverse out))
+        (apply string-append
+               (reverse (if (= start i)
+                            out
+                            (cons (substring s start i) out))))
         (let* ((c (string-ref s i))
                (code (char->integer c))
                (piece (cond ((char=? c #\&) "&amp;")
@@ -432,10 +457,16 @@ of them."
                             ((char=? c #\') "&apos;")
                             ((or (= code 9)
                                  (= code 10)
-                                 (= code 13)) (string c))
+                                 (= code 13)) #f)
                             ((< code 32) "")
-                            (else (string c)))))
-          (loop (+ i 1) (cons piece out))))))
+                            (else #f))))
+          (if piece
+              (loop (+ i 1) (+ i 1)
+                    (cons piece
+                          (if (= start i)
+                              out
+                              (cons (substring s start i) out))))
+              (loop start (+ i 1) out))))))
 
 (define (ensure-parent-directories path)
   "Create every directory in front of @var{path}, ignoring ones that exist."
@@ -481,7 +512,7 @@ and then the suite path is all there is."
 (define (case-skipped? c)
   (assoc-ref c 'skipped?))
 
-(define (junit-case name classname file suite assertions output duration)
+(define (junit-case name classname file line suite assertions output duration)
   "Return one test as a JUnit case alist, from its assertions and output.
 
 @var{output} is what the test printed - including the reporter's own failure
@@ -514,6 +545,7 @@ test failed without a rerun."
     (list (cons 'name name)
           (cons 'classname classname)
           (cons 'file file)
+          (cons 'line line)
           (cons 'suite suite)
           (cons 'duration (or duration 0))
           (cons 'failures failures)
@@ -541,6 +573,7 @@ its @code{test-result} parent rather than on the @code{pre-test-result} itself."
        (list (junit-case (pre-test-result-name result)
                          (junit-classname path file)
                          file
+                         (pre-test-result-line result)
                          (junit-suite-name path)
                          (pre-test-result-results result)
                          output
@@ -549,6 +582,7 @@ its @code{test-result} parent rather than on the @code{pre-test-result} itself."
      (list (list (cons 'name (benchmark-result-name result))
                  (cons 'classname (junit-classname path #f))
                  (cons 'file #f)
+                 (cons 'line #f)
                  (cons 'suite (junit-suite-name path))
                  (cons 'duration 0)
                  (cons 'failures '())
@@ -557,9 +591,10 @@ its @code{test-result} parent rather than on the @code{pre-test-result} itself."
                  (cons 'message "benchmark, not an assertion"))))
     ;; A task that raised inside a fiber arrives as the error string itself.
     ((string? result)
-     (list (list (cons 'name (junit-classname path #f))
+     (list (list                 (cons 'name (junit-classname path #f))
                  (cons 'classname (junit-classname path #f))
                  (cons 'file #f)
+                 (cons 'line #f)
                  (cons 'suite (junit-suite-name path))
                  (cons 'duration 0)
                  ;; One failure, holding its message and its (empty) body: a
@@ -583,6 +618,8 @@ in the hierarchy of suites at once."
         (suite (assoc-ref c 'suite)))
     (when (and file (not (string-null? (format #f "~a" file))))
       (format port " file=\"~a\"" (xml-escape (format #f "~a" file))))
+    (when (assoc-ref c 'line)
+      (format port " line=\"~a\"" (assoc-ref c 'line)))
     (when (and suite (not (string-null? (format #f "~a" suite))))
       (format port " suite=\"~a\"" (xml-escape (format #f "~a" suite)))))
   (format port " time=\"~,3f\"" (exact->inexact (or (assoc-ref c 'duration) 0)))
@@ -629,6 +666,24 @@ in the hierarchy of suites at once."
 
 
 
+(define (group-cases-by-class cases)
+  "Return @code{(class . cases)} pairs, one per class, in first-seen order.
+
+A hash table does the grouping and a list keeps the order, so the report is
+deterministic without being quadratic."
+  (let ((groups (make-hash-table))
+        (order '()))
+    (for-each (lambda (c)
+                (let ((class (assoc-ref c 'classname)))
+                  (unless (hash-ref groups class)
+                    (hash-set! groups class '())
+                    (set! order (cons class order)))
+                  (hash-set! groups class (cons c (hash-ref groups class)))))
+              cases)
+    (map (lambda (class)
+           (cons class (reverse (hash-ref groups class))))
+         (reverse order))))
+
 (define* (junit-report-data all-results #:key (seconds 0))
   "Return the JUnit report of @var{all-results} as data rather than a file.
 
@@ -640,8 +695,11 @@ and its run joined to others with @code{merge-junit-data}, which is how one
 document is made out of the parallel runs of @code{--jobs}."
   (let* ((cases (append-map (lambda (result)
                               (junit-cases result '() "")) all-results))
-         (classes (delete-duplicates (map (lambda (c) (assoc-ref c 'classname))
-                                          cases)))
+         ;; One pass groups the cases by class, keeping the order the classes
+         ;; first appeared in.  Filtering the whole list once per class - what
+         ;; this used to do - is quadratic in the size of the run, and a run of
+         ;; a few thousand tests paid for it in seconds.
+         (grouped (group-cases-by-class cases))
          (errors (length (filter (lambda (c) (assoc-ref c 'error?)) cases)))
          (skipped (length (filter case-skipped? cases)))
          (failures (length (filter (lambda (c)
@@ -650,15 +708,11 @@ document is made out of the parallel runs of @code{--jobs}."
                                           (not (null? (case-failures c)))))
                                    cases)))
          (xml (with-output-to-string (lambda ()
-                                       (for-each (lambda (class)
+                                       (for-each (lambda (group)
                                                    (write-junit-suite (current-output-port)
-                                                                      class
-                                                                      (filter (lambda (c)
-                                                                                (equal? (assoc-ref c
-                                                                                                   'classname)
-                                                                                        class))
-                                                                              cases)))
-                                                 classes)))))
+                                                                      (car group)
+                                                                      (cdr group)))
+                                                 grouped)))))
     (list (cons 'tests (length cases))
           (cons 'failures failures)
           (cons 'errors errors)

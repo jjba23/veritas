@@ -662,6 +662,18 @@ never recorded."
     (set-procedure-property! task 'veritas-task-type kind))
   (collect-in! task))
 
+(define (source-file source)
+  "Return the file name held in @var{source}, a syntax source, or @code{#f}.
+
+Guile hands the source over as a string, but a syntax object read from a
+compiled file can carry the reader's @code{(filename . path)} entry instead, so
+both are accepted.  Only a string or @code{#f} can be put back into macro
+output, which is why the pair is unwrapped here."
+  (cond ((string? source) source)
+        ((and (pair? source) (string? (cdr source))) (cdr source))
+        ((and (pair? source) (string? (car source))) (car source))
+        (else #f)))
+
 (define-syntax test
   (lambda (stx)
     (syntax-case stx ()
@@ -671,7 +683,40 @@ never recorded."
          (lambda (keywords body)
            (with-syntax (((keyword ...) keywords)
                          ((thunk ...) (defer-body-forms body)))
-             #'(%test name keyword ... thunk ...))))))))
+             ;; The declaration site is captured here, once per test, so a report
+             ;; can name the file and line a test came from without the test
+             ;; having to say so.
+             #`(%test name keyword ...
+                      #:source #,(datum->syntax
+                                   stx (source-file (syntax-source stx)))
+                      thunk ...))))))))
+
+(define (source-parts source)
+  "Return @code{(file . line)} from @var{source}, file relative to the project root.
+
+A syntax source is whatever path the file was loaded with, which may be
+absolute; a report wants a path a reader can open from the project root."
+  (cond
+   ((string? source)
+    (let* ((file source)
+           (cwd (getcwd)))
+      (cons (if (and (string-prefix? cwd file)
+                     (> (string-length file) (string-length cwd))
+                     (char=? (string-ref file (string-length cwd)) #\/))
+                (substring file (+ (string-length cwd) 1) (string-length file))
+                file)
+            #f)))
+   ((and (pair? source) (car source))
+    (let* ((file (car source))
+           (cwd (getcwd))
+             (prefix-length (string-length cwd)))
+      (cons (if (and (string-prefix? cwd file)
+                     (> (string-length file) prefix-length)
+                     (char=? (string-ref file prefix-length) #\/))
+                (substring file (+ prefix-length 1) (string-length file))
+                file)
+            (cdr source))))
+   (else #f)))
 
 (define* (%test name
                 #:key (debug? #f)
@@ -681,6 +726,7 @@ never recorded."
                 (tags '())
                 (before #f)
                 (after #f)
+                (source #f)
                 #:rest cases)
   "Define a test named @var{name}; the procedure behind the @code{test} macro.
 
@@ -701,30 +747,45 @@ accident.
       #:before (lambda (vc) (display \"Initializing...\"))
       (assert-equal #:expect 4 #:got (+ 2 2)))
 @end example"
-  (let* ((func (lambda (vc)
+  (let* ((location (source-parts source))
+         ;; The declaration site when the reader supplied one, otherwise the
+         ;; file the runner is reading: a failure always names a file.
+         (location-string (or (and location
+                                   (if (cdr location)
+                                       (format #f "~a:~a"
+                                               (car location) (cdr location))
+                                       (car location)))
+                              (veritas-current-file)))
+         (func (lambda (vc)
                  (log-test vc name)
-                 (let* ((started (gettimeofday))
-                        (forms (get-cases-for-test cases))
-                        (ordered (if shuffle?
-                                     (fisher-yates-shuffle forms)
-                                     forms))
-                        (_ (if (not before)
-                               '()
-                               (before vc)))
-                        (test-results (run-test-forms ordered vc))
-                        (_ (if (not after)
-                               '()
-                               (after vc)))
-                        (test-results (if (null? test-results)
-                                          (list (no-assertions-result vc name))
-                                          test-results)))
-                   (when debug?
-                     (newline)
-                     (write test-results)
-                     (newline))
-                   (make-pre-test-result name test-results
-                                         #:file (veritas-current-file)
-                                         #:duration (seconds-since started))))))
+                 ;; The location is bound around the body, so a failure printed
+                 ;; by any reporter carries the test's own file and line.
+                 (parameterize ((veritas-current-location location-string))
+                   (let* ((started (gettimeofday))
+                          (forms (get-cases-for-test cases))
+                          (ordered (if shuffle?
+                                       (fisher-yates-shuffle forms)
+                                       forms))
+                          (_ (if (not before)
+                                 '()
+                                 (before vc)))
+                          (test-results (run-test-forms ordered vc))
+                          (_ (if (not after)
+                                 '()
+                                 (after vc)))
+                          (test-results (if (null? test-results)
+                                            (list (no-assertions-result vc name))
+                                            test-results)))
+                     (when debug?
+                       (newline)
+                       (write test-results)
+                       (newline))
+                     (make-pre-test-result name test-results
+                                           #:file (or (and location
+                                                           (car location))
+                                                      (veritas-current-file))
+                                           #:line (and location (cdr location))
+                                           #:duration (seconds-since started)))))))
     (if (or skip?
             (not (failed-test-wanted? name))) #f
         (if (not (tag-matches? #:tags tags
@@ -756,17 +817,25 @@ built, or a list of either."
          (lambda (keywords body)
            (with-syntax (((keyword ...) keywords)
                          ((thunk ...) (defer-body-forms body)))
-             #'(%suite name keyword ... thunk ...))))))))
+             #`(%suite name keyword ...
+                       #:source #,(datum->syntax
+                                   stx (source-file (syntax-source stx)))
+                       thunk ...))))))))
 
 (define* (%suite name
                  #:key (debug? #f)
-                 (shuffle? #t)
+                 ;; Declaration order unless a suite asks otherwise: a shuffled
+                 ;; suite is reproducible only with a seed, and a default that
+                 ;; shuffles makes two runs of the same suite differ for no
+                 ;; reason a reader can see.
+                 (shuffle? #f)
                  (skip? #f)
                  (timeout #f)
                  (tags '())
                  (concurrent? #t)
                  (before-all #f)
                  (after-all #f)
+                 (source #f)
                  #:rest tests)
   "Define a suite named @var{name}; the procedure behind the @code{suite} macro.
 
@@ -906,18 +975,20 @@ captured later."
   (let* ((valid-tasks (filter procedure? tasks))
          (ordered-tasks (if shuffle?
                             (seeded-shuffle valid-tasks) valid-tasks)))
-    (map (lambda (task-proc)
-           (let* ((output-port (open-output-string)))
-             (lambda ()
-               (let* ((result (with-output-to-port output-port
-                                                   (lambda ()
-                                                     (task-proc vc))))
-                      (task-output (get-output-string output-port))
-                      (_ (close-port output-port)))
-                 (cond
-                   ((suite-result? result)
-                    (set-suite-result-output! result task-output))
-                   (else '())) result)))) ordered-tasks)))
+    ;; The output port is opened when the task runs, not when it is registered:
+  ;; declaring a test should cost a closure and nothing else.
+  (map (lambda (task-proc)
+         (lambda ()
+           (let* ((output-port (open-output-string))
+                  (result (with-output-to-port output-port
+                                              (lambda ()
+                                                (task-proc vc))))
+                  (task-output (get-output-string output-port))
+                  (_ (close-port output-port)))
+             (when (suite-result? result)
+               (set-suite-result-output! result task-output))
+             result)))
+       ordered-tasks)))
 
 (define (%execute-tasks regular-thunks benchmark-thunks concurrent?)
   "Run @var{regular-thunks} and @var{benchmark-thunks}, returning the raw results.

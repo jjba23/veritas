@@ -36,6 +36,7 @@
                          pre-test-result-name
                          pre-test-result-results
                          pre-test-result-file
+                         pre-test-result-line
                          pre-test-result-duration
                          make-assertion-result
                          assertion-result
@@ -68,20 +69,23 @@
   (results test-result-results))
 
 (define-record-type pre-test-result
-  (make-raw-pre-test-result name results file duration) pre-test-result?
+  (make-raw-pre-test-result name results file line duration) pre-test-result?
   (name pre-test-result-name)
   (results pre-test-result-results)
   (file pre-test-result-file)
+  (line pre-test-result-line)
   (duration pre-test-result-duration))
 
-(define* (make-pre-test-result name results #:key (file #f) (duration 0))
+(define* (make-pre-test-result name results
+                              #:key (file #f) (line #f) (duration 0))
   "Return the result of a test named @var{name} holding @var{results}.
 
-@var{file} is the test file the run was reading, when there is one, and
-@var{duration} is how many seconds the test took.  Both are what a report needs
-to place a test and time it: the JUnit document writes them out, and a CI
-annotation uses the file to attach a failure to the right source file."
-  (make-raw-pre-test-result name results file duration))
+@var{file} and @var{line} are where the test was declared, when that is known,
+and @var{duration} is how many seconds it took.  They are what a report needs to
+place a test and time it: the JUnit document writes them out, and a CI
+annotation uses the file and line to attach a failure to the right place in the
+source."
+  (make-raw-pre-test-result name results file line duration))
 
 (define-record-type assertion-result
   (make-assertion-result index output name successful)
