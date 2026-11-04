@@ -1,0 +1,155 @@
+#+TITLE: Writing tests with Veritas
+#+DATE: 2026-11-04
+
+[[file:index.org][← Documentation index]] · [[file:../README.org][README]]
+
+* Contents
+:PROPERTIES:
+:CUSTOM_ID: contents
+:END:
+
+- [[#tests][Tests and suites]]
+- [[#bodies][What a body may be]]
+- [[#assertions][Assertions and matchers]]
+- [[#timeouts][Timeouts]]
+- [[#bdd][Behaviour-driven style]]
+- [[#data][Data-driven tests]]
+- [[#doubles][Test doubles]]
+- [[#snapshots][Snapshots]]
+- [[#generators][Generators]]
+- [[#related][Related]]
+
+* Tests and suites
+:PROPERTIES:
+:CUSTOM_ID: tests
+:END:
+
+=(test name body ...)= declares one test.  =(suite name body ...)= groups tests
+and other suites; a nested suite's name is joined with its parents in reports
+(=outer > inner=).
+
+Both accept the same keywords:
+
+| Keyword        | Meaning                                                      |
+|----------------+--------------------------------------------------------------|
+| =#:skip?=      | mark it skipped; the body still has to parse                  |
+| =#:tags=       | a list of tags, for filtering                                 |
+| =#:timeout=    | seconds before the body is abandoned                          |
+| =#:before=     | thunk run before the test or suite                            |
+| =#:after=      | thunk run after it, even if it failed                         |
+| =#:shuffle?=   | run this suite's children in a random order (=#f= by default)  |
+| =#:concurrent?=| run a suite's children in parallel fibers (=#t= by default)    |
+| =#:before-all= | run once before a suite's children                            |
+| =#:after-all=  | run once after them, even if some failed                      |
+
+Declaring a test is cheap: the body forms are wrapped in thunks and nothing else
+happens until the test runs.  See [[file:internals.org][How veritas works]].
+
+* What a body may be
+:PROPERTIES:
+:CUSTOM_ID: bodies
+:END:
+
+A test body is usually assertions.  Two shorthands exist:
+
+- a procedure is called with the run context, and its assertions are collected;
+- any other value is asserted to be true, so =(test "yes" #t)= passes and
+  =(test "no" #f)= fails.
+
+A body that raises is reported as an error with its message, not as a crash of
+the run.  A test with no assertions is reported as =no assertions=, so a typo
+does not look like a pass.
+
+* Assertions and matchers
+:PROPERTIES:
+:CUSTOM_ID: assertions
+:END:
+
+All assertions take =#:name= (a label for the report) and =#:timeout=.
+
+| Assertion                                | Passes when                                  |
+|------------------------------------------+----------------------------------------------|
+| =(assert #:expect E #:got G)=            | =E= and =G= are =equal?=                      |
+| =(assert-equal #:expect E #:got G)=      | the same, named for readability               |
+| =(assert-true #:got G)=                  | =G= is true                                   |
+| =(assert-false #:got G)=                 | =G= is false                                  |
+| =(assert-null #:got G)=                  | =G= is the empty list                         |
+| =(assert-not-null #:got G)=              | =G= is not                                    |
+| =(assert-contains #:expect C #:got X)=   | =C= contains =X= (string, list, vector, table)|
+| =(assert-not-contains ...)=              | it does not                                  |
+| =(assert-error #:expect thunk)=          | =thunk= raises                                |
+| =(assert-no-error #:expect thunk)=       | it does not raise                             |
+| =(assert-greater-than ...)=, =(assert-less-than ...)= | the obvious                       |
+| =(assert-length-of #:expect n #:got C)=  | the length matches                            |
+
+Failure messages are stable text: =expect: ..., got: ...= for a mismatch,
+=error, ...= when the comparison itself raised.  Snapshot tests can compare
+them.
+
+* Timeouts
+:PROPERTIES:
+:CUSTOM_ID: timeouts
+:END:
+
+=#:timeout= on a test or an assertion bounds how long its body may take, in
+seconds.  A timeout is reported as a failure with the time it waited, not as an
+error of the run.
+
+* Behaviour-driven style
+:PROPERTIES:
+:CUSTOM_ID: bdd
+:END:
+
+=describe=, =context= and =it= are aliases of =suite= and =test=, so a suite
+can read as prose without changing how it is reported.
+
+* Data-driven tests
+:PROPERTIES:
+:CUSTOM_ID: data
+:END:
+
+=for-each-test= runs one body for every row of a list, naming each run after the
+row:
+
+#+begin_src scheme
+(for-each-test (list 1 2 3)
+  (lambda (n)
+    (assert-true #:got (> n 0))))
+#+end_src
+
+* Test doubles
+:PROPERTIES:
+:CUSTOM_ID: doubles
+:END:
+
+=make-stub= returns a procedure that returns a fixed value and remembers its
+calls; =make-spy= wraps a real procedure and records the arguments it received.
+=with-doubles= installs a set of doubles for the dynamic extent of its body and
+restores the originals afterwards, so a double cannot leak into another test.
+
+* Snapshots
+:PROPERTIES:
+:CUSTOM_ID: snapshots
+:END:
+
+=(assert-snapshot #:name "the report" #:got text)= compares =text= with the
+snapshot of that name, writing it the first time.  Set
+=VERITAS_UPDATE_SNAPSHOTS=true= to accept a change.  Snapshots are ordinary
+files under =test/snapshots=, so they are reviewable in a diff.
+
+* Generators
+:PROPERTIES:
+:CUSTOM_ID: generators
+:END:
+
+=generator= and =for-all= build random data from a seed that the report prints,
+so a failing case can be replayed by passing the same seed.
+
+* Related
+:PROPERTIES:
+:CUSTOM_ID: related
+:END:
+
+- [[file:running.org][Running tests]] — discovery and ordering
+- [[file:reporting.org][Reports and diagnostics]] — what a failure looks like
+- [[file:migration.org][Migration guide]] — the 1.0 changes to suites

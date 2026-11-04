@@ -1,0 +1,129 @@
+#+TITLE: Reports and diagnostics
+#+DATE: 2026-11-04
+
+[[file:index.org][← Documentation index]] · [[file:../README.org][README]]
+
+* Contents
+:PROPERTIES:
+:CUSTOM_ID: contents
+:END:
+
+- [[#reporters][Reporters]]
+- [[#junit][JUnit]]
+- [[#json][JSON]]
+- [[#github][GitHub Actions]]
+- [[#references][Source references]]
+- [[#errors][What a failure says]]
+- [[#stability][Keeping output stable]]
+- [[#related][Related]]
+
+* Reporters
+:PROPERTIES:
+:CUSTOM_ID: reporters
+:END:
+
+=--reporter= or =VERITAS_REPORTER= picks one:
+
+| Reporter            | Output                                                    |
+|---------------------+-----------------------------------------------------------|
+| =emoji-reporter=    | one line per event, with emoji; the default                |
+| =monotone-reporter= | the same events as plain text, for logs                    |
+| =json-reporter=     | one JSON object per line, with a timestamp                 |
+| =junit-reporter=    | a JUnit XML document under =reports/junit=                 |
+| =github-reporter=   | workflow annotations and a step summary; elsewhere plain    |
+
+All of them receive the same events: a test started, a test passed, a test
+failed, and the run's totals.
+
+* JUnit
+:PROPERTIES:
+:CUSTOM_ID: junit
+:END:
+
+=junit-reporter= writes =reports/junit/veritas-junit.xml=.  Each test becomes a
+=testcase= with =classname= (the test file), =file=, =suite= (the path of
+enclosing suites, =outer > inner=) and =time=; a failed test carries a
+=failure= element holding the reporter's own failure lines, so a CI log explains
+the failure without a rerun.  The document validates against
+[[file:../test/veritas/junit.xsd][test/veritas/junit.xsd]].
+
+With =--jobs=, each worker writes a fragment and the parent merges the fragments
+into one document, so an importer sees a single run rather than N.
+
+* JSON
+:PROPERTIES:
+:CUSTOM_ID: json
+:END:
+
+=json-reporter= prints one object per line: ={timestamp, level, message}=.  It
+is meant for a log pipeline, and the timestamp comes from the
+[[#stability][clock seam]] so a test can pin it.
+
+* GitHub Actions
+:PROPERTIES:
+:CUSTOM_ID: github
+:END:
+
+=github-reporter= emits =::error file=...,line=...::= annotations and appends a
+row per file to =$GITHUB_STEP_SUMMARY=.  Outside a workflow it falls back to
+=monotone-reporter=, so the same command works locally.
+
+* Source references
+:PROPERTIES:
+:CUSTOM_ID: references
+:END:
+
+Every test result carries =pre-test-result-file= and =pre-test-result-line=.
+The file is filled in automatically: =test= and =suite= capture the source of
+their declaration when the reader supplies it, and the runner fills in the file
+it is reading otherwise.  The JUnit document writes =file=, and =line= when a
+location is known; the GitHub reporter uses both to attach a failure to a line
+of source.
+
+The running test's location is available to reporters and to user code through
+the =veritas-current-location= parameter, as =file= or =file:line=.  Guile 3.0
+does not expose a line for a syntax object, so lines are present only when a
+caller supplies them, for example =(make-pre-test-result ... #:line 42)=.
+
+* What a failure says
+:PROPERTIES:
+:CUSTOM_ID: errors
+:END:
+
+A failing assertion reports three things: what was compared, what was expected,
+and what came back -
+
+#+begin_src text
+❌ fail - expect: 4, got: 5
+#+end_src
+
+When the comparison itself raises, the message starts with =error= and keeps the
+original condition's message, so a bug in a matcher is not mistaken for a test
+failure.  A test that raises is reported as an error with its message; the
+run continues, and the file's other tests still run.
+
+* Keeping output stable
+:PROPERTIES:
+:CUSTOM_ID: stability
+:END:
+
+Two seams isolate the parts a run cannot make deterministic:
+
+- =veritas-clock= is a parameter returning the timestamp a reporter prints.  Pin
+  it to make JSON output byte-identical between runs.
+- =veritas-current-location= is a parameter holding the running test's location,
+  so a reporter does not have to guess.
+
+Everything else is ordered: files are sorted, suites run in declaration order
+unless shuffled, results are collected in declaration order even when run
+concurrently, JUnit classes appear in first-seen order, and coverage is sorted
+by path.  See [[file:internals.org][How veritas works]].
+
+* Related
+:PROPERTIES:
+:CUSTOM_ID: related
+:END:
+
+- [[file:running.org][Running tests]] — seeds and parallel runs
+- [[file:../test/veritas/junit.xsd][JUnit schema]]
+- [[file:internals.org][How veritas works]]

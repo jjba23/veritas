@@ -1,0 +1,90 @@
+#+TITLE: Running tests
+#+DATE: 2026-11-04
+
+[[file:index.org][← Documentation index]] · [[file:../README.org][README]]
+
+* Contents
+:PROPERTIES:
+:CUSTOM_ID: contents
+:END:
+
+- [[#discovery][Discovery]]
+- [[#order][Order, shuffling and seeds]]
+- [[#workers][Parallel runs]]
+- [[#env][Configuration]]
+- [[#coverage][Coverage]]
+- [[#related][Related]]
+
+* Discovery
+:PROPERTIES:
+:CUSTOM_ID: discovery
+:END:
+
+=veritas= with no argument reads the current directory; with a file it runs
+that file; with a directory it walks it.  Files are grouped by test type: a
+=unit= run reads =test/*/unit/*.scm=, an =integration= run reads
+=test/*/integration/*.scm=, and =VERITAS_TEST_TYPE= (or =--test-type=) selects
+one.
+
+Files are sorted by path before they run, so discovery never depends on the
+order a filesystem hands directory entries back.  Each file is loaded in its own
+module and its exported entry point (default =spec=) is called; nothing runs at
+import time.
+
+* Order, shuffling and seeds
+:PROPERTIES:
+:CUSTOM_ID: order
+:END:
+
+A suite runs its tests in declaration order by default.  Pass =#:shuffle? #t= to
+shuffle a suite, or set =VERITAS_SHUFFLE_FILES=true= (=--shuffle-files=) to
+shuffle the files.  Both use one seed for the run, printed at the end and
+stored in reports, so an order can be replayed with =VERITAS_SEED=.
+
+1.0 changed the default: suites used to shuffle unless told otherwise, which
+made two runs of the same code differ for no visible reason.  See
+[[file:migration.org][Migration guide]].
+
+* Parallel runs
+:PROPERTIES:
+:CUSTOM_ID: workers
+:END:
+
+=--jobs N= runs files in N worker processes; each writes its own JUnit
+fragment, and the parent merges them into one document (see
+[[file:reporting.org][Reports and diagnostics]]).  Within a file, a suite with
+=#:concurrent? #t= runs its children in fibers.  Set
+=#:concurrent? #f= when the tests share mutable state.
+
+Determinism under concurrency: results are collected per task and reported in
+declaration order, not in completion order, so a parallel run and a serial run
+of the same suite produce the same report apart from timings.
+
+* Configuration
+:PROPERTIES:
+:CUSTOM_ID: env
+:END:
+
+The command line wins over the environment.  The variables are listed in
+[[file:getting-started.org][Getting started]]; =veritas --help= and the
+[[file:../man/veritas.1][man page]] have the flags they map to.
+
+* Coverage
+:PROPERTIES:
+:CUSTOM_ID: coverage
+:END:
+
+=--coverage= (or =VERITAS_COVERAGE=true=) instruments the files under
+=VERITAS_COVERAGE_INCLUDE= (default: the current directory), minus
+=VERITAS_COVERAGE_EXCLUDE=, and writes LCOV to =VERITAS_COVERAGE_DIR= (default
+=reports/lcov=) plus an HTML report to =VERITAS_COVERAGE_HTML_DIR= (default
+=reports/html=).  Coverage data is reported per file, sorted by path.
+
+* Related
+:PROPERTIES:
+:CUSTOM_ID: related
+:END:
+
+- [[file:language.org][Writing tests]]
+- [[file:reporting.org][Reports and diagnostics]]
+- [[file:internals.org][How veritas works]] — why declaration order is the default

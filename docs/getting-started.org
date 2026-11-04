@@ -1,0 +1,90 @@
+#+TITLE: Getting started with Veritas
+#+DATE: 2026-11-04
+
+[[file:index.org][← Documentation index]] · [[file:../README.org][README]]
+
+* Contents
+:PROPERTIES:
+:CUSTOM_ID: contents
+:END:
+
+- [[#install][Install]]
+- [[#a-first-test][A first test]]
+- [[#run-it][Run it]]
+- [[#environment][Environment variables]]
+- [[#next][Next]]
+
+* Install
+:PROPERTIES:
+:CUSTOM_ID: install
+:END:
+
+Veritas is a Guile library, so Guile 3.0 and its fibers are what it needs.  It
+ships in Guix, in the AUR, as an openSUSE package and as a Debian package; the
+[[file:../README.org][README]] lists the one-line commands for each.  From a checkout:
+
+#+begin_src sh
+guix shell -D -f default.nix
+./bin/veritas --version
+#+end_src
+
+* A first test
+:PROPERTIES:
+:CUSTOM_ID: a-first-test
+:END:
+
+A test file is a module that exports a procedure; veritas calls it to get the
+tests.  Nothing is run at import time.
+
+#+begin_src scheme
+(define-module (tests arithmetic)
+  #:use-module (veritas veritas)
+  #:export (spec))
+
+(define (spec)
+  (test "two and two"
+        (assert-equal #:expect 4 #:got (+ 2 2)))
+  (suite "strings"
+         (test "concatenation"
+               (assert-equal #:expect "ab" #:got (string-append "a" "b")))))
+#+end_src
+
+* Run it
+:PROPERTIES:
+:CUSTOM_ID: run-it
+:END:
+
+#+begin_src sh
+veritas test/tests/arithmetic.scm
+#+end_src
+
+Every runner takes a file, a directory, or nothing (the current directory), and
+finds the test files itself.  The default reporter prints one line per failure
+and a summary; [[file:reporting.org][Reports and diagnostics]] explains the others.
+
+* Environment variables
+:PROPERTIES:
+:CUSTOM_ID: environment
+:END:
+
+The runner is configured by the environment when no flag says otherwise:
+
+| Variable                 | Meaning                                                   |
+|--------------------------+-----------------------------------------------------------|
+| =VERITAS_REPORTER=       | =emoji-reporter=, =monotone-reporter=, =json-reporter=, =junit-reporter=, =github-reporter= |
+| =VERITAS_SEED=           | seed for shuffling, so an order can be replayed            |
+| =VERITAS_SHUFFLE_FILES=  | =true= shuffles the test files themselves                  |
+| =VERITAS_TEST_TYPE=      | =unit=, =integration=, and so on: which directory is read  |
+| =VERITAS_COVERAGE=       | =true= measures coverage                                   |
+| =VERITAS_COVERAGE_DIR=   | where the LCOV report goes (default =reports/lcov=)        |
+| =VERITAS_COVERAGE_HTML_DIR= | where the HTML report goes (default =reports/html=)     |
+| =VERITAS_RUN_BENCHMARKS= | =false= skips =benchmark= forms                            |
+
+* Next
+:PROPERTIES:
+:CUSTOM_ID: next
+:END:
+
+- [[file:language.org][Writing tests]] — assertions, matchers, doubles and snapshots.
+- [[file:running.org][Running tests]] — how files are discovered, ordered and parallelised.
+- [[file:reporting.org][Reports and diagnostics]] — including the =file:line= references.

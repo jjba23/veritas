@@ -1,0 +1,37 @@
+#+TITLE: Veritas documentation
+#+DATE: 2026-11-04
+
+[[file:../README.org][← Back to the README]]
+
+* Veritas documentation
+
+Veritas is a test framework for Guile Scheme.  These documents go past the
+[[file:../README.org][README]]'s quick start and explain how each part works, what it
+guarantees, and where its seams are.
+
+** Contents
+:PROPERTIES:
+:CUSTOM_ID: contents
+:END:
+
+| Document                              | Read it when you want to know                                    |
+|---------------------------------------+------------------------------------------------------------------|
+| [[file:getting-started.org][Getting started]]                     | install, run the first test, set the environment variables       |
+| [[file:language.org][Writing tests]]                       | tests, suites, assertions, matchers, doubles, snapshots          |
+| [[file:running.org][Running tests]]                       | discovery, ordering, shuffling, seeds, parallel workers          |
+| [[file:reporting.org][Reports and diagnostics]]            | reporters, JUnit, JSON, GitHub, source references, error text    |
+| [[file:internals.org][How veritas works]]                  | the lazy model, determinism guarantees, performance notes        |
+| [[file:migration.org][Migration guide]]                   | what changed between 0.11 and 1.0, and how to update a suite     |
+
+** Where to start
+
+If you have never run veritas, read [[file:getting-started.org][Getting started]].
+If you are upgrading a project that already uses it, read
+[[file:migration.org][Migration guide]] first: 1.0 changes the default order in
+which a suite runs its tests.
+
+* Related documents
+
+- [[file:../README.org][README]] — what veritas is and how to install it
+- [[file:../NEWS.org][NEWS]] — release notes
+- [[file:../man/veritas.1][man page]] — the command line, in full

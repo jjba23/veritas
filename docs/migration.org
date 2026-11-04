@@ -1,0 +1,99 @@
+#+TITLE: Migration guide
+#+DATE: 2026-11-04
+
+[[file:index.org][← Documentation index]] · [[file:../README.org][README]]
+
+* Contents
+:PROPERTIES:
+:CUSTOM_ID: contents
+:END:
+
+- [[#upgrading][Upgrading to 1.0]]
+- [[#shuffle][Suites no longer shuffle by default]]
+- [[#results][Test results carry a line]]
+- [[#bench][=benchmark= forms]]
+- [[#breaking][Summary of breaking changes]]
+- [[#related][Related]]
+
+* Upgrading to 1.0
+:PROPERTIES:
+:CUSTOM_ID: upgrading
+:END:
+
+1.0 is a major release because one default changed: a suite now runs its tests
+in declaration order.  Everything else is additive; a suite that passed on 0.11
+passes on 1.0, but it may run in a different order, and a test that depended on
+shuffling has to ask for it.
+
+* Suites no longer shuffle by default
+:PROPERTIES:
+:CUSTOM_ID: shuffle
+:END:
+
+=suite= used to shuffle its children unless told =#:shuffle? #f=.  That made two
+runs of unchanged code differ, hid order dependencies rather than exposing them,
+and made a failure impossible to reproduce without the seed.  A default that
+produces a reproducible report is worth the break.
+
+To keep the old behaviour, pass =#:shuffle? #t=:
+
+#+begin_src scheme
+(suite "order independent" #:shuffle? #t
+       (test "a" ...) (test "b" ...))
+#+end_src
+
+To shuffle the files instead, set =VERITAS_SHUFFLE_FILES=true= (=--shuffle-files=).
+Either way the seed is printed and stored, so an order can be replayed with
+=VERITAS_SEED=.
+
+* Test results carry a line
+:PROPERTIES:
+:CUSTOM_ID: results
+:END:
+
+=make-pre-test-result= gained =#:line=, beside =#:file= and =#:duration=:
+
+#+begin_src scheme
+(make-pre-test-result name results #:file "test/foo.scm" #:line 42)
+#+end_src
+
+The positional constructor is unchanged apart from the extra slot, and the
+accessors =pre-test-result-file=, =pre-test-result-line= and
+=pre-test-result-duration= are the supported way to read a result.  Code that
+built a =pre-test-result= through the public wrapper keeps working; code that
+pattern-matched on the record's shape needs the extra slot.
+
+Guile 3.0 does not expose a syntax object's line, so =#:line= is only filled in
+when a caller supplies it.  Files are captured automatically.
+
+* =benchmark= forms
+:PROPERTIES:
+:CUSTOM_ID: bench
+:END:
+
+Nothing changed in how =benchmark= is written; =VERITAS_RUN_BENCHMARKS=false=
+still skips them.  The new =bench/bench.scm= measures veritas itself and is not
+part of a normal run.
+
+* Summary of breaking changes
+:PROPERTIES:
+:CUSTOM_ID: breaking
+:END:
+
+| Change                                   | Why                                                        |
+|------------------------------------------+------------------------------------------------------------|
+| =suite= defaults to =#:shuffle? #f=      | two runs of the same suite should agree                    |
+| =pre-test-result= has a =line= slot      | a failure should be clickable in an editor                 |
+| JUnit cases carry =file= and =line=      | CI annotations need a source position                      |
+
+Additive, not breaking: =veritas-clock=, =veritas-current-location=,
+=docs/=, =bench/bench.scm=, the JUnit schema at =test/veritas/junit.xsd=.
+
+* Related
+:PROPERTIES:
+:CUSTOM_ID: related
+:END:
+
+- [[file:language.org#tests][Tests and suites]] — the keyword list
+- [[file:running.org#order][Order, shuffling and seeds]]
+- [[file:../NEWS.org][NEWS]] — the release notes

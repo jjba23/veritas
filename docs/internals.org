@@ -1,0 +1,121 @@
+#+TITLE: How veritas works
+#+DATE: 2026-11-04
+
+[[file:index.org][← Documentation index]] · [[file:../README.org][README]]
+
+* Contents
+:PROPERTIES:
+:CUSTOM_ID: contents
+:END:
+
+- [[#lazy][The lazy model]]
+- [[#determinism][Determinism]]
+- [[#performance][Performance]]
+- [[#bench][Benchmarks]]
+- [[#related][Related]]
+
+* The lazy model
+:PROPERTIES:
+:CUSTOM_ID: lazy
+:END:
+
+=test= and =suite= expand into calls that do two things and no more: record the
+name and keywords, and wrap each body form in a thunk.  Nothing is evaluated,
+nothing is opened, nothing is formatted.  A test file can therefore be loaded to
+ask what it contains without running anything.
+
+The work happens in this order, once per run:
+
+1. the suite's children are collected (cheap, no evaluation);
+2. =#:before-all= runs, if there is one;
+3. each child runs in turn (or in fibers, with =#:concurrent?=), its thunks
+   being called exactly once;
+4. =#:after-all= runs, even if a child failed;
+5. results are collected and handed to the reporter.
+
+There is no memoization and no re-evaluation: a thunk is called once per run,
+and a second run of the same suite object runs everything again.  Suite objects
+hold their children, so building the same suite twice is two independent runs.
+
+What is /not/ lazy: the body forms are expanded when the file is compiled, and a
+suite's keyword arguments are evaluated when the suite is declared.  Keep those
+expressions cheap; put expensive work in =#:before-all= or in a test body.
+
+* Determinism
+:PROPERTIES:
+:CUSTOM_ID: determinism
+:END:
+
+Ordering is deterministic everywhere it can be:
+
+- test files are sorted by path before running;
+- a suite runs its children in declaration order, unless =#:shuffle? #t=;
+- results are collected in declaration order even under =#:concurrent? #t=;
+- JUnit classes appear in first-seen order, cases in declaration order;
+- coverage is reported sorted by file path;
+- floating-point formatting in reports is fixed at three decimals.
+
+A shuffle uses one seed for the whole run, which is printed and stored in the
+report, so any order can be replayed with =VERITAS_SEED=.
+
+Two things cannot be deterministic, and both are parameters rather than globals:
+
+| Seam                       | Default              | Used by                       |
+|----------------------------+----------------------+-------------------------------|
+| =veritas-clock=            | the wall clock        | =json-reporter='s timestamp    |
+| =veritas-current-location= | the running test's file | reporters and user code      |
+
+Timings in JUnit are the one remaining source of variation; a snapshot test
+should ignore =time= attributes or pin the clock and normalise durations.
+
+* Performance
+:PROPERTIES:
+:CUSTOM_ID: performance
+:END:
+
+Declaration is intentionally the cheapest path: a test costs a closure per body
+form and nothing else.  The per-assertion path is the one that matters for a
+large run, and it has been kept small:
+
+- the reporter is resolved once per log event without building an argument list;
+- captured output is a string port opened when the assertion runs, not when it
+  is declared;
+- JUnit report generation groups cases in one pass instead of scanning the whole
+  case list once per class, which was quadratic in the size of a run;
+- XML escaping copies runs of ordinary characters in one substring rather than
+  building a string per character.
+
+* Benchmarks
+:PROPERTIES:
+:CUSTOM_ID: bench
+:END:
+
+=bench/bench.scm= measures the three hot paths.  Run it against a checkout, and
+against a =git worktree= of an older tag, to compare:
+
+#+begin_src sh
+guile -L ./src bench/bench.scm
+BENCH_CASES=5000 guile -L ./src bench/bench.scm
+#+end_src
+
+Measured on the 1.0.0 release (Guile 3.0, one core):
+
+| Path                        | 0.11.0        | 1.0.0         |
+|-----------------------------+---------------+---------------|
+| declare a test              | 2.57 µs       | 2.46 µs       |
+| run one assertion           | 14.58 µs      | 12.91 µs      |
+| JUnit data, 5000 cases      | 388.7 ms      | 383.9 ms      |
+| result counts, 5000 cases   | 26.4 ms       | 26.5 ms       |
+
+Assertion execution is about 11% faster; the report path is dominated by
+formatting attributes and is unchanged within noise.  Report generation, not
+declaration, is what a run with thousands of tests spends its time in.
+
+* Related
+:PROPERTIES:
+:CUSTOM_ID: related
+:END:
+
+- [[file:reporting.org#stability][Keeping output stable]]
+- [[file:migration.org][Migration guide]]
+- [[file:language.org#tests][Tests and suites]]
