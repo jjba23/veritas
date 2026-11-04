@@ -1,15 +1,7 @@
-veritas (1.0.1-1) unstable; urgency=medium
-
-  * Restore shuffling as the default order for a suite.  v1.0.0 made
-    declaration order the default by mistake; the seed is reported and
-    VERITAS_SEED replays it, so a shuffled run stays reproducible.
-
- -- Josep Bigorra <jjbigorra@gmail.com>  Wed, 04 Nov 2026 12:00:00 +0100
-
 veritas (1.0.0-1) unstable; urgency=medium
 
-  * Major release.  A suite runs its tests in declaration order unless it asks
-    for #:shuffle? #t, so two runs of the same suite agree.
+  * Assertions defer work with (lazy expr) instead of the quoted (comp ...)
+    forms, which lost lexical scope and compiled at run time.
   * Test results carry the file they were declared in, written into the JUnit
     document and used by CI annotations; lines are opt-in.
   * The wall clock and the running test's location are injectable parameters,

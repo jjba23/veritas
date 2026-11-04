@@ -13,77 +13,58 @@ This project adheres loosely to [[https://semver.org/spec/v2.0.0.html][Semantic 
 
 *[Released]*
 
-** v1.0.1 (2026-11-04)
-
-Restores shuffling as the default order for a suite.
-
-*** Fixed
-
-- A suite shuffles its tests again unless it passes ~#:shuffle? #f~.  v1.0.0
-  made declaration order the default; that is reverted, because a shuffled
-  suite with a reported seed is reproducible, and shuffling is what exposes an
-  order dependency instead of hiding it.  ~VERITAS_SEED~ pins the order, and the
-  seed is printed at the end of a run and stored in the report.
-- The determinism tests pin ~#:shuffle? #f~ where they assert declaration order,
-  and now also cover a seeded shuffle giving the same order twice.
-
-*** Unchanged
-
-- Test results still record their source file, JUnit still writes ~file~ and the
-  optional ~line~, the clock and location parameters are unchanged, and the docs
-  split stands.
-
 ** v1.0.0 (2026-11-04)
 
-A quality pass over the whole framework: the lazy model is stated and tested,
-ordering is deterministic by default, failures name the file they came from, and
-the documentation moved out of the README.  One default changed, which is why
-this is a major release.
+A quality pass over the framework: assertions defer work without `eval`,
+ordering is deterministic where it can be, failures name the file they came
+from, the hot paths are measured, and the guide lives in `docs/`.
+
+*** Lazy assertions
+
+- An assertion evaluates its payload when it runs, in the scope where it was
+  written: `(assert-equal #:expect 2 #:got (lazy (+ 1 1)))`.  `lazy` is a small
+  record holding a thunk, forced afresh by each assertion that receives it, so
+  nothing is cached behind your back; it runs inside the assertion's `#:timeout`,
+  which is what lets a deadline interrupt it.  `#:expect` accepts it too.
+- This replaces the quoted `(comp ...)`, `(compute ...)` and `(computare ...)`
+  lists, which were evaluated with `eval` in the interaction environment: they
+  lost the lexical scope around the expression and compiled it at run time.
 
 *** Breaking
 
-- A ~suite~ runs its tests in declaration order unless it passes
-  ~#:shuffle? #t~.  The old default shuffled every suite, so two runs of
-  unchanged code differed, an order dependency could hide behind a lucky
-  shuffle, and a failure could not be reproduced without the seed.  Passing
-  ~#:shuffle? #t~ restores the old behaviour; ~VERITAS_SHUFFLE_FILES=true~
-  still shuffles whole files.  See ~docs/migration.org~.  (This
-  default was restored in v1.0.1; see above.)
-- ~pre-test-result~ gained a ~line~ slot next to ~file~, and
-  ~make-pre-test-result~ accepts ~#:line~.
+- `(comp ...)`, `(compute ...)` and `(computare ...)` are removed; wrap the
+  expression in `(lazy ...)`.
+- `pre-test-result` gained a `line` slot beside `file`, and
+  `make-pre-test-result` accepts `#:line`.
+- Suite shuffling is unchanged: still the default, still seeded, still
+  replayable with `VERITAS_SEED`.
 
 *** Determinism
 
-- Files are sorted by path, suites run in declaration order, and results are
-  collected in declaration order even when a suite runs concurrently, so a
-  serial run and a parallel run of the same suite agree apart from timings.
-- JUnit classes are written in first-seen order and their cases in declaration
-  order; the grouping is one pass instead of a scan of the whole case list per
-  class.
+- Files are sorted by path, results are collected in declaration order even when
+  a suite runs concurrently, and JUnit classes are written in first-seen order
+  with their cases in declaration order.
+- The JUnit grouping is one pass over the cases instead of a scan per class.
 - The wall clock and the running test's location are parameters
-  (~veritas-clock~, ~veritas-current-location~) rather than globals, so a test
-  can pin them and two runs can be compared byte for byte.
-- New tests: ~test/veritas/unit/determinism.scm~ (declaration order across runs,
-  three runs produce one JUnit document, pinned timestamps).
+  (`veritas-clock`, `veritas-current-location`), so a test can pin them and two
+  runs can be compared byte for byte.
+- New tests: `test/veritas/unit/determinism.scm`.
 
 *** Source references
 
-- ~test~ and ~suite~ capture their declaration site; every test result records
-  the file it came from, and the JUnit document writes ~file~ (and ~line~ when a
-  caller supplies one).  The GitHub reporter uses the file to attach a failure to
-  a source file.  Guile 3.0 does not expose a syntax object's line, which is why
-  lines are opt-in; files are automatic.
-- New tests: ~test/veritas/unit/references.scm~.
+- `test` and `suite` capture their declaration site; every test result records
+  the file it came from, and JUnit writes `file` (plus `line` when a caller
+  supplies one).  Guile 3.0 exposes no line for a syntax object, so files are
+  automatic and lines are opt-in.
+- New tests: `test/veritas/unit/references.scm`.
 
 *** Performance
 
 - A test's captured-output port is opened when the test runs, not when it is
-  declared, so declaration costs a closure and nothing else.
-- The reporter is called directly instead of through ~apply~ on a one-element
-  list, several times per assertion.
-- XML escaping copies runs of ordinary characters as one substring instead of
-  building a string per character.
-- New benchmark: ~bench/bench.scm~, with ~BENCH_CASES~ for larger trees.
+  declared; the reporter is called directly instead of through `apply` on a
+  one-element list; XML escaping copies runs of ordinary characters as one
+  substring.
+- New benchmark: `bench/bench.scm`, with `BENCH_CASES` for larger trees.
   Measured against v0.11.0 on Guile 3.0, single core:
 
   | Path                      | v0.11.0  | v1.0.0   |
@@ -93,19 +74,17 @@ this is a major release.
   | JUnit data, 5000 cases    | 388.7 ms | 383.9 ms |
   | result counts, 5000 cases | 26.4 ms  | 26.5 ms  |
 
-  Assertion execution is about 11% faster.  Report generation is dominated by
-  formatting attributes per case and is unchanged within noise; it, not
-  declaration, is where a run with thousands of tests spends its time.
+  Assertion execution is about 11% faster; report generation is dominated by
+  formatting each attribute and is unchanged within noise.
 
 *** Documentation
 
-- The README is now a landing page; the guide lives in ~docs/~ as seven focused
-  documents (getting started, writing tests, running tests, reports and
-  diagnostics, internals, migration, index), each with a table of contents, a
-  link back to the README and links to related documents.
-- The laziness model, the determinism guarantees and the two seams are written
-  down and covered by tests, so a change to any of them fails a test rather than
-  a user's build.
+- The README is a landing page; the guide is seven documents under `docs/`
+  (index, getting started, writing tests, running tests, reports and
+  diagnostics, internals, migration), each with a table of contents, a link
+  back to the README and links to related topics.
+- The lazy model, the determinism guarantees and the two seams are written down
+  and covered by tests.
 
 ---------
 
