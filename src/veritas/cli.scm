@@ -78,6 +78,14 @@
     (partition (value #t))
     (jobs (single-char #\j)
           (value #t))
+    (changed (value #f))
+    (no-changed (value #f))
+    (since (value #t))
+    (src-dir (value #t))
+    (trace (value #f))
+    (no-trace (value #f))
+    (show-trace (value #f))
+    (retries (value #t))
     (coverage (value #f))
     (no-coverage (value #f))
     (coverage-dir (value #t))
@@ -151,8 +159,20 @@
 "
    "  -j, --jobs N             run the test files in N worker processes, one
 "
-   "                           file per process (VERITAS_JOBS)
-"
+   "                           file per process (VERITAS_JOBS)\n"
+   "      --changed            run only the test files the working tree change\n"
+   "                           reaches (VERITAS_CHANGED)\n"
+   "      --no-changed         run every test file (the default)\n"
+   "      --since REF          run only the test files the change since REF\n"
+   "                           reaches (VERITAS_SINCE)\n"
+   "      --src-dir DIR        source root the change graph is read from\n"
+   "                           (VERITAS_SRC_DIR, default src)\n"
+   "      --retries N          rerun a failing test up to N extra times\n"
+   "                           (VERITAS_RETRIES)\n"
+   "      --trace              record every step of the run, to\n"
+   "                           reports/traces/last.scm (VERITAS_TRACE)\n"
+   "      --no-trace           do not record a trace (the default)\n"
+   "      --show-trace         print the timeline of the last run and exit\n"
    "      --coverage           measure code coverage and write the reports
 "
    "                           (VERITAS_COVERAGE)
@@ -227,8 +247,13 @@
 "
    "  VERITAS_JOBS              whole number of worker processes for the files,
 "
-   "                            defaults to 1 and then they run in this process
-"
+   "                            defaults to 1 and then they run in this process\n"
+   "  VERITAS_CHANGED           \"true\" to run only the tests the change reaches\n"
+   "  VERITAS_SINCE             revision the change is read against, for example\n"
+   "                            origin/trunk\n"
+   "  VERITAS_SRC_DIR           source root of the change graph, defaults to src\n"
+   "  VERITAS_RETRIES           extra attempts for a failing test, defaults to 0\n"
+   "  VERITAS_TRACE             \"true\" to record a trace of the run\n"
    "  VERITAS_COVERAGE          \"true\" to measure code coverage
 "
    "  VERITAS_COVERAGE_DIR      where the LCOV trace is written, defaults to
@@ -281,8 +306,12 @@
 "
    "  veritas --partition 1/3          run one third of the test files
 "
-   "  veritas --jobs 4                 run the files in four worker processes
-"
+   "  veritas --jobs 4                 run the files in four worker processes\n"
+   "  veritas --changed                run only the tests this change can reach\n"
+   "  veritas --since origin/trunk     run only the tests a branch touches\n"
+   "  veritas --retries 2              ride out an intermittent failure\n"
+   "  veritas --trace                  record the run, then\n"
+   "  veritas --show-trace             print the recorded timeline\n"
    "  veritas --coverage               measure coverage and write LCOV and HTML
 "
    "  veritas --coverage --coverage-exclude test
@@ -351,6 +380,12 @@ switch is present @var{default} is used."
   (setenv-if-present! opts
                       'jobs "VERITAS_JOBS")
   (setenv-if-present! opts
+                      'since "VERITAS_SINCE")
+  (setenv-if-present! opts
+                      'src-dir "VERITAS_SRC_DIR")
+  (setenv-if-present! opts
+                      'retries "VERITAS_RETRIES")
+  (setenv-if-present! opts
                       'coverage-dir "VERITAS_COVERAGE_DIR")
   (setenv-if-present! opts
                       'coverage-html-dir "VERITAS_COVERAGE_HTML_DIR")
@@ -369,7 +404,13 @@ switch is present @var{default} is used."
                    'no-shuffle "VERITAS_SHUFFLE_FILES" #f)
   (setenv-boolean! opts
                    'benchmarks
-                   'no-benchmarks "VERITAS_RUN_BENCHMARKS" #f))
+                   'no-benchmarks "VERITAS_RUN_BENCHMARKS" #f)
+  (setenv-boolean! opts
+                   'changed
+                   'no-changed "VERITAS_CHANGED" #f)
+  (setenv-boolean! opts
+                   'trace
+                   'no-trace "VERITAS_TRACE" #f))
 
 ;; ====== Driver ======
 
@@ -420,6 +461,11 @@ an exit status: @code{0} on success, @code{1} on failure.
       ((option-ref opts
                    'version #f)
        (format #t "veritas ~a\n" veritas-version) 0)
+      ((option-ref opts
+                   'show-trace #f)
+       (let ((trace (resolve-module '(veritas trace))))
+         ((module-ref trace 'show-last-trace)))
+       0)
       (else (apply-options-to-environment! opts)
             (ensure-test-load-path!)
             ;; Resolve the runner lazily, after the environment has been updated, so

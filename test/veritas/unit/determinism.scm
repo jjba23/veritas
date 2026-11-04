@@ -17,6 +17,7 @@
 
 (define-module (veritas unit determinism)
   #:use-module (ice-9 format)
+  #:use-module (ice-9 regex)
   #:use-module (srfi srfi-1)
   #:use-module (ice-9 textual-ports)
   #:use-module (veritas veritas)
@@ -71,6 +72,20 @@
            (junit-report-data (list result) #:seconds 1)))
        '(0 1 2)))
 
+(define (without-times document)
+  "Return @var{document} with the measured time attributes removed.
+
+Three runs of one suite agree on everything except how long each test took:
+that is a property of the machine, not of the run, and comparing it turns the
+check into a coin toss."
+  (map (lambda (pair)
+         (if (eq? (car pair) 'xml)
+             (cons 'xml
+                   (regexp-substitute/global #f " time=\"[0-9.]+\""
+                                             (cdr pair) 'pre "" 'post))
+             pair))
+       document))
+
 ;; ====== Tests ======
 
 (define determinism-suite
@@ -85,7 +100,9 @@
 
          (test "three runs of one suite produce the same JUnit document"
                (lambda (vc)
-                 (let ((documents (documents-of (lambda () ((nested-suite) vc)))))
+                 (let ((documents (map without-times
+                                       (documents-of
+                                        (lambda () ((nested-suite) vc))))))
                    ((assert-equal #:expect (car documents)
                                   #:got (cadr documents))
                     vc)

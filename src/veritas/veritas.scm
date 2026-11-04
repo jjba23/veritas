@@ -24,6 +24,7 @@
   #:use-module (veritas prelude)
   #:use-module (veritas shuffle)
   #:use-module (veritas model)
+  #:use-module (veritas trace)
   #:use-module (veritas generator)
   #:use-module (veritas coverage)
   #:use-module (statprof)
@@ -86,7 +87,8 @@
                                 call-with-timeout
                                 fisher-yates-shuffle
                                 fresh-seed)
-  #:export (test suite %test %suite
+  #:export (veritas-retries
+         test suite %test %suite
                   split-keyword-arguments
                   defer-body-forms
                   veritas-run benchmark do-if-string-contained
@@ -601,21 +603,29 @@ an assertion result is a failure with a reason, not a failure in silence."
   (let* ((capture (capture-result-and-output (lambda ()
                                                (assertion vc))))
          (result (result-and-output-result capture))
-         (output (result-and-output-output capture)))
-    (if (and (list? result)
-             (assq 'assertion-successful result))
-        (make-assertion-result index output
-                               (assertion-field result 'assertion-name)
-                               (assertion-field result 'assertion-successful))
-        (let ((message (format #f
-                               "the case returned ~s, which is not an assertion result"
-                               result)))
-          (make-assertion-result index
-                                 (string-append output
-                                                (with-output-to-string (lambda ()
-                                                                         (log-fail
-                                                                          vc message))))
-                                 message #f)))))
+         (output (result-and-output-output capture))
+         (made
+          (if (and (list? result)
+                   (assq 'assertion-successful result))
+              (make-assertion-result index output
+                                     (assertion-field result 'assertion-name)
+                                     (assertion-field result
+                                                      'assertion-successful))
+              (let ((message (format #f
+                                     "the case returned ~s, which is not an assertion result"
+                                     result)))
+                (make-assertion-result
+                 index
+                 (string-append output
+                                (with-output-to-string
+                                  (lambda ()
+                                    (log-fail vc message))))
+                 message #f)))))
+    (trace-event! 'assertion
+                  (format #f "~a~@[ ~a~]" index
+                          (assertion-result-name made))
+                  (if (assertion-result-successful made) "pass" "fail"))
+    made))
 
 (define (seconds-since start)
   "Return how many seconds have passed since @var{start}, a @code{gettimeofday}."
@@ -693,6 +703,35 @@ output, which is why the pair is unwrapped here."
                                    stx (source-file (syntax-source stx)))
                       thunk ...))))))))
 
+(define veritas-retries
+  ;; How many times a failing test may run again.  A retry is for an
+  ;; intermittent failure; a test that only ever passes on the second attempt is
+  ;; reported as flaky, not as a clean pass.
+  (make-parameter
+   (or (string->number (getenv-or 'VERITAS_RETRIES #:default "0"))
+       0)))
+
+(define (assertions-successful? results)
+  "Return whether every result in @var{results} is a successful assertion."
+  (every (lambda (result)
+           (and (assertion-result? result)
+                (assertion-result-successful result)))
+         results))
+
+(define (count-flaky result)
+  "Return how many tests under @var{result} passed only on a retry."
+  (cond
+    ((pre-test-result? result)
+     (if (and (> (pre-test-result-attempts result) 1)
+              (assertions-successful? (pre-test-result-results result)))
+         1
+         0))
+    ((test-result? result) (count-flaky (test-result-results result)))
+    ((suite-result? result)
+     (fold + 0 (map count-flaky (suite-result-test-results result))))
+    ((list? result) (fold + 0 (map count-flaky result)))
+    (else 0)))
+
 (define (source-parts source)
   "Return @code{(file . line)} from @var{source}, file relative to the project root.
 
@@ -729,6 +768,7 @@ absolute; a report wants a path a reader can open from the project root."
                 (before #f)
                 (after #f)
                 (source #f)
+                (retries (veritas-retries))
                 #:rest cases)
   "Define a test named @var{name}; the procedure behind the @code{test} macro.
 
@@ -743,6 +783,10 @@ A body is read in order, because a body is a sequence: one form prepares what
 the next one checks.  @var{shuffle?} asks for the order of the body forms to be
 randomized anyway, which is a way to find checks that depend on each other by
 accident.
+
+@var{retries} reruns a failing test, hooks and body together, up to that many
+extra attempts.  A test that fails and then passes is reported as flaky with its
+attempt count, so an intermittent failure is visible instead of hidden.
 
 @example
 (test \"Addition Validation\"
@@ -760,34 +804,49 @@ accident.
                               (veritas-current-file)))
          (func (lambda (vc)
                  (log-test vc name)
+                 (trace-event! 'test-start name (or location-string ""))
                  ;; The location is bound around the body, so a failure printed
                  ;; by any reporter carries the test's own file and line.
                  (parameterize ((veritas-current-location location-string))
-                   (let* ((started (gettimeofday))
-                          (forms (get-cases-for-test cases))
-                          (ordered (if shuffle?
-                                       (fisher-yates-shuffle forms)
-                                       forms))
-                          (_ (if (not before)
-                                 '()
-                                 (before vc)))
-                          (test-results (run-test-forms ordered vc))
-                          (_ (if (not after)
-                                 '()
-                                 (after vc)))
-                          (test-results (if (null? test-results)
-                                            (list (no-assertions-result vc name))
-                                            test-results)))
-                     (when debug?
-                       (newline)
-                       (write test-results)
-                       (newline))
-                     (make-pre-test-result name test-results
-                                           #:file (or (and location
-                                                           (car location))
-                                                      (veritas-current-file))
-                                           #:line (and location (cdr location))
-                                           #:duration (seconds-since started)))))))
+                   (let loop ((attempt 1)
+                              (started (gettimeofday)))
+                     (let* ((forms (get-cases-for-test cases))
+                            (ordered (if shuffle?
+                                         (fisher-yates-shuffle forms)
+                                         forms))
+                            (run-hook (lambda (hook)
+                                        (if hook (hook vc) '())))
+                            (_ (run-hook before))
+                            (body-results (run-test-forms ordered vc))
+                            (_ (run-hook after))
+                            (test-results (if (null? body-results)
+                                              (list (no-assertions-result
+                                                     vc name))
+                                              body-results)))
+                       (if (and (not (assertions-successful? test-results))
+                                (< attempt (+ 1 (max 0 retries))))
+                           (begin
+                             (log-info vc
+                                       (format #f
+                                               "retrying ~a (attempt ~a of ~a)"
+                                               name (+ attempt 1)
+                                               (+ 1 retries)))
+                             (loop (+ attempt 1) started))
+                           (begin
+                             (when debug?
+                               (newline)
+                               (write test-results)
+                               (newline))
+                             (trace-event! 'test-end name
+                                           (format #f "~a attempt(s)"
+                                                   attempt))
+                             (make-pre-test-result
+                              name test-results
+                              #:file (or (and location (car location))
+                                         (veritas-current-file))
+                              #:line (and location (cdr location))
+                              #:duration (seconds-since started)
+                              #:attempts attempt)))))))))
     (if (or skip?
             (not (failed-test-wanted? name))) #f
         (if (not (tag-matches? #:tags tags
@@ -1107,6 +1166,10 @@ and the LCOV, HTML, JSON, Cobertura and JaCoCo reports are rewritten.
     (log-info vc
               (format #f "ran ~a tasks in: ~a seconds, ~a microseconds"
                       task-count seconds-elapsed microseconds-elapsed))
+    (let ((flaky (count-flaky all-results)))
+      (when (> flaky 0)
+        (log-info vc
+                  (format #f "~a flaky: passed only after a retry" flaky))))
     (log-info vc (format #f "counted ~a" (result-counts-summary counts)))
 
     (when debug?
@@ -1209,6 +1272,8 @@ ones under @var{coverage-exclude} (default @code{VERITAS_COVERAGE_EXCLUDE})."
                                                      #:sources
                                                      coverage-include))
 
+                        (when (veritas-tracing?)
+                          (write-trace!))
                         (%process-execution-lifecycle vc all-results
                                                       task-count start-time
                                                       debug?)

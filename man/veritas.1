@@ -135,6 +135,45 @@ only one shown, so the log reads as a single-process run's would - and their
 records of failures, their JUnit reports and their counts are merged
 .RB ( VERITAS_JOBS ).
 .TP
+.B \-\-changed
+Run only the test files the working tree change can reach: the modules it
+touches, every module that imports them, and the test files that import any of
+those
+.RB ( VERITAS_CHANGED=true ).
+.TP
+.B \-\-no\-changed
+Run every test file (default).
+.TP
+.BR \-\-since " " REF
+Read the change against
+.I REF
+instead of the working tree, which is what a CI job wants: the diff of a branch
+against its base
+.RB ( VERITAS_SINCE ).
+.TP
+.BR \-\-src\-dir " " DIR
+Source root the import graph is read from, defaults to
+.BR src
+.RB ( VERITAS_SRC_DIR ).
+.TP
+.BR \-\-retries " " N
+Rerun a failing test up to
+.I N
+extra times, hooks and body together; a test that then passes is reported as
+flaky with its attempt count
+.RB ( VERITAS_RETRIES ).
+.TP
+.B \-\-trace
+Record every step of the run - test start, each assertion, test end - to
+.BR reports/traces/last.scm
+.RB ( VERITAS_TRACE ).
+.TP
+.B \-\-no\-trace
+Do not record a trace (default).
+.TP
+.B \-\-show\-trace
+Print the timeline of the last recorded run and exit.
+.TP
 .B \-\-coverage
 Measure code coverage and write the LCOV trace, the JSON summary and the HTML
 report
@@ -391,6 +430,15 @@ Run one third of the test files, and write a JUnit XML report:
 veritas \-\-partition 1/3
 veritas \-r junit\-reporter
 veritas \-\-jobs 4
+veritas \-\-changed
+
+veritas \-\-since origin/trunk
+
+veritas \-\-retries 2
+
+veritas \-\-trace
+
+veritas \-\-show\-trace
 .EE
 .RE
 .PP

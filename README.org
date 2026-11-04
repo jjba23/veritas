@@ -32,6 +32,7 @@ and guile-json.
 
 #+begin_src shell
 veritas test/tests/arithmetic.scm
+veritas --changed          # only the tests this diff can reach
 #+end_src
 
 #+begin_src text
@@ -90,6 +91,9 @@ file, each with its own table of contents and a link back here.
 | [[file:docs/getting-started.org][Getting started]]                                | install, first test, environment variables                  |
 | [[file:docs/language.org][Writing tests]]                                  | tests, suites, 24 matchers, doubles, snapshots, generators  |
 | [[file:docs/running.org][Running tests]]                                  | discovery, ordering, seeds, parallel workers, coverage      |
+| [[file:docs/incremental.org][Change-aware runs]]                              | run only the test files a diff or a branch can reach        |
+| [[file:docs/debugging.org][Debugging a run]]                                | step-by-step traces, =-\-show-trace=, retries               |
+| [[file:docs/batteries.org][Batteries included]]                             | one import for the runner, assertions, doubles, snapshots   |
 | [[file:docs/reporting.org][Reports and diagnostics]]                           | reporters, JUnit, JSON, GitHub, =file:line= references       |
 | [[file:docs/internals.org][How veritas works]]                               | the lazy model, determinism guarantees, benchmarks          |
 | [[file:docs/migration.org][Migration guide]]                                | upgrading from 0.11 to 1.0                                  |

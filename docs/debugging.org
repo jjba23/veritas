@@ -1,0 +1,187 @@
+#+TITLE: Debugging a run
+#+DATE: 2026-11-04
+
+[[file:index.org][← Documentation index]] · [[file:../README.org][README]]
+
+* Contents
+:PROPERTIES:
+:CUSTOM_ID: contents
+:END:
+
+- [[#what-a-trace-is][What a trace is]]
+- [[#recording-one][Recording one]]
+- [[#reading-it][Reading it]]
+- [[#the-file-format][The file format]]
+- [[#retries-for-intermittent-failures][Retries for intermittent failures]]
+- [[#retries-do-not-hide-a-bug][Retries do not hide a bug]]
+- [[#limits][Limits]]
+
+* What a trace is
+:PROPERTIES:
+:CUSTOM_ID: what-a-trace-is
+:END:
+
+A failing report tells you the verdict, not the run: which test started, which
+checks passed before the one that did not, how many attempts it took.  A trace
+records exactly that, as the run happens, and leaves it on disk for the reader.
+
+Every step is a frame:
+
+- =test-start= - a test began, named, with the file it was declared in;
+- =assertion= - one check ran, with its index, its name and =pass= or =fail=;
+- =test-end= - the test finished, with how many attempts it took.
+
+For a Guile test that is the whole story: there is no DOM to snapshot and no
+network log to capture, because the test is a procedure in the same process as
+the code it exercises.  A frame is what that procedure did.
+
+* Recording one
+:PROPERTIES:
+:CUSTOM_ID: recording-one
+:END:
+
+#+begin_src sh
+veritas --trace
+#+end_src
+
+#+begin_src sh
+VERITAS_TRACE=true veritas --test-type unit
+#+end_src
+
+The trace covers the run, start to finish, and is written to
+=reports/traces/last.scm= when the run ends - including when it ends by failing,
+which is the case that matters.
+
+Programmatically, the same switch is a parameter:
+
+#+begin_src scheme
+(use-modules (veritas trace))
+
+(parameterize ((veritas-tracing? #t)
+               (veritas-trace-frames '()))
+  (veritas-run my-suite)
+  (write-trace!))
+#+end_src
+
+* Reading it
+:PROPERTIES:
+:CUSTOM_ID: reading-it
+:END:
+
+#+begin_src sh
+veritas --show-trace
+#+end_src
+
+#+begin_src text
+trace: reports/traces/last.scm (14 frames)
+
+  1. test-start  "a common word is not strong"  (test/veritas/unit/password-spec.scm)
+  2. assertion   "0 password-strength"  (pass)
+  3. assertion   "1 a common word is not strong"  (fail)
+  4. test-end    "a common word is not strong"  (1 attempt(s))
+#+end_src
+
+The timeline reads oldest first, one line per frame, so the frame before a
+failure is the check that passed and the frame after it is what the test did
+next.  The same timeline is available in Scheme:
+
+#+begin_src scheme
+(use-modules (veritas trace))
+
+(read-trace)   ; => the frames, oldest first
+(render-trace) ; => prints the numbered timeline
+#+end_src
+
+* The file format
+:PROPERTIES:
+:CUSTOM_ID: the-file-format
+:END:
+
+The trace is plain s-expressions, one alist per frame, so =read= is the parser
+and a diff of two traces is a diff of two runs:
+
+#+begin_src scheme
+(((kind . test-start) (name . "a common word is not strong")
+  (detail . "test/veritas/unit/password-spec.scm") (at . 1234567))
+ ((kind . assertion) (name . "1 a common word is not strong")
+  (detail . "fail") (at . 1234570))
+ ((kind . test-end) (name . "a common word is not strong")
+  (detail . "1 attempt(s)") (at . 1234581)))
+#+end_src
+
+=at= is =get-internal-real-time=, which orders the frames within a run; it is
+not a timestamp and does not try to be one.
+
+* Retries for intermittent failures
+:PROPERTIES:
+:CUSTOM_ID: retries-for-intermittent-failures
+:END:
+
+A test that talks to a database, spawns a process or waits on a socket can fail
+for a reason that is not in the code under test.  A retry is the smallest honest
+answer to that: run it again, and say that you did.
+
+#+begin_src scheme
+(test "the report is written"
+      #:retries 2
+      (lambda (vc)
+        ((assert-true (file-exists? (write-report!))) vc)))
+#+end_src
+
+The count is per test, and the whole test runs again - =#:before= and =#:after=
+hooks included - because a retry that skipped setup would test a different
+situation than the one that failed.
+
+The default for a run is a parameter, so a flaky area can be given a budget
+without touching every test:
+
+#+begin_src scheme
+(parameterize ((veritas-retries 1))
+  (veritas-run integration-suite))
+#+end_src
+
+#+begin_src sh
+VERITAS_RETRIES=2 veritas --test-type integration
+#+end_src
+
+#+begin_src sh
+veritas --retries 2
+#+end_src
+
+* Retries do not hide a bug
+:PROPERTIES:
+:CUSTOM_ID: retries-do-not-hide-a-bug
+:END:
+
+A test that fails every attempt is a failure, full stop; the retry budget only
+decides how many times it is allowed to fail before the run says so.
+
+A test that fails and then passes keeps the count in its result.  The report
+calls it flaky and prints how many attempts it took, and =attempts= is on the
+=pre-test-result= record for a reporter or a script to read:
+
+#+begin_src scheme
+(pre-test-result-attempts result) ; => 2
+#+end_src
+
+That is the difference between an intermittent infrastructure hiccup and a real
+bug: the first leaves a trace saying =2 attempt(s)=, the second keeps failing no
+matter how large the budget.
+
+* Limits
+:PROPERTIES:
+:CUSTOM_ID: limits
+:END:
+
+- A trace records test and assertion frames.  Work done inside a test - a
+  subprocess, a file, a request - is visible through what the assertions say
+  about it, not as frames of its own.
+- The trace of a whole run is written when the run ends.  A process killed
+  before that leaves the previous run's trace; =--show-trace= prints the file it
+  finds and says when there is none.
+- Retries do not make a suite faster, and a budget large enough to hide a real
+  failure is a budget too large.  Two extra attempts is usually the most a test
+  is worth.
+
+[[file:reporting.org][Reports and diagnostics]] covers what the report does with the
+attempt count; [[file:running.org][Running tests]] covers the switches around it.

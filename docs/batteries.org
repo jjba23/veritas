@@ -1,0 +1,141 @@
+#+TITLE: Batteries included
+#+DATE: 2026-11-04
+
+[[file:index.org][← Documentation index]] · [[file:../README.org][README]]
+
+* Contents
+:PROPERTIES:
+:CUSTOM_ID: contents
+:END:
+
+- [[#one-import][One import]]
+- [[#what-is-in-it][What is in it]]
+- [[#a-real-test-file][A real test file]]
+- [[#the-narrow-imports][The narrow imports]]
+- [[#what-it-costs][What it costs]]
+
+* One import
+:PROPERTIES:
+:CUSTOM_ID: one-import
+:END:
+
+A test file needs the runner, an assertion or two, and - on the day it needs
+them - doubles, snapshots or a table of cases.  Rather than grow an import list
+one line at a time, import the whole framework:
+
+#+begin_src scheme
+(define-module (veritas unit password-spec)
+  #:use-module (veritas all))
+#+end_src
+
+=(veritas all)= re-exports everything the framework's other modules export, so a
+name that is documented is a name that is available.  There is nothing to
+register, no plugin list, and no adapter: Guile's module system is the only
+wiring involved.
+
+* What is in it
+:PROPERTIES:
+:CUSTOM_ID: what-is-in-it
+:END:
+
+| Module               | What it brings                                              |
+|----------------------+-------------------------------------------------------------|
+| =(veritas veritas)=  | =test=, =suite=, =benchmark=, =veritas-run=, filters, seeds  |
+| =(veritas assert)=   | the assertion library: =assert=, =assert-equal=, =lazy=, ... |
+| =(veritas mock)=     | =make-spy=, =make-stub=, =assert-called=, =assert-call-count= |
+| =(veritas snapshot)= | =assert-snapshot= and the snapshot directory                 |
+| =(veritas table)=    | =cases->table=, =test-each=, =suite-each=                    |
+| =(veritas generator)=| generators for properties and randomized cases               |
+| =(veritas bdd)=      | =scenario=, =given=, =when-step=, =then=, and the Latin aliases |
+| =(veritas trace)=    | =veritas-tracing?=, =read-trace=, =render-trace=             |
+
+The module is generated from those modules' own export lists, so it cannot
+drift: a name exported by one of them is re-exported here.
+
+* A real test file
+:PROPERTIES:
+:CUSTOM_ID: a-real-test-file
+:END:
+
+This is =bewaking='s password specification with its imports collapsed to one:
+
+#+begin_src scheme
+(define-module (veritas unit password-spec)
+  #:use-module (veritas all)
+  #:use-module (bewaking password))
+
+(define character-class-suite
+  (suite "Password character classes"
+         (test "password-character-classes"
+               (assert-equal #:expect '(lowercase uppercase digit symbol)
+                             #:got (password-character-classes "Abc123!")
+                             #:name "all four classes are detected")
+               (assert-equal #:expect '()
+                             #:got (password-character-classes "")
+                             #:name "an empty password has no classes"))))
+
+(define entropy-suite
+  (suite "Password entropy"
+         (test "password-entropy"
+               (assert-true (and (> (password-entropy #:password "abcdefgh") 37)
+                                 (< (password-entropy #:password "abcdefgh") 38))
+                            #:name "eight lowercase letters are ~37.6 bits")
+               (assert-true (> (password-entropy #:password "Abcdefgh")
+                               (password-entropy #:password "abcdefgh"))
+                            #:name "adding a character class increases the entropy"))))
+
+(define (spec)
+  (veritas-run character-class-suite entropy-suite))
+#+end_src
+
+A file that also spies on a collaborator does not add an import either:
+
+#+begin_src scheme
+(define-module (veritas unit cli-spec)
+  #:use-module (veritas all)
+  #:use-module (bewaking cli))
+
+(define (spec)
+  (let ((run (make-spy display)))
+    (suite "the CLI"
+           (test "prints the usage"
+                 (lambda (vc)
+                   (bewaking-cli-usage run)
+                   ((assert-call-count run #:expect 1) vc))))))
+#+end_src
+
+* The narrow imports
+:PROPERTIES:
+:CUSTOM_ID: the-narrow-imports
+:END:
+
+=(veritas all)= is a convenience, not a requirement.  A file that only asserts
+reads better with the two modules it actually uses, and a library that ships
+tests alongside its code may prefer to keep its dependencies visible:
+
+#+begin_src scheme
+(define-module (veritas unit timeouts)
+  #:use-module (veritas veritas)
+  #:use-module (veritas assert))
+#+end_src
+
+Both styles are supported and neither is deprecated.  The narrow import is the
+one to reach for when a reader should be able to see, at the top of the file,
+what the test depends on.
+
+* What it costs
+:PROPERTIES:
+:CUSTOM_ID: what-it-costs
+:END:
+
+Importing =(veritas all)= loads every module of the framework in that process.
+They are small and already on disk: there is no network access, no compilation
+step and no daemon, and a test file's own run time is dominated by the code it
+exercises, not by the import.
+
+If start-up time ever matters - a suite of a thousand tiny files, each in its own
+process - the narrow imports are the lever: a file that imports
+=(veritas veritas)= alone loads the runner and the reporter, and nothing else.
+
+[[file:language.org][Writing tests]] documents each assertion, double and snapshot;
+[[file:getting-started.org][Getting started]] has the first test.

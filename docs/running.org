@@ -87,3 +87,5 @@ The command line wins over the environment.  The variables are listed in
 - [[file:language.org][Writing tests]]
 - [[file:reporting.org][Reports and diagnostics]]
 - [[file:internals.org][How veritas works]] — why declaration order is the default
+- [[file:incremental.org][Change-aware runs]] — run only the files a diff can reach
+- [[file:debugging.org][Debugging a run]] — traces of every step, and retries

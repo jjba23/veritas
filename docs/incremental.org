@@ -1,0 +1,158 @@
+#+TITLE: Change-aware runs
+#+DATE: 2026-11-04
+
+[[file:index.org][← Documentation index]] · [[file:../README.org][README]]
+
+* Contents
+:PROPERTIES:
+:CUSTOM_ID: contents
+:END:
+
+- [[#the-idea][The idea]]
+- [[#running-only-what-changed][Running only what changed]]
+- [[#how-a-test-is-selected][How a test is selected]]
+- [[#after-a-commit-or-against-a-branch][After a commit, or against a branch]]
+- [[#what-it-does-not-see][What it does not see]]
+- [[#using-it-from-scheme][Using it from Scheme]]
+
+* The idea
+:PROPERTIES:
+:CUSTOM_ID: the-idea
+:END:
+
+A suite grows until running it costs more than the change you are making.
+Veritas can read the change instead: it asks git which files moved, follows what
+those files are imported by, and runs only the test files that can reach the
+change.
+
+The graph is the one a Guile project already has.  A source file declares a
+module in its first form, and every =#:use-module= is an edge.  If
+=bewaking/password.scm= changes, the modules that import =(bewaking password)=
+are reachable, then the modules that import /those/, and the test files that
+import anything in that set are the files to run.
+
+Nothing is annotated, registered or generated: the =define-module= forms are the
+index.
+
+* Running only what changed
+:PROPERTIES:
+:CUSTOM_ID: running-only-what-changed
+:END:
+
+#+begin_src sh
+veritas --changed
+#+end_src
+
+That compares the working tree and the index with =HEAD=, includes untracked
+files, and selects the affected test files.  A run says what it did:
+
+#+begin_src text
+change-aware run: 2 changed file(s), 1 of 28 test files selected
+  password-spec.scm
+#+end_src
+
+The same thing through the environment, which is what CI configurations tend to
+prefer:
+
+#+begin_src sh
+VERITAS_CHANGED=true veritas
+#+end_src
+
+Without =--changed= nothing is filtered, and the suite is the whole suite it
+always was; the flag is opt-in, so a run that forgets it is slow, never wrong.
+
+* How a test is selected
+:PROPERTIES:
+:CUSTOM_ID: how-a-test-is-selected
+:END:
+
+A test file is run when any of these holds:
+
+1. it imports a module the change reaches, directly or through any number of
+   importing modules;
+2. the change touched the test file itself;
+3. a changed file has the same name as the test, ignoring a =-spec= or =-test=
+   suffix: a change to =src/bewaking/password.scm= selects
+   =test/veritas/unit/password-spec.scm= even if the test never imported it.
+
+The source root the graph is read from is =src= unless =--src-dir= or
+=VERITAS_SRC_DIR= says otherwise, which is the one thing a project with an
+unusual layout has to tell it.
+
+#+begin_src sh
+veritas --changed --src-dir lib
+#+end_src
+
+Inside a module, an import written with =#:select= or =#:prefix= is still the
+same dependency: the options belong to the importer, so the module named in the
+form is what gets recorded.
+
+* After a commit, or against a branch
+:PROPERTIES:
+:CUSTOM_ID: after-a-commit-or-against-a-branch
+:END:
+
+A CI job rarely has a dirty working tree; it has a branch and a base.  =--since=
+compares against any revision instead:
+
+#+begin_src sh
+veritas --since origin/trunk
+#+end_src
+
+#+begin_src sh
+VERITAS_SINCE=origin/trunk veritas --changed
+#+end_src
+
+A revision that does not exist is not a silent empty run: git fails, the change
+list comes back empty, and the run says so and runs everything.  An empty
+selection would look exactly like a passing suite, and that is the one outcome
+worth avoiding.
+
+* What it does not see
+:PROPERTIES:
+:CUSTOM_ID: what-it-does-not-see
+:END:
+
+- Only =#:use-module= forms are read.  A module resolved at run time - through
+  =resolve-module=, =module-ref= or a plugin directory - is not an edge in the
+  graph, and a change behind one is invisible.
+- Data files, configuration and templates are not modules.  A test that reads
+  =data/passwords.txt= is not selected because that file changed; name the file
+  in the test, or run the whole suite for that change.
+- The graph lives under =VERITAS_SRC_DIR=.  A change outside it can still select
+  a test by rule 2 or 3, but it cannot pull in importers it never saw.
+
+When in doubt, run everything: the flag is an optimisation, and a full run is
+always correct.
+
+* Using it from Scheme
+:PROPERTIES:
+:CUSTOM_ID: using-it-from-scheme
+:END:
+
+The selection is a module of its own, =(veritas impact)=, so a build script or a
+REPL can ask the same questions the runner asks:
+
+#+begin_src scheme
+(use-modules (veritas impact))
+
+(module-name-of-file "src/bewaking/password.scm")
+;; => ("bewaking" "password")
+
+(module-imports "#:use-module (bewaking password)\n")
+;; => (("bewaking" "password"))
+
+(affected-test-files '("test/veritas/unit/password-spec.scm"
+                       "test/veritas/unit/cli-spec.scm")
+                     #:src-dir "src"
+                     #:changed '("src/bewaking/password.scm"))
+;; => ("test/veritas/unit/password-spec.scm")
+
+(changed-selection '("test/veritas/unit/password-spec.scm")
+                   #:since "origin/trunk")
+;; => two values: the changed files, and the tests they affect
+#+end_src
+
+=changed-selection= is the pair the runner actually uses: it reads git, then
+selects.  [[file:running.org][Running tests]] covers the discovery, partitioning and shuffling
+that happen around it.

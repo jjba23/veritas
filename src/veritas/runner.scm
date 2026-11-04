@@ -28,7 +28,10 @@
   #:use-module (veritas reporter)
   #:use-module (veritas coverage)
   #:use-module (veritas shuffle)
+  #:use-module (veritas impact)
+  #:use-module (veritas trace)
   #:export (run-tests run-test-file discover-tests
+                    select-changed-files
                     parse-partition
                     partition-files
                     parse-jobs
@@ -524,6 +527,40 @@ happens once the last worker is in, and the run exits 1 if any worker failed."
                  #t)))))
 
 
+(define* (select-changed-files files
+                                #:key test-type changed? since (src-dir "src"))
+  "Return the files of @var{files} a change can reach.
+
+Without @var{changed?} or @var{since} every file comes back, and the run is the
+whole suite it always was.  With them, the changed files are read from git, the
+modules they reach are followed through imports, and only the test files that
+import one of those modules - or that the change touched - come back.
+
+A change that touches nothing returns every file rather than none: a run is
+never silently empty, because an empty run looks exactly like a passing one."
+  (if (not (or changed? since))
+      files
+      (let* ((paths (map (lambda (file)
+                           (test-file-path file test-type))
+                         files))
+             (changed (git-changed-files #:since since)))
+        (if (null? changed)
+            (begin
+              (display "\nchange-aware run: nothing changed, running every test file\n")
+              files)
+            (let ((selected (affected-test-files paths
+                                                 #:src-dir src-dir
+                                                 #:changed changed)))
+              (let ((names (filter (lambda (file)
+                                     (member (test-file-path file test-type)
+                                             selected))
+                                   files)))
+                (display (format #f
+                                 "\nchange-aware run: ~a changed file(s), ~a of ~a test files selected~{\n  ~a~}\n"
+                                 (length changed) (length names) (length files)
+                                 names))
+                names))))))
+
 (define* (run-tests)
   "Find every test file under the scan root and run each one.
 
@@ -552,12 +589,24 @@ Behaviour comes from the environment:
                                  #:default "veritas"))
          (test-type (getenv-or 'VERITAS_TEST_TYPE
                                #:default "unit"))
+         (changed? (equal? "true"
+                           (getenv-or 'VERITAS_CHANGED
+                                      #:default "false")))
+         (since (getenv-or 'VERITAS_SINCE #:default #f))
+         (src-dir (getenv-or 'VERITAS_SRC_DIR #:default "src"))
+         (tracing? (equal? "true"
+                           (getenv-or 'VERITAS_TRACE
+                                      #:default "false")))
          (shuffle-files (equal? "true"
                                 (getenv-or 'VERITAS_SHUFFLE_FILES
                                            #:default "true")))
          (partition (parse-partition (getenv-or 'VERITAS_PARTITION
                                                 #:default #f)))
          (_ (begin
+              ;; A trace describes one run: it starts empty, and nothing is
+              ;; recorded unless this run asked for it.
+              (veritas-tracing? tracing?)
+              (veritas-trace-frames '())
               ;; The tally is per run, so a second run in the same process
               ;; starts from zero rather than from the counts of the first.
               (veritas-result-counts empty-result-counts)
@@ -587,6 +636,14 @@ scanning present working directory for ~a tests..."
                                                  (car partition)
                                                  (cdr partition))
                                 sorted-files))
+         ;; Only the files a change can reach, when the run asked for that.
+         ;; The split and the shuffle still describe one deterministic order of
+         ;; whatever is left.
+         (partitioned-files (select-changed-files partitioned-files
+                                                 #:test-type test-type
+                                                 #:changed? changed?
+                                                 #:since since
+                                                 #:src-dir src-dir))
          ;; One seed for the files, drawn here so it can be reported: a shuffle
          ;; that cannot be replayed is a failure nobody can act on.
          (file-seed (and shuffle-files (current-seed)))

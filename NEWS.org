@@ -9,6 +9,53 @@ This project adheres loosely to [[https://semver.org/spec/v2.0.0.html][Semantic 
 
 *[Unreleased]*
 
+** Change-aware runs
+
+- `veritas --changed` (or `VERITAS_CHANGED=true`) runs only the test files the
+  working tree change can reach, and `--since REF` does the same against a
+  branch's base.  The selection follows `#:use-module` forms from the sources
+  under `VERITAS_SRC_DIR` (default `src`) to their importers, then to the test
+  files that import them; a changed test file and a test named after a changed
+  file are selected too.  A change that touches nothing runs everything, so a
+  filtered run is never silently empty.
+- The graph is a module of its own, `(veritas impact)`: `module-name-of-file`,
+  `module-imports`, `git-changed-files`, `affected-test-files` and
+  `changed-selection` answer the same questions from a script.
+
+** Retries for intermittent failures
+
+- `#:retries N` on a `test` reruns it, hooks included, up to N extra attempts;
+  `veritas-retries` and `VERITAS_RETRIES` (`--retries N`) set the default for a
+  run.
+- A test that fails and then passes is reported as flaky with its attempt count:
+  `attempts` is a slot of `pre-test-result`, so a report can tell an
+  intermittent hiccup from a real failure instead of hiding either.
+
+** Traces
+
+- `--trace` (`VERITAS_TRACE=true`) records every step of a run - test start,
+  each assertion's verdict, test end with its attempt count - to
+  `reports/traces/last.scm` as plain s-expressions, and `--show-trace` prints it
+  as a numbered timeline.
+- `(veritas trace)` exposes the recorder: `veritas-tracing?`,
+  `veritas-trace-frames`, `trace-event!`, `write-trace!`, `read-trace`,
+  `render-trace` and `show-last-trace`.
+
+** One import
+
+- `(veritas all)` re-exports the runner, the assertion library, the doubles,
+  snapshots, table and generated cases, and the BDD aliases, so a test file needs
+  one import instead of five.  The module is generated from the other modules'
+  export lists and cannot drift from them.
+
+** Documentation
+
+- `docs/incremental.org`, `docs/debugging.org` and `docs/batteries.org` are new,
+  and the README, the documentation index and the getting-started environment
+  table point at them.
+- `--changed`, `--since`, `--src-dir`, `--retries`, `--trace`, `--no-trace` and
+  `--show-trace` are in `veritas --help` and the man page.
+
 ---------
 
 *[Released]*

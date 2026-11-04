@@ -19,6 +19,9 @@ guarantees, and where its seams are.
 | [[file:getting-started.org][Getting started]]                     | install, run the first test, set the environment variables       |
 | [[file:language.org][Writing tests]]                       | tests, suites, assertions, matchers, doubles, snapshots          |
 | [[file:running.org][Running tests]]                       | discovery, ordering, shuffling, seeds, parallel workers          |
+| [[file:incremental.org][Change-aware runs]]                   | running only the test files a diff or a branch can reach         |
+| [[file:debugging.org][Debugging a run]]                     | traces of every step, =-\-show-trace=, retries for flaky tests    |
+| [[file:batteries.org][Batteries included]]                  | one import for the runner, assertions, doubles and snapshots     |
 | [[file:reporting.org][Reports and diagnostics]]            | reporters, JUnit, JSON, GitHub, source references, error text    |
 | [[file:internals.org][How veritas works]]                  | the lazy model, determinism guarantees, performance notes        |
 | [[file:migration.org][Migration guide]]                   | what changed between 0.11 and 1.0, and how to update a suite     |
@@ -29,6 +32,11 @@ If you have never run veritas, read [[file:getting-started.org][Getting started]
 If you are upgrading a project that already uses it, read
 [[file:migration.org][Migration guide]] first: 1.0 changes the default order in
 which a suite runs its tests.
+
+If your suite has grown past the point where running all of it is cheap, read
+[[file:incremental.org][Change-aware runs]]: =veritas --changed= runs only what
+the diff can reach.  When a run fails and the report is not enough, read
+[[file:debugging.org][Debugging a run]].
 
 * Related documents
 
