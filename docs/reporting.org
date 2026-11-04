@@ -59,14 +59,18 @@ into one document, so an importer sees a single run rather than N.
 is meant for a log pipeline, and the timestamp comes from the
 [[#stability][clock seam]] so a test can pin it.
 
+A test that passed only after a retry is emitted at level =flaky=, not =info=,
+so a pipeline can count flakiness without parsing prose.
+
 * GitHub Actions
 :PROPERTIES:
 :CUSTOM_ID: github
 :END:
 
 =github-reporter= emits =::error file=...,line=...::= annotations and appends a
-row per file to =$GITHUB_STEP_SUMMARY=.  Outside a workflow it falls back to
-=monotone-reporter=, so the same command works locally.
+row per file to =$GITHUB_STEP_SUMMARY=, including a =flaky= column.  Outside a
+workflow it falls back to =monotone-reporter=, so the same command works
+locally.
 
 * Source references
 :PROPERTIES:

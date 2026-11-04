@@ -59,12 +59,17 @@
   (write-fixture! (format #f "~a/test/acme/unit/other.scm" root)
                   "(define-module (acme test other)\n  #:use-module (acme other))\n")
   (write-fixture! (format #f "~a/test/acme/unit/unrelated.scm" root)
-                  "(define-module (acme test unrelated))\n"))
+                  "(define-module (acme test unrelated))\n")
+  ;; A test whose only dependency on the project is a data file it names.
+  (write-fixture! (format #f "~a/test/acme/unit/data-reader.scm" root)
+                  (format #f
+                          "(define-module (acme test data-reader))\n(define data-file \"~a/data/passwords.txt\")\n"
+                          root)))
 
 (define test-files
   (map (lambda (name) (format #f "~a/test/acme/unit/~a" root name))
        '("password-spec.scm" "password.scm" "web.scm"
-         "other.scm" "unrelated.scm")))
+         "other.scm" "unrelated.scm" "data-reader.scm")))
 
 (define (selected changed)
   (affected-test-files test-files
@@ -106,6 +111,16 @@
                (assert-equal
                 #:expect (list (cadddr test-files))
                 #:got (selected (list (cadddr test-files)))))
+
+         (test "a test that names a changed data file is selected"
+               (assert-equal
+                #:expect (list (car (last-pair test-files)))
+                #:got (selected (list (format #f "~a/data/passwords.txt" root)))))
+
+         (test "a data file the test does not name selects nothing"
+               (assert-equal
+                #:expect '()
+                #:got (selected (list (format #f "~a/data/other.txt" root)))))
 
          (test "no change selects nothing"
                (assert-equal #:expect '() #:got (selected '())))))

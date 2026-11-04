@@ -1,3 +1,15 @@
+veritas (1.1.1-1) unstable; urgency=medium
+
+  * Fix the coverage suite: loading its compiled fixture no longer leaves the
+    loader in the fixture's module, so the file's suites are evaluated where
+    `suite' is defined.
+  * Flaky tests get a reporter level of their own (`flaky`), and the GitHub
+    step summary gains a flaky column.
+  * Change-aware selection reads the data files a test names, not only the
+    modules it imports.
+
+ -- Josep Bigorra <jjbigorra@gmail.com>  Wed, 04 Nov 2026 12:00:00 +0100
+
 veritas (1.1.0-1) unstable; urgency=medium
 
   * Change-aware runs: --changed/--since select the test files a diff reaches

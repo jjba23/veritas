@@ -1172,8 +1172,10 @@ and the LCOV, HTML, JSON, Cobertura and JaCoCo reports are rewritten.
                       task-count seconds-elapsed microseconds-elapsed))
     (let ((flaky (count-flaky all-results)))
       (when (> flaky 0)
-        (log-info vc
-                  (format #f "~a flaky: passed only after a retry" flaky))))
+        ;; Its own level, so a JSON pipeline can filter flakiness out of the
+        ;; noise of ordinary informational lines.
+        (log-flaky vc
+                   (format #f "~a flaky: passed only after a retry" flaky))))
     (log-info vc (format #f "counted ~a" (result-counts-summary counts)))
 
     (when debug?

@@ -112,9 +112,26 @@
                                        #:got "flaky=\"true\"")
                       vc)))))))
 
+(define json-flaky-suite
+  (suite "flaky in the JSON reporter"
+         #:shuffle? #f
+         (test "the flaky line carries its own level"
+               (lambda (vc)
+                 ((assert-contains
+                   #:expect
+                   (with-output-to-string
+                     (lambda ()
+                       (parameterize ((veritas-clock (lambda ()
+                                                       "2026-01-01T00:00:00Z")))
+                         (log-flaky (list (cons 'reporter 'json-reporter))
+                                    "1 flaky"))))
+                   #:got "\"level\":\"flaky\"")
+                  vc)))))
+
 (define (spec)
   (veritas-run #:debug? #f
                #:shuffle? #f
                #:concurrent? #f
                retry-suite
-               junit-flaky-suite))
+               junit-flaky-suite
+               json-flaky-suite))

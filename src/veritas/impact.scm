@@ -26,6 +26,7 @@
   #:use-module (srfi srfi-1)
   #:export (module-name-of-file
             module-imports
+            referenced-paths
             git-changed-files
             affected-test-files
             changed-selection))
@@ -185,6 +186,36 @@ a branch against its base."
                                      (string-length suffix)))))
          '("-spec" "_spec" "-test" "_test"))))
 
+(define (referenced-paths text)
+  "Return the path-like string literals @var{text} mentions.
+
+A test that reads a data file names it as a string, so those strings are the
+other dependency edge a project has: not a module, but a file the test cannot
+run without.  Only strings that look like a path are kept - one with a slash, a
+dot or both - because every other literal in a test is prose."
+  (let ((rx (make-regexp "\"([^\"\\n]{1,120})\"")))
+    (let loop ((start 0) (found '()))
+      (let ((match (regexp-exec rx text start)))
+        (if (not match)
+            (reverse found)
+            (let* ((candidate (match:substring match 1))
+                   (trimmed (string-trim-both candidate))
+                   (path? (and (not (string-null? trimmed))
+                               (not (string-prefix? "http" trimmed))
+                               (not (string-contains trimmed " "))
+                               (or (string-contains trimmed "/")
+                                   (string-contains trimmed ".")))))
+              (loop (match:end match)
+                    (if path? (cons trimmed found) found))))))))
+
+(define (referenced-path? text path)
+  "Return @code{#t} when @var{text} names a file @var{path} ends with."
+  (any (lambda (reference)
+         (or (string=? reference path)
+             (string-suffix? reference path)
+             (string-suffix? path reference)))
+       (referenced-paths text)))
+
 (define (changed-path? file changed)
   (any (lambda (path)
          (or (string=? path file)
@@ -196,9 +227,10 @@ a branch against its base."
   "Return the files from @var{files} that the changes in @var{changed} can affect.
 
 A test is affected when it imports a module the change reaches, when the change
-touched the test file itself, or when a changed file's name matches the test's
-name - the last one covers a project whose tests name their subject instead of
-importing it."
+touched the test file itself, when a changed file's name matches the test's name,
+or when the test names the changed file as a string: the last two cover a
+project whose tests name their subject instead of importing it, and the data a
+test cannot run without."
   (let* ((sources (scm-files src-dir))
          (modules (delete-duplicates
                    (map (lambda (path)
@@ -226,6 +258,9 @@ importing it."
          (or (changed-path? file changed)
              (any (lambda (import) (member import closure))
                   (module-imports text))
+             ;; A data file the test names: not an import, but the test cannot
+             ;; run without it.
+             (any (lambda (path) (referenced-path? text path)) changed)
              (any (lambda (path)
                     (let ((name (stem path)))
                       (and (> (string-length name) 3)

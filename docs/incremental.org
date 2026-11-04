@@ -80,7 +80,10 @@ A test file is run when any of these holds:
 2. the change touched the test file itself;
 3. a changed file has the same name as the test, ignoring a =-spec= or =-test=
    suffix: a change to =src/bewaking/password.scm= selects
-   =test/veritas/unit/password-spec.scm= even if the test never imported it.
+   =test/veritas/unit/password-spec.scm= even if the test never imported it;
+4. the test names the changed file as a string - ="data/passwords.txt"= in a
+   test selects it when that file changes, because the test cannot run without
+   it even though it imports nothing for it.
 
 The source root the graph is read from is =src= unless =--src-dir= or
 =VERITAS_SRC_DIR= says otherwise, which is the one thing a project with an
@@ -123,9 +126,10 @@ worth avoiding.
 - Only =#:use-module= forms are read.  A module resolved at run time - through
   =resolve-module=, =module-ref= or a plugin directory - is not an edge in the
   graph, and a change behind one is invisible.
-- Data files, configuration and templates are not modules.  A test that reads
-  =data/passwords.txt= is not selected because that file changed; name the file
-  in the test, or run the whole suite for that change.
+- A data file is matched by name, not by opening it: the string has to appear
+  in the test file, and the comparison is a suffix match on the changed path.
+  A path built at run time from pieces is invisible, and so is a file read
+  through a helper in another module.
 - The graph lives under =VERITAS_SRC_DIR=.  A change outside it can still select
   a test by rule 2 or 3, but it cannot pull in importers it never saw.
 

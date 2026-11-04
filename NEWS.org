@@ -13,6 +13,26 @@ Nothing yet.
 
 *[Released]*
 
+** v1.1.1 (2026-11-04)
+
+A repair release: the coverage suite runs again, and flakiness reaches CI.
+
+*** Fixes
+
+- `coverage.scm` compiled and loaded a fixture module without saving the module
+  excursion.  Loading it left the loader's current module set to the fixture, so
+  every `suite` form after that line was evaluated there and the whole file
+  raised `Unbound variable: suite`.  The load is wrapped now and the file's
+  suites run.
+
+*** Improvements
+
+- `log-flaky` is a reporter level of its own: the JSON reporter emits
+  `{"level":"flaky",...}` instead of an informational line, and the GitHub step
+  summary has a `flaky` column.
+- A test that names a data file (`"data/passwords.txt"`) is selected when that
+  file changes, so a change outside `src` still runs the test that needs it.
+
 ** v1.1.0 (2026-11-04)
 
 A release about the edit loop: run only what a change can reach, retry what

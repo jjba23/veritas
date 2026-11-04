@@ -45,6 +45,7 @@
                            log-debug
                            log-pass
                            log-fail
+                           log-flaky
                            log-assert
                            log-test
                            log-suite
@@ -97,7 +98,9 @@ The client names one under the key @code{'reporter}; anything else falls back to
     
     ;; Called directly rather than through `apply' on a one-element list: this
     ;; runs several times per assertion, which is the hottest path in a run.
-    ((assoc-ref reporter-alist log-type) msg)))
+    ((or (assoc-ref reporter-alist log-type)
+         (assoc-ref reporter-alist 'log-info))
+     msg)))
 
 (define-syntax-rule (log-pass vc msg)
   "Report a passing check."
@@ -108,6 +111,11 @@ The client names one under the key @code{'reporter}; anything else falls back to
   "Report a failing check."
   (dispatch-log vc
                 'log-fail msg))
+
+(define-syntax-rule (log-flaky vc msg)
+  "Report a test that passed only after a retry."
+  (dispatch-log vc
+                'log-flaky msg))
 
 (define-syntax-rule (log-error vc msg)
   "Report a runtime error."
@@ -145,7 +153,11 @@ The client names one under the key @code{'reporter}; anything else falls back to
                 'log-benchmark msg))
 
 (define emoji-reporter
-  `((reporter-name . emoji-reporter) (log-pass unquote
+  `((reporter-name . emoji-reporter) (log-flaky unquote
+             (lambda (msg)
+               (log (format #f "    ~a⚠️ flaky - ~a~a"
+                            (assoc-ref ansi-color-escapes 'yellow) msg
+                            (assoc-ref ansi-color-escapes 'reset))))) (log-pass unquote
                                                (lambda (msg)
                                                  (log (format #f
                                                               "    ~a✅ ~a~a"
@@ -259,7 +271,9 @@ The client names one under the key @code{'reporter}; anything else falls back to
                                           'reset)))))))
 
 (define monotone-reporter
-  `((reporter-name . monotone-reporter) (log-pass unquote
+  `((reporter-name . monotone-reporter) (log-flaky unquote
+              (lambda (msg)
+                (log (format #f "    [flaky] ~a" msg)))) (log-pass unquote
                                                   (lambda (msg)
                                                     (log (format #f
                                                           "    [pass] ~a" msg))))
@@ -337,7 +351,11 @@ The client names one under the key @code{'reporter}; anything else falls back to
   ((veritas-clock)))
 
 (define json-reporter
-  `((reporter-name . json-reporter) (log-pass unquote
+  `((reporter-name . json-reporter) (log-flaky unquote
+              (lambda (msg)
+                (log (scm->json-string `((timestamp unquote (now))
+                                         (level . flaky)
+                                         (message unquote msg)))))) (log-pass unquote
                                               (lambda (msg)
                                                 (log (scm->json-string `((timestamp
                                                                           unquote
@@ -812,7 +830,7 @@ and its own duration; each @code{testsuite} sums the durations of its cases."
   (if #f #f))
 
 (define junit-reporter
-  `((reporter-name . junit-reporter) (log-pass unquote junit-quiet)
+  `((reporter-name . junit-reporter) (log-flaky unquote junit-quiet) (log-pass unquote junit-quiet)
     (log-assert unquote junit-quiet)
     (log-test unquote junit-quiet)
     (log-suite unquote junit-quiet)
@@ -923,13 +941,14 @@ no summary to append to."
           (lambda ()
             (when fresh
               (format port "### veritas test results~%~%")
-              (format port "| file | suites | tests | assertions |~%")
-              (format port "| --- | --- | --- | --- |~%"))
-            (format port "| ~a | ~a | ~a | ~a |~%"
+              (format port "| file | suites | tests | assertions | flaky |~%")
+              (format port "| --- | --- | --- | --- | --- |~%"))
+            (format port "| ~a | ~a | ~a | ~a | ~a |~%"
                     name
                     (assoc-ref counts 'suites)
                     (assoc-ref counts 'tests)
-                    (assoc-ref counts 'assertions)))
+                    (assoc-ref counts 'assertions)
+                    (or (assoc-ref counts 'flaky) 0)))
           (lambda () (close-port port)))
         summary-path)
       #f))
@@ -938,7 +957,7 @@ no summary to append to."
 ;; result tree at the end of each file instead of line by line as the log
 ;; scrolls.  Outside a workflow `dispatch-log' uses the monotone reporter.
 (define github-reporter
-  `((reporter-name . github-reporter) (log-pass unquote junit-quiet)
+  `((reporter-name . github-reporter) (log-flaky unquote junit-quiet) (log-pass unquote junit-quiet)
     (log-assert unquote junit-quiet)
     (log-test unquote junit-quiet)
     (log-suite unquote junit-quiet)

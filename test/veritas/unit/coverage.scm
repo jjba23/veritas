@@ -214,7 +214,13 @@ would be deleted while the test was still running."
                            fixture-module-name)
                    (cdr fixture-lines)))
 (compile-file fixture-source #:output-file fixture-compiled)
-(load-compiled fixture-compiled)
+;; Loading a compiled file runs the fixture's `define-module', which leaves the
+;; loader's current module pointing at the fixture.  Every form after this line -
+;; the suites below - would then be evaluated there, where `suite' means
+;; nothing.  Saving the excursion keeps the rest of this file in its own module.
+(save-module-excursion
+ (lambda ()
+   (load-compiled fixture-compiled)))
 
 (define (fixture-classify x)
   "Call the fixture's @code{classify}, which the coverage tests measure."
