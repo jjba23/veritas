@@ -134,11 +134,12 @@
                #:after (lambda (vc)
                          (log-info vc "after test runs"))
                (assert-equal #:expect 144
-                             #:got `(comp (begin
-                                            ;; This block is evaluated by Veritas.
-                                            ;; Useful for setup or complex expressions.
-                                            (let ((x 12))
-                                              (* x x))))
+                             #:got (lazy
+                                    (begin
+                                      ;; Evaluated by Veritas when the
+                                      ;; assertion runs.
+                                      (let ((x 12))
+                                        (* x x))))
                              #:name "Complex computation inside an assertion"))))
 
 ;; A test's #:before hook has to run before that test's own assertions, and

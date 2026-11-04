@@ -85,17 +85,30 @@
 
 (define delayed-suite
   (suite "delayed evaluation of got"
-         (test "comp, compute and computare are evaluated at test time"
+         (test "lazy values are evaluated when the assertion runs"
                (assert-true (value (assert-equal #:expect 144
-                                                 #:got `(comp (begin
-                                                               (let ((x 12))
-                                                                 (* x x)))))))
-               (assert-true (value (assert-equal #:expect 9
-                                                 #:got `(compute (begin
-                                                                   (* 3 3))))))
-               (assert-true (value (assert-equal #:expect 5
-                                                 #:got `(computare (begin
-                                                                     (+ 2 3)))))))))
+                                                 #:got (lazy
+                                                        (begin
+                                                          (let ((x 12))
+                                                            (* x x)))))))
+               ;; `lazy' keeps the lexical scope around it, which the quoted
+               ;; (comp ...) form could not: `offset' is a local here.
+               (let ((offset 3))
+                 (assert-true (value (assert-equal
+                                      #:expect 6
+                                      #:got (lazy (+ offset 3))))))
+               ;; Nothing is cached: each assertion forces the value again.
+               (let* ((counter 0)
+                      (deferred (lazy (begin
+                                        (set! counter (+ counter 1))
+                                        counter))))
+                 (assert-true (value (assert-equal #:expect 1
+                                                   #:got deferred)))
+                 (assert-true (value (assert-equal #:expect 2
+                                                   #:got deferred))))
+               ;; `#:expect' accepts it too.
+               (assert-true (value (assert-equal #:expect (lazy (+ 1 1))
+                                                 #:got 2))))))
 
 (define error-suite
   (suite "error assertions"

@@ -100,8 +100,9 @@ file, each with its own table of contents and a link back here.
 :END:
 
 - A suite shuffles its tests by default, as it always has.  The seed is printed
-  and replays the order; =#:shuffle? #f= keeps declaration order.  (1.0.0 briefly
-  changed this default; 1.0.1 restored it.)
+  and replays the order; =#:shuffle? #f= keeps declaration order.
+- An assertion can defer its payload with =(lazy expr)=: it is evaluated when
+  the assertion runs, in its own scope, inside its deadline.
 - Every test result carries the file it was declared in, written into the JUnit
   document and used by CI annotations.
 - Assertion execution is about 11% faster, and report generation no longer scans

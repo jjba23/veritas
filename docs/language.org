@@ -82,6 +82,18 @@ All assertions take =#:name= (a label for the report) and =#:timeout=.
 | =(assert-greater-than ...)=, =(assert-less-than ...)= | the obvious                       |
 | =(assert-length-of #:expect n #:got C)=  | the length matches                            |
 
+Work that should happen when the assertion runs, rather than when it is
+written, is wrapped in =lazy=:
+
+#+begin_src scheme
+(assert-equal #:expect 2 #:got (lazy (expensive-sum 1 1)) #:timeout 5)
+#+end_src
+
+=lazy= keeps the lexical scope of the expression, is evaluated once per
+assertion that receives it (nothing is cached), and runs inside the assertion's
+=#:timeout=, so a deadline can interrupt it.  It works for =#:expect= as well as
+=#:got=.
+
 Failure messages are stable text: =expect: ..., got: ...= for a mismatch,
 =error, ...= when the comparison itself raised.  Snapshot tests can compare
 them.

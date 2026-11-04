@@ -45,11 +45,12 @@
                (assert-equal #:expect 0
                              #:got (* 1 1 1 1 0))
                (assert-equal #:expect 1
-                             #:got `(comp (begin
-                                            ;; comp runs at test time, so slow
-                                            ;; work could go here
-                                            (+ 10
-                                               (- 0 9))))))))
+                             #:got (lazy
+                                    (begin
+                                      ;; lazy runs at test time, so slow
+                                      ;; work could go here
+                                      (+ 10
+                                         (- 0 9))))))))
 
 (define (is-even n)
   (= (modulo n 2) 0))

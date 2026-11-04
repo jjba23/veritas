@@ -113,7 +113,7 @@ settle well after the deadline itself."
 
 (define lazy-assertion
   (assert-equal #:expect 3
-                #:got `(comp (+ 1 2))
+                #:got (lazy (+ 1 2))
                 #:name "1 + 2 is 3"
                 #:timeout 5))
 
@@ -143,15 +143,15 @@ settle well after the deadline itself."
              #:thunk (lambda ()
                        (spin-forever))))
 
-;; An assertion receives its payload as a lazy `comp' form, evaluated in the
-;; interaction environment, so it has to be self contained.
+;; An assertion receives its payload as a `lazy' value, evaluated when the
+;; assertion runs, so it has to be self contained.
 ;; `assert-no-error' takes a real closure, which the counter can observe.
 (define overrunning-lazy-assertion
   (assert-equal #:expect 1
-                #:got `(comp (begin
-                               (let loop
-                                 ()
-                                 (loop)) 1))
+                #:got (lazy (begin
+                              (let loop
+                                ()
+                                (loop)) 1))
                 #:name "spinning comparison"
                 #:timeout 0.3))
 

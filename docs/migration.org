@@ -10,6 +10,7 @@
 
 - [[#upgrading][Upgrading to 1.0]]
 - [[#shuffle][Shuffling is still the default]]
+- [[#lazy][Lazy assertions use =lazy=]]
 - [[#results][Test results carry a line]]
 - [[#breaking][Summary of breaking changes]]
 - [[#related][Related]]
@@ -25,6 +26,7 @@ failure can be replayed.  Two changes need a look:
 
 - =pre-test-result= gained a =line= slot, and =make-pre-test-result= accepts
   =#:line=;
+- the quoted =(comp ...)= family of deferred forms is replaced by =(lazy ...)=;
 - a test result now records the file it was declared in, which reports write
   out.
 
@@ -48,9 +50,24 @@ The shuffle uses one seed for the whole run.  The seed is printed at the end
 in the report, so an order that failed can be reproduced exactly.
 =VERITAS_SHUFFLE_FILES=true= (=--shuffle-files=) shuffles whole files as well.
 
-1.0.0 briefly made declaration order the default and 1.0.1 restored shuffling.
-If you pinned =#:shuffle? #t= to keep the old behaviour during that release, the
-keyword is now redundant, though harmless.
+* Lazy assertions use =lazy=
+:PROPERTIES:
+:CUSTOM_ID: lazy
+:END:
+
+An assertion evaluates =lazy= payloads when it runs, in the scope where they
+were written:
+
+#+begin_src scheme
+(assert-equal #:expect 2 #:got (lazy (+ 1 1)) #:timeout 5)
+#+end_src
+
+The quoted list forms =(comp ...)=, =(compute ...)= and =(computare ...)= are
+gone: they were evaluated with =eval= in the interaction environment, which lost
+the lexical scope around them and compiled the expression at run time.  Wrap the
+expression in =(lazy ...)= instead.  It is forced afresh by each assertion that
+receives it, so nothing is cached, and it runs inside the assertion's deadline.
+=#:expect= accepts it as well.
 
 * Test results carry a line
 :PROPERTIES:
@@ -78,6 +95,7 @@ declaration site or, failing that, from the file the runner is reading.
 
 | Change                                   | Why                                                        |
 |------------------------------------------+------------------------------------------------------------|
+| =(comp ...)= lists removed               | =(lazy ...)= keeps lexical scope and needs no =eval=        |
 | =pre-test-result= has a =line= slot      | a failure should be clickable in an editor                 |
 | JUnit cases carry =file= and =line=      | CI annotations need a source position                      |
 

@@ -33,13 +33,16 @@
 ;;; Code:
 
 (define-module (veritas assert)
+  #:use-module (srfi srfi-9)
   #:declarative? #t
   #:use-module (ice-9 format)
   #:use-module (ice-9 regex)
   #:use-module (srfi srfi-1)
   #:use-module (veritas reporter)
   #:use-module (veritas prelude)
-  #:export (assert-equal assert-eq
+  #:export (lazy
+         lazy-value?
+         assert-equal assert-eq
                          assert-eqv
                          assert-true
                          assert-false
@@ -122,7 +125,7 @@ The result is always a case - tagged, and recorded with the body being
 evaluated - whether or not a deadline was given.
 
 Only work done while the assertion runs is covered, so keep expensive setup in a
-@var{comp} form or inside the thunk passed to @code{assert-error}.  A fiber
+@code{lazy} value or inside the thunk passed to @code{assert-error}.  A fiber
 suspended in a blocking wait cannot be unwound; there the run stops waiting and
 the fiber is dropped with its scheduler."
   (make-assertion (if (not timeout) assertion
@@ -140,6 +143,32 @@ the fiber is dropped with its scheduler."
                                                             `((assertion-successful unquote #f)
                                                               (assertion-name unquote message)))))))))
 
+;; ====== Deferred values ======
+;;
+;; An assertion usually receives values.  When the value is expensive, or when a
+;; deadline should be able to interrupt it, it is wrapped in `lazy': the
+;; expression is then evaluated when the assertion runs, in the scope where it
+;; was written.  The older convention of a quoted (comp ...) list evaluated the
+;; form with `eval' in the interaction environment, which lost that scope.
+
+(define-record-type <lazy-value>
+  (make-lazy-value thunk) lazy-value?
+  (thunk lazy-value-thunk))
+
+(define-syntax lazy
+  ;; Wrap @var{expr} so an assertion evaluates it when the assertion runs.
+  ;; A @code{lazy} value is evaluated afresh by each assertion that receives
+  ;; it, so nothing is cached, and it runs inside the assertion's
+  ;; @code{#:timeout}, which is what lets a deadline interrupt it.
+  (syntax-rules ()
+    ((_ expr) (make-lazy-value (lambda () expr)))))
+
+(define (force-lazy value)
+  "Return @var{value}, or what its thunk returns when it is a @code{lazy} value."
+  (if (lazy-value? value)
+      ((lazy-value-thunk value))
+      value))
+
 (define* (assert #:key expect
                  got
                  compare
@@ -148,11 +177,13 @@ the fiber is dropped with its scheduler."
   "Return an assertion comparing @var{got} with @var{expect} using @var{compare},
 a two-argument predicate such as @code{equal?}.
 
-The @code{assert-*} wrappers below are built on this one.  @var{got} is usually
-a plain value, but a list starting with @code{compute}, @code{comp} or
-@code{computare} is evaluated when the assertion runs instead:
-@code{(assert #:got '(comp (+ 1 1)) ...)} compares against @code{2}.  Deferring
-work that way is what makes it something a @var{timeout} can actually catch.
+The @code{assert-*} wrappers below are built on this one.  @var{got} and
+@var{expect} are usually plain values, but either may be wrapped in
+@code{lazy}: @code{(assert-equal #:expect 2 #:got (lazy (+ 1 1)))} evaluates
+the expression when the assertion runs, inside its @var{timeout}, which is what
+makes an expensive comparison something a deadline can catch.  A @code{lazy}
+value keeps the lexical scope of the code that wrote it and is evaluated once
+per assertion that receives it.
 
 @var{name} labels the assertion in the report.  @var{timeout} caps it in
 seconds; @code{#f}, the default, means no deadline.
@@ -165,21 +196,11 @@ seconds; @code{#f}, the default, means no deadline.
 @end example"
   (assertion-with-timeout timeout name
                           (lambda (vc)
-                            (let* ((gott (if (and (list? got)
-                                                  (not (null? got))
-                                                  (or (equal? 'compute
-                                                              (car got))
-                                                      (equal? 'comp
-                                                              (car got))
-                                                      (equal? 'computare
-                                                              (car got))))
-                                             (begin
-                                               (eval (cadr got)
-                                                     (interaction-environment)))
-                                             got)))
+                            (let* ((expected (force-lazy expect))
+                                   (gott (force-lazy got)))
                               (when name
                                 (log-assert vc name))
-                              (if (compare expect gott)
+                              (if (compare expected gott)
                                   (begin
                                     (log-pass vc
                                               (format #f "got: ~a" gott))
@@ -189,7 +210,7 @@ seconds; @code{#f}, the default, means no deadline.
                                     (log-fail vc
                                               (format #f
                                                "error, expect: ~a, got: ~a"
-                                               expect gott))
+                                               expected gott))
                                     `((assertion-successful unquote #f)
                                       (assertion-name unquote name))))))))
 

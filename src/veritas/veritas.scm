@@ -27,7 +27,9 @@
   #:use-module (veritas generator)
   #:use-module (veritas coverage)
   #:use-module (statprof)
-  #:re-export (generate-integer generate-char
+  #:re-export (lazy
+                                lazy-value?
+                                generate-integer generate-char
                                 generate-list
                                 generate-symbol
                                 generate-string
