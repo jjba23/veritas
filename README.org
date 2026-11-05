@@ -89,7 +89,8 @@ has the commands for each.
 :END:
 
 The README stops here on purpose; the details live in =docs/=, one topic per
-file, each with its own table of contents and a link back here.
+file, each with its own table of contents and a link back here, and the release
+notes live in [[file:NEWS.org][NEWS]].
 
 | Document                                        | What it covers                                             |
 |-------------------------------------------------+------------------------------------------------------------|
@@ -103,22 +104,6 @@ file, each with its own table of contents and a link back here.
 | [[file:docs/reporting.org][Reports and diagnostics]]                           | reporters, JUnit, JSON, GitHub, =file:line= references       |
 | [[file:docs/internals.org][How veritas works]]                               | the lazy model, determinism guarantees, benchmarks          |
 | [[file:docs/migration.org][Migration guide]]                                | upgrading from 0.11 to 1.0                                  |
-
-* What changed in 1.0
-:PROPERTIES:
-:CUSTOM_ID: what-changed-in-1-0
-:END:
-
-- A suite shuffles its tests by default, as it always has.  The seed is printed
-  and replays the order; =#:shuffle? #f= keeps declaration order.
-- An assertion can defer its payload with =(lazy expr)=: it is evaluated when
-  the assertion runs, in its own scope, inside its deadline.
-- Every test result carries the file it was declared in, written into the JUnit
-  document and used by CI annotations.
-- Assertion execution is about 11% faster, and report generation no longer scans
-  the case list once per class.
-- The README was split into =docs/=; [[file:NEWS.org][NEWS]] has the full release
-  notes.
 
 * Contributing
 :PROPERTIES:

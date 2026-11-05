@@ -1,3 +1,12 @@
+veritas (1.3.1-1) unstable; urgency=medium
+
+  * A suite reports its children in declaration order again: the concurrent
+    evaluator collected them as they finished, so a nested suite moved in the
+    JUnit document from run to run.
+  * The README drops its release-notes list; the notes live in NEWS.org.
+
+ -- Josep Bigorra <jjbigorra@gmail.com>  Thu, 05 Nov 2026 12:00:00 +0100
+
 veritas (1.3.0-1) unstable; urgency=medium
 
   * maak agents writes AGENTS.md from the two skills pinned in maak.scm and

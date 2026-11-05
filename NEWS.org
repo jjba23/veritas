@@ -9,13 +9,40 @@ This project adheres loosely to [[https://semver.org/spec/v2.0.0.html][Semantic 
 
 *[Unreleased]*
 
+Nothing yet.
+
+*[Released]*
+
+** v1.3.1 (2026-11-05)
+
+A repair release: a suite reports its children in declaration order again, so two
+runs of one suite write the same JUnit document, and the README stops carrying
+release notes of its own.
+
 *** Fixes
 
-- A suite reported its children in completion order.  They run in fibers and the
-evaluator collected them as they reported, so a nested suite could move inside
-the JUnit document from one run to the next and two runs of one suite did not
-produce the same document.  =evaluate-thunks-concurrently= now returns its
-results in declaration order, which is what [[file:docs/running.org][Running tests]] says a run does.
+- A suite reported its children in completion order.  They run in fibers and
+  =evaluate-thunks-concurrently= collected them as they reported back, so a
+  nested suite could sit inside or after its siblings from one run to the next
+  and two runs of one suite wrote different JUnit documents - the determinism
+  test caught it on CI.  The evaluator carries each answer's position through
+  the channel and sorts on it, so every consumer sees declaration order.
+- The new case in =test/veritas/unit/determinism.scm= drives that race with a
+  channel handshake between two children instead of a sleep, so it fails on the
+  old order without depending on the machine.
+
+*** Documentation
+
+- The README no longer keeps a *What changed in 1.0* list.  Release notes belong
+  in this file, and the five points it made are recorded under v1.0.0 below: the
+  shuffle default and its replayable seed, =(lazy ...)=, the file carried by
+  every test result, the measured speedup, and the split into =docs/=.  The
+  README says where the notes live instead.
+
+*** Packaging
+
+- The version is 1.3.1 everywhere it is named, and the Arch recipe verifies the
+  archive the tag serves.
 
 *[Released]*
 
