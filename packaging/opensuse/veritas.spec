@@ -20,7 +20,7 @@
 %global debug_package %{nil}
 
 Name:           veritas
-Version:        1.2.0
+Version:        1.3.0
 Release:        0
 Summary:        Testing framework for Guile Scheme
 License:        MIT

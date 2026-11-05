@@ -13,6 +13,36 @@ Nothing yet.
 
 *[Released]*
 
+** v1.3.0 (2026-11-05)
+
+A release about the agent instructions and the move to GitHub: =maak agents=
+writes AGENTS.md from two pinned skills and the practices kept in the build
+file, and every recipe names the repository's new home.
+
+*** Build
+
+- =maak agents= regenerates =AGENTS.md= from the skills pinned in =maak.scm=:
+  it downloads =ponytail= and =test-driven-development= at their commits, then
+  appends the practices from the same file.  The fetch needs nothing but curl
+  and the output is deterministic, so a copied task writes the same document
+  byte for byte.
+- A skill is imported whole.  Picking sections out of one needs heading
+  detection, and a line-based scan cannot tell a heading from a =##= line
+  inside a code fence.
+- The generated practices name no project path, module or task, so another
+  repository copies the section and replaces only the data.
+
+*** Packaging
+
+- The recipes, the container image metadata and the package homepages point at
+  https://github.com/jjba23/veritas now that Codeberg is archived, and the Arch
+  recipe verifies the release archive it fetches.
+
+*** Documentation
+
+- The README says where =AGENTS.md= comes from and that the task is the recipe
+  for another repository.
+
 ** v1.2.0 (2026-11-05)
 
 The release that changes the licence, the pipeline and the guide: veritas is MIT

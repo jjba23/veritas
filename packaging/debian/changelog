@@ -1,3 +1,14 @@
+veritas (1.3.0-1) unstable; urgency=medium
+
+  * maak agents writes AGENTS.md from the two skills pinned in maak.scm and
+    the practices kept in the same file.  Each skill is imported whole and the
+    practices name no project path, module or task, so the task is the recipe
+    for another repository.
+  * The recipes, the container image metadata and the package homepages name
+    github.com/jjba23/veritas now that Codeberg is archived.
+
+ -- Josep Bigorra <jjbigorra@gmail.com>  Thu, 05 Nov 2026 12:00:00 +0100
+
 veritas (1.2.0-1) unstable; urgency=medium
 
   * veritas is MIT licensed: LICENSE replaces COPYING, and the packaging, the
