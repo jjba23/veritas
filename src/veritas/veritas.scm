@@ -14,6 +14,7 @@
   #:use-module (veritas model)
   #:use-module (veritas trace)
   #:use-module (veritas generator)
+  #:use-module (veritas property)
   #:use-module (veritas coverage)
   #:use-module (statprof)
   #:re-export (lazy
@@ -22,6 +23,20 @@
                                 generate-list
                                 generate-symbol
                                 generate-string
+                                generate-natural
+                                generate-real
+                                generate-boolean
+                                generate-vector
+                                generate-tuple
+                                generate-one-of
+                                generate-constant
+                                generate-first-name
+                                generate-last-name
+                                generate-name
+                                generate-email
+                                generate-beer
+                                generate-car
+                                generator-shrink
                                 make-assertion
                                 assert-equal
                                 assert-eq
@@ -39,6 +54,7 @@
                                 assert-not-contains
                                 assert-matches
                                 assert-not-matches
+                                assert-match
                                 assert-raises
                                 assert-empty
                                 assert-not-empty
@@ -65,11 +81,13 @@
                                 non-continet
                                 congruit
                                 non-congruit
+                                convenit
                                 inanis
                                 non-inanis
                                 longitudo
                                 intra
                                 unus-ex
+                                property
                                 evaluate-thunks-concurrently
                                 collect-assertion-successful
                                 call-with-timeout

@@ -16,20 +16,25 @@
   #:use-module (veritas snapshot)
   #:use-module (veritas table)
   #:use-module (veritas generator)
+  #:use-module (veritas property)
   #:use-module (veritas bdd)
   #:use-module (veritas trace)
   #:re-export (lazy lazy-value? generate-integer generate-char generate-list 
-              generate-symbol generate-string make-assertion assert-equal 
-              assert-eq assert-eqv assert-true assert-false assert-error 
-              assert-no-error assert-approximate assert-not-approximate 
-              assert-not-eq assert-not-eqv assert-not-equal assert-contains 
-              assert-not-contains assert-matches assert-not-matches 
-              assert-raises assert-empty assert-not-empty assert-length 
-              assert-in-range assert-one-of is-approximate? proba aequalis 
-              idem aequivalens non-aequalis non-idem non-aequivalens verus 
-              falsus propinquus? propinquus non-propinquus errat non-errat 
-              suscitat continet non-continet congruit non-congruit inanis 
-              non-inanis longitudo intra unus-ex 
+              generate-symbol generate-string generate-natural generate-real
+              generate-boolean generate-vector generate-tuple generate-one-of
+              generate-constant generate-first-name generate-last-name
+              generate-name generate-email generate-beer generate-car
+              generator-shrink make-assertion assert-equal
+              assert-eq assert-eqv assert-true assert-false assert-error
+              assert-no-error assert-approximate assert-not-approximate
+              assert-not-eq assert-not-eqv assert-not-equal assert-contains
+              assert-not-contains assert-matches assert-not-matches
+              assert-match assert-raises assert-empty assert-not-empty
+              assert-length assert-in-range assert-one-of is-approximate? proba
+              aequalis idem aequivalens non-aequalis non-idem non-aequivalens
+              verus falsus propinquus? propinquus non-propinquus errat
+              non-errat suscitat continet non-continet congruit non-congruit
+              convenit inanis non-inanis longitudo intra unus-ex property
               evaluate-thunks-concurrently collect-assertion-successful 
               call-with-timeout fisher-yates-shuffle fresh-seed 
               veritas-retries test suite %test %suite 

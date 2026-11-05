@@ -41,11 +41,12 @@ wiring involved.
 | Module               | What it brings                                              |
 |----------------------+-------------------------------------------------------------|
 | =(veritas veritas)=  | =test=, =suite=, =benchmark=, =veritas-run=, filters, seeds  |
-| =(veritas assert)=   | the assertion library: =assert=, =assert-equal=, =lazy=, ... |
+| =(veritas assert)=   | the assertion library: =assert=, =assert-equal=, =assert-match=, =lazy=, ... |
 | =(veritas mock)=     | =make-spy=, =make-stub=, =assert-called=, =assert-call-count= |
 | =(veritas snapshot)= | =assert-snapshot= and the snapshot directory                 |
 | =(veritas table)=    | =cases->table=, =test-each=, =suite-each=                    |
-| =(veritas generator)=| generators for properties and randomized cases               |
+| =(veritas generator)=| generators and shrinkers for properties and randomized cases |
+| =(veritas property)= | =property=: generated inputs, shrinking and replayable seeds  |
 | =(veritas bdd)=      | =scenario=, =given=, =when-step=, =then=, and the Latin aliases |
 | =(veritas trace)=    | =veritas-tracing?=, =read-trace=, =render-trace=             |
 

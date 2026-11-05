@@ -24,10 +24,12 @@
   #:use-module (srfi srfi-9)
   #:declarative? #t
   #:use-module (ice-9 format)
+  #:use-module (ice-9 match)
   #:use-module (ice-9 regex)
   #:use-module (srfi srfi-1)
   #:use-module (veritas reporter)
   #:use-module (veritas prelude)
+  #:use-module (veritas diff)
   #:export (lazy
          lazy-value?
          assert-equal assert-eq
@@ -48,6 +50,7 @@
                          assert-not-contains
                          assert-matches
                          assert-not-matches
+                         assert-match
                          assert-raises
                          assert-empty
                          assert-not-empty
@@ -74,6 +77,7 @@
                          non-continet
                          congruit
                          non-congruit
+                         convenit
                          inanis
                          non-inanis
                          longitudo
@@ -194,11 +198,18 @@ seconds; @code{#f}, the default, means no deadline.
                                               (format #f "got: ~a" gott))
                                     `((assertion-successful unquote #t)
                                       (assertion-name unquote name)))
-                                  (begin
+                                  (let ((difference (and (eq? compare equal?)
+                                                         (render-diff expected
+                                                                      gott))))
                                     (log-fail vc
-                                              (format #f
-                                               "error, expect: ~a, got: ~a"
-                                               expected gott))
+                                              (if difference
+                                                  (format #f
+                                                          "error, expect: ~a, got: ~a~%~a"
+                                                          expected gott
+                                                          difference)
+                                                  (format #f
+                                                          "error, expect: ~a, got: ~a"
+                                                          expected gott)))
                                     `((assertion-successful unquote #f)
                                       (assertion-name unquote name))))))))
 
@@ -595,6 +606,39 @@ a procedure of @code{(key args)} returning @code{#t} for the expected error.
           #:name name
           #:timeout timeout))
 
+(define-syntax assert-match
+  ;; Assert that a value matches a pattern from `(ice-9 match)`.
+  (syntax-rules (quote)
+    ((_ #:pattern (quote pattern) rest ...)
+     (assert-match #:pattern pattern rest ...))
+    ((_ #:pattern pattern #:got got)
+     (assert-match #:pattern pattern #:got got #:name #f #:timeout #f))
+    ((_ #:pattern pattern #:got got #:timeout timeout)
+     (assert-match #:pattern pattern #:got got #:name #f #:timeout timeout))
+    ((_ #:pattern pattern #:got got #:name name)
+     (assert-match #:pattern pattern #:got got #:name name #:timeout #f))
+    ((_ #:pattern pattern #:got got #:name name #:timeout timeout)
+     (assertion-with-timeout
+      timeout name
+      (lambda (vc)
+        (when name
+          (log-assert vc name))
+        (let ((value got))
+          (if (match value
+                (pattern #t)
+                (_ #f))
+              (begin
+                (log-pass vc
+                          (format #f "value ~s matches ~s" value 'pattern))
+                `((assertion-successful unquote #t)
+                  (assertion-name unquote name)))
+              (begin
+                (log-fail vc
+                          (format #f "value ~s does not match ~s"
+                                  value 'pattern))
+                `((assertion-successful unquote #f)
+                  (assertion-name unquote name))))))))))
+
 ;; ====== Latin aliases ======
 ;;
 ;; Every assertion has a Latin alias, in the same spirit as the BDD step
@@ -621,6 +665,7 @@ a procedure of @code{(key args)} returning @code{#t} for the expected error.
 ;;   non-continet     assert-not-contains
 ;;   congruit         assert-matches
 ;;   non-congruit     assert-not-matches
+;;   convenit         assert-match
 ;;   inanis           assert-empty
 ;;   non-inanis       assert-not-empty
 ;;   longitudo        assert-length
@@ -665,6 +710,10 @@ a procedure of @code{(key args)} returning @code{#t} for the expected error.
   assert-matches)
 (define non-congruit
   assert-not-matches)
+(define-syntax convenit
+  ;; `assert-match' is a macro, so its Latin alias is one too.
+  (syntax-rules ()
+    ((_ args ...) (assert-match args ...))))
 (define inanis
   assert-empty)
 (define non-inanis

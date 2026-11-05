@@ -9,7 +9,20 @@ This project adheres loosely to [[https://semver.org/spec/v2.0.0.html][Semantic 
 
 *[Unreleased]*
 
-Nothing yet.
+** Added
+
+- =assert-match= asserts that a value matches an =(ice-9 match)= pattern: rest
+  patterns, predicates, literals and quoted patterns are all understood.
+- =property= runs one thunk over generated inputs, 100 by default, and shrinks a
+  failing input to the smallest value from the same generators that still fails.
+  =#:runs=, =#:seed= and =#:shrink?= control the run, and the reported seed
+  replays a failure.
+- Generators grew =generate-natural=, =generate-real=, =generate-boolean=,
+  =generate-vector=, =generate-tuple=, =generate-one-of= and
+  =generate-constant=, plus fake data: first and last names, full names, emails,
+  beers and cars.  =generator-shrink= exposes the candidates behind shrinking.
+- A failing =assert-equal= appends a positional diff for lists, vectors and
+  strings, so the report names the first differing element or character.
 
 *[Released]*
 

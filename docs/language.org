@@ -77,6 +77,7 @@ All assertions take =#:name= (a label for the report) and =#:timeout=.
 | =(assert-not-null #:got G)=              | =G= is not                                    |
 | =(assert-contains #:expect C #:got X)=   | =C= contains =X= (string, list, vector, table)|
 | =(assert-not-contains ...)=              | it does not                                  |
+| =(assert-match #:pattern P #:got G)=     | =G= matches the =(ice-9 match)= pattern =P=  |
 | =(assert-error #:expect thunk)=          | =thunk= raises                                |
 | =(assert-no-error #:expect thunk)=       | it does not raise                             |
 | =(assert-greater-than ...)=, =(assert-less-than ...)= | the obvious                       |
@@ -95,8 +96,21 @@ assertion that receives it (nothing is cached), and runs inside the assertion's
 =#:got=.
 
 Failure messages are stable text: =expect: ..., got: ...= for a mismatch,
-=error, ...= when the comparison itself raised.  Snapshot tests can compare
-them.
+=error, ...= when the comparison itself raised.  A failing =assert-equal= adds a
+line saying where the values first differ:
+
+#+begin_src scheme
+error, expect: (1 2 3), got: (1 2 9)
+  lists differ at index 2 (expected 3, got 9); lengths 3 and 3
+#+end_src
+
+Strings are compared character by character the same way.  Snapshot tests can
+compare the messages.
+
+=assert-match= takes its pattern from =(ice-9 match)=: rest patterns such as
+=(a b ...)=, predicates such as =(? even?)=, literals and quoted patterns all
+work.  Both =#:pattern (a b ...)= and =#:pattern '(a b ...)= are read as the
+pattern itself.
 
 * Timeouts
 :PROPERTIES:
@@ -154,8 +168,53 @@ files under =test/snapshots=, so they are reviewable in a diff.
 :CUSTOM_ID: generators
 :END:
 
-=generator= and =for-all= build random data from a seed that the report prints,
-so a failing case can be replayed by passing the same seed.
+=property= checks one assertion against many generated inputs:
+
+#+begin_src scheme
+(property "reverse of reverse is the original list"
+          #:generators (list (generate-list (generate-integer)))
+          #:thunk (lambda (xs)
+                    (assert-equal #:expect xs
+                                  #:got (reverse (reverse xs)))))
+#+end_src
+
+The thunk runs 100 times by default; =#:runs= sets the count, =#:seed= makes the
+draw reproducible, and =#:shrink? #f= turns shrinking off.  A failing input is
+shrunk to the smallest value from the same generators that still fails, and the
+report names the original and the shrunk value.  The seed printed with the
+failure replays it: set =VERITAS_SEED= to that seed.
+
+Generators are procedures of a random state, so they compose:
+
+| Generator                                   | Draws                             |
+|---------------------------------------------+-----------------------------------|
+| =(generate-integer #:max-bound 100)=        | an integer below the bound        |
+| =(generate-natural #:max-bound 100)=        | an integer up to and including it |
+| =(generate-real #:min 0 #:max 1)=           | a real number in the range        |
+| =(generate-boolean)=                        | =#t= or =#f=                      |
+| =(generate-char)=                           | a printable ASCII character       |
+| =(generate-string #:min-len 1 #:max-len 8)= | a printable ASCII string          |
+| =(generate-symbol #:min-len 1)=             | a lowercase symbol                |
+| =(generate-list gen #:min-len 0)=           | a list of generated elements      |
+| =(generate-vector gen #:min-len 0)=         | a vector of them                  |
+| =(generate-tuple (list gen ...))=           | one value from each generator     |
+| =(generate-one-of '(a b c))=                | one of the choices                |
+| =(generate-constant value)=                 | the value                         |
+
+Fake data is one generator call away, for a report that reads like a report:
+
+| Generator               | Draws                     |
+|-------------------------+---------------------------|
+| =(generate-first-name)= | =Ada=, =Grace=, ...       |
+| =(generate-last-name)=  | =Lovelace=, =Hopper=, ... |
+| =(generate-name)=       | a first and a last name   |
+| =(generate-email)=      | =first.last@example.com=  |
+| =(generate-beer)=       | a beer style              |
+| =(generate-car)=        | a make and model          |
+
+The built-in generators shrink their values: integers toward zero, strings and
+lists to shorter ones, booleans to =#f=.  =generator-shrink= returns the
+candidates a value has, and a generator written by hand simply does not shrink.
 
 * Related
 :PROPERTIES:
