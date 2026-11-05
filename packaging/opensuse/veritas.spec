@@ -23,7 +23,7 @@ Name:           veritas
 Version:        1.1.1
 Release:        0
 Summary:        Testing framework for Guile Scheme
-License:        LGPL-3.0-or-later
+License:        MIT
 URL:            https://codeberg.org/jjba23/veritas
 Source0:        %{name}-%{version}.tar.gz
 BuildRequires:  pkgconfig(guile-3.0)
@@ -81,7 +81,7 @@ install -D -m 0644 man/veritas.1 %{buildroot}%{_mandir}/man1/veritas.1
 VERITAS_TEST_TYPE=unit guile -L ./src -L ./test -c '((@ (veritas runner) run-tests))'
 
 %files
-%license COPYING
+%license LICENSE
 %doc README.org NEWS.org
 %{_bindir}/veritas
 %dir %{_datadir}/guile

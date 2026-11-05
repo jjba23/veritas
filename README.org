@@ -137,4 +137,4 @@ them.
 :CUSTOM_ID: license
 :END:
 
-Lesser GNU General Public License, version 3 or later.  See =LICENSE=.
+MIT License.  See =LICENSE=.
