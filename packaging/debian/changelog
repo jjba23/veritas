@@ -1,3 +1,14 @@
+veritas (1.4.0-1) unstable; urgency=medium
+
+  * Property-based testing: property runs a thunk over generated inputs and
+    shrinks a failing input to its smallest reproducible form.
+  * assert-match checks a value against an (ice-9 match) pattern.
+  * A failing assert-equal prints where lists, vectors and strings first differ.
+  * More generators and fake data: naturals, reals, booleans, vectors, tuples,
+    names, emails, beers and cars.
+
+ -- Josep Bigorra <jjbigorra@gmail.com>  Thu, 05 Nov 2026 12:00:00 +0100
+
 veritas (1.3.1-1) unstable; urgency=medium
 
   * A suite reports its children in declaration order again: the concurrent

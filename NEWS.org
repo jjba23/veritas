@@ -9,7 +9,16 @@ This project adheres loosely to [[https://semver.org/spec/v2.0.0.html][Semantic 
 
 *[Unreleased]*
 
-** Added
+Nothing yet.
+
+*[Released]*
+
+** v1.4.0 (2026-11-05)
+
+A feature release: properties, structural pattern assertions, positional diffs
+in failures, and a generator library that now includes fake data.
+
+*** Added
 
 - =assert-match= asserts that a value matches an =(ice-9 match)= pattern: rest
   patterns, predicates, literals and quoted patterns are all understood.
