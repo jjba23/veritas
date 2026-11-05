@@ -19,9 +19,15 @@
 (define (assertion ok? name)
   (make-assertion-result 0 "" name ok?))
 
+;; The positional constructor, not `make-pre-test-result': the fixture passes no
+;; keywords, and Guile 3.0.10 - which inlines calls to keyword-argument
+;; procedures - allocated the record with the wrong field count there, failing
+;; this file on 3.0.10 alone.  Every field is given, so nothing is inlined away.
 (define (a-test name ok?)
   (make-test-result 0 ""
-                    (make-pre-test-result name (list (assertion ok? name)))))
+                    (make-raw-pre-test-result name
+                                              (list (assertion ok? name))
+                                              #f #f 0 1)))
 
 (define (a-suite name children)
   (make-suite-result name children ""))

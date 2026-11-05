@@ -21,6 +21,7 @@
                          pre-test-result
                          pre-test-result?
                          make-pre-test-result
+                         make-raw-pre-test-result
                          pre-test-result-name
                          pre-test-result-results
                          pre-test-result-file
@@ -57,6 +58,12 @@
   (output test-result-output)
   (results test-result-results))
 
+;; Both constructors are useful: `make-raw-pre-test-result' takes every field
+;; positionally, and `make-pre-test-result' below is the keyword wrapper the
+;; framework calls.  A caller with no keywords to pass - a test building a result
+;; tree by hand, for one - should use the positional one: Guile 3.0.10 inlines
+;; calls to keyword-argument procedures, and a call that passed none of them
+;; allocated the record with the wrong field count.
 (define-record-type pre-test-result
   (make-raw-pre-test-result name results file line duration attempts) pre-test-result?
   (name pre-test-result-name)

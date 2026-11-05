@@ -36,6 +36,7 @@ and guile-json.
 #+begin_src shell
 veritas test/tests/arithmetic.scm
 veritas --changed          # only the tests this diff can reach
+veritas --only-failed      # the tests that failed last time
 #+end_src
 
 #+begin_src text
@@ -48,7 +49,9 @@ veritas --changed          # only the tests this diff can reach
 #+end_src
 
 A failing assertion names what was expected and what came back, with the file it
-came from, and the run keeps going: one failure never hides the rest.
+came from, and the run keeps going: one failure never hides the rest.  Every run
+leaves the failing names in =reports/last-failed.scm=, so =veritas --only-failed=
+reruns exactly those and nothing else.
 
 * Install
 :PROPERTIES:
@@ -131,6 +134,10 @@ guix shell -m manifest.scm -- ./bin/veritas test
 Small, focused commits, a test for every behaviour, and the suite green before a
 push.  [[file:docs/internals.org][How veritas works]] describes the parts worth knowing before changing
 them.
+
+CI/CD runs on GitHub Actions: =ci.yml= hands the =maak-test= and =maak-deploy=
+tasks to Byggsteg, which publishes the API documentation from =trunk=, and
+=tests.yml= checks the JUnit document a run writes against its schema.
 
 * License
 :PROPERTIES:

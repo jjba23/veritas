@@ -11,6 +11,7 @@
 - [[#discovery][Discovery]]
 - [[#order][Order, shuffling and seeds]]
 - [[#workers][Parallel runs]]
+- [[#rerun][Rerunning only what failed]]
 - [[#env][Configuration]]
 - [[#coverage][Coverage]]
 - [[#related][Related]]
@@ -58,6 +59,46 @@ fragment, and the parent merges them into one document (see
 Determinism under concurrency: results are collected per task and reported in
 declaration order, not in completion order, so a parallel run and a serial run
 of the same suite produce the same report apart from timings.
+
+* Rerunning only what failed
+:PROPERTIES:
+:CUSTOM_ID: rerun
+:END:
+
+Every run writes the names of the tests that failed to
+=reports/last-failed.scm=, or an empty list when everything passed.  That record
+is what =--only-failed= reads, and nothing else is run:
+
+#+begin_src sh
+veritas --only-failed            # the tests that failed last time
+veritas --only-failed --jobs 4   # the same, in parallel
+#+end_src
+
+The record is plain Scheme data, one line of names:
+
+#+begin_src scheme
+("a string holds a word" "two and two")
+#+end_src
+
+An empty record is still a record: after a green run =--only-failed= selects
+*nothing* rather than everything, so a retry of a passing suite stays green and
+fast.  A run with no record at all - the first run in a fresh checkout - selects
+everything, because there is nothing to narrow it to.
+
+A failure that carries no test name, such as a task that raised while the file
+was loading, is recorded as =#all=: the next run reruns everything, because no
+name describes what went wrong.  With =--jobs= each worker records its own
+failures and the parent merges them, so the record after a parallel run is the
+same as after a serial one.
+
+Set =VERITAS_LAST_FAILED_PATH= to keep the record somewhere else, which is what
+a build that shares a checkout between jobs needs.  A test that is still failing
+is rewritten into the record by the run that reran it, so the loop below walks
+the suite down to green:
+
+#+begin_src sh
+until veritas --only-failed; do :; done
+#+end_src
 
 * Configuration
 :PROPERTIES:

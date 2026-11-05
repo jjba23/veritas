@@ -1,3 +1,16 @@
+veritas (1.2.0-1) unstable; urgency=medium
+
+  * veritas is MIT licensed: LICENSE replaces COPYING, and the packaging, the
+    container image labels and the manual page name the new licence.
+  * CI/CD runs on GitHub Actions (Byggsteg), replacing the Woodpecker pipeline.
+  * The rerun tests build their fixtures with the positional constructor, which
+    Guile 3.0.10's keyword-call inlining broke; make-raw-pre-test-result is
+    exported.
+  * The guide documents rerunning only the tests that failed, the record every
+    run writes, and the full environment table.
+
+ -- Josep Bigorra <jjbigorra@gmail.com>  Thu, 05 Nov 2026 12:00:00 +0100
+
 veritas (1.1.1-1) unstable; urgency=medium
 
   * Fix the coverage suite: loading its compiled fixture no longer leaves the

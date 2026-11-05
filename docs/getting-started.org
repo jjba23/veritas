@@ -69,22 +69,40 @@ and a summary; [[file:reporting.org][Reports and diagnostics]] explains the othe
 
 The runner is configured by the environment when no flag says otherwise:
 
-| Variable                 | Meaning                                                   |
-|--------------------------+-----------------------------------------------------------|
-| =VERITAS_REPORTER=       | =emoji-reporter=, =monotone-reporter=, =json-reporter=, =junit-reporter=, =github-reporter= |
-| =VERITAS_SEED=           | seed for shuffling, so an order can be replayed            |
-| =VERITAS_SHUFFLE_FILES=  | =true= shuffles the test files themselves                  |
-| =VERITAS_TEST_TYPE=      | =unit=, =integration=, and so on: which directory is read  |
-| =VERITAS_COVERAGE=       | =true= measures coverage                                   |
-| =VERITAS_COVERAGE_DIR=   | where the LCOV report goes (default =reports/lcov=)        |
-| =VERITAS_COVERAGE_HTML_DIR= | where the HTML report goes (default =reports/html=)     |
-| =VERITAS_RUN_BENCHMARKS= | =false= skips =benchmark= forms                            |
-| =VERITAS_CHANGED=        | =true= runs only the tests the working tree change reaches  |
-| =VERITAS_SINCE=          | revision the change is read against, e.g. =origin/trunk=    |
-| =VERITAS_SRC_DIR=        | source root of the change graph (default =src=)             |
-| =VERITAS_RETRIES=        | extra attempts for a failing test (default =0=)             |
-| =VERITAS_TRACE=          | =true= records every step of the run to =reports/traces/=  |
-| =VERITAS_LIST=           | =true= prints the selected test files and runs none        |
+| Variable                    | Meaning                                       |
+|-----------------------------+-----------------------------------------------|
+| =VERITAS_SCAN_DIR=          | root the run walks (default =./=)             |
+| =VERITAS_TEST_TOP_DIR=      | subdirectory holding the suites (default =test=) |
+| =VERITAS_TEST_MODULE=       | module prefix under the test root (default =veritas=) |
+| =VERITAS_TEST_TYPE=         | =unit=, =integration=, and so on: which directory is read |
+| =VERITAS_ENTRYPOINT=        | no-argument procedure each file exports (default =spec=) |
+| =VERITAS_ONLY_TEST=         | run only tests whose name contains the value  |
+| =VERITAS_ONLY_SUITE=        | run only suites whose name contains the value |
+| =VERITAS_ONLY_TAG=          | run only tests and suites carrying the tag    |
+| =VERITAS_ONLY_FAILED=       | =true= reruns only the tests the last run recorded as failing |
+| =VERITAS_LAST_FAILED_PATH=  | where that record is kept (default =reports/last-failed.scm=) |
+| =VERITAS_SEED=              | seed for shuffling, so an order can be replayed |
+| =VERITAS_SHUFFLE_FILES=     | =true= shuffles the test files themselves     |
+| =VERITAS_JOBS=              | run the files in N worker processes (default =1=) |
+| =VERITAS_PARTITION=         | =INDEX/TOTAL=: run one slice of the discovered files |
+| =VERITAS_RETRIES=           | extra attempts for a failing test (default =0=) |
+| =VERITAS_CHANGED=           | =true= runs only the tests the working tree change reaches |
+| =VERITAS_SINCE=             | revision the change is read against, e.g. =origin/trunk= |
+| =VERITAS_SRC_DIR=           | source root of the change graph (default =src=) |
+| =VERITAS_COVERAGE=          | =true= measures coverage                      |
+| =VERITAS_COVERAGE_DIR=      | where the LCOV report goes (default =reports/lcov=) |
+| =VERITAS_COVERAGE_HTML_DIR= | where the HTML report goes (default =reports/html=) |
+| =VERITAS_REPORTER=          | =emoji-reporter=, =monotone-reporter=, =json-reporter=, =junit-reporter= or =github-reporter= |
+| =VERITAS_JUNIT_PATH=        | where the JUnit document goes (default =reports/junit/veritas-junit.xml=) |
+| =VERITAS_TRACE=             | =true= records every step of the run to =reports/traces= |
+| =VERITAS_LIST=              | =true= prints the selected test files and runs none |
+| =VERITAS_RUN_BENCHMARKS=    | =false= skips =benchmark= forms               |
+
+The command line wins over every one of them, =veritas --help= lists the flags
+they map to, and the [[file:../man/veritas.1][man page]] has the details.
+[[file:running.org][Running tests]] explains what the selection and ordering ones do, and
+[[file:running.org][Running tests]]'s *Rerunning only what failed* section covers
+=VERITAS_ONLY_FAILED= and =VERITAS_LAST_FAILED_PATH=.
 
 * Next
 :PROPERTIES:

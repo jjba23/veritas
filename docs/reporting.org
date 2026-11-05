@@ -15,6 +15,7 @@
 - [[#references][Source references]]
 - [[#errors][What a failure says]]
 - [[#stability][Keeping output stable]]
+- [[#artifacts][What a run leaves behind]]
 - [[#related][Related]]
 
 * Reporters
@@ -122,6 +123,28 @@ Everything else is ordered: files are sorted, suites run in declaration order
 unless shuffled, results are collected in declaration order even when run
 concurrently, JUnit classes appear in first-seen order, and coverage is sorted
 by path.  See [[file:internals.org][How veritas works]].
+
+* What a run leaves behind
+:PROPERTIES:
+:CUSTOM_ID: artifacts
+:END:
+
+| File                             | Written by       | Holds                                     |
+|----------------------------------+------------------+-------------------------------------------|
+| =reports/junit/veritas-junit.xml= | =junit-reporter= | the JUnit document of the run             |
+| =reports/lcov/veritas.info=       | coverage         | the LCOV trace, with the JSON, Cobertura, JaCoCo and HTML reports beside it |
+| =reports/traces/last.scm=         | =--trace=        | every step of the last run, read by =--show-trace= |
+| =reports/last-failed.scm=         | every run        | the names that failed, or ='()=, read by =--only-failed= |
+
+None of these has to exist: a run without =junit-reporter= writes no document,
+and a run that never asked for a trace writes none.  The JUnit document, the
+coverage report and the failure record can be moved - =VERITAS_JUNIT_PATH=,
+=VERITAS_COVERAGE_DIR= and =VERITAS_LAST_FAILED_PATH= respectively - which is
+what a build that keeps its reports outside the checkout does; the trace of a run
+is always =reports/traces/last.scm=.
+
+[[file:running.org][Running tests]] has the *Rerunning only what failed* section for the last
+line.
 
 * Related
 :PROPERTIES:

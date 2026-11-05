@@ -36,7 +36,8 @@ which a suite runs its tests.
 If your suite has grown past the point where running all of it is cheap, read
 [[file:incremental.org][Change-aware runs]]: =veritas --changed= runs only what
 the diff can reach.  When a run fails and the report is not enough, read
-[[file:debugging.org][Debugging a run]].
+[[file:debugging.org][Debugging a run]]; to rerun just the tests that failed, read the
+*Rerunning only what failed* section of [[file:running.org][Running tests]].
 
 * Related documents
 

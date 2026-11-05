@@ -9,16 +9,51 @@ This project adheres loosely to [[https://semver.org/spec/v2.0.0.html][Semantic 
 
 *[Unreleased]*
 
-*** MIT license and a GitHub pipeline
-
-- veritas is MIT licensed: =LICENSE= replaces =COPYING=, every source header
-  states =SPDX-License-Identifier: MIT=, and the packaging recipes, the
-  container label and the manual page name the new license.
-- CI/CD runs on GitHub Actions.  =ci.yml= hands Byggsteg the two maak tasks
-  the Woodpecker pipeline submitted, =maak-test= and =maak-deploy=, and
-  =.woodpecker/= is gone.
+Nothing yet.
 
 *[Released]*
+
+** v1.2.0 (2026-11-05)
+
+The release that changes the licence, the pipeline and the guide: veritas is MIT
+licensed, CI/CD runs on GitHub Actions, and rerunning what failed is documented
+and fixed on Guile 3.0.10.
+
+*** License
+
+- veritas is MIT licensed.  =LICENSE= replaces =COPYING=, every source header
+  states =SPDX-License-Identifier: MIT=, and the packaging recipes, the container
+  image labels and the manual page name the new licence.
+
+*** CI/CD
+
+- The pipeline moved from Woodpecker to GitHub Actions.  =.github/workflows/
+  ci.yml= hands Byggsteg the two maak tasks the Woodpecker configuration
+  submitted - =maak-test= on a push to =trunk=, then =maak-deploy= - and
+  =.woodpecker/= is gone.
+- =tests.yml= keeps its job of validating the JUnit document against the schema,
+  and its header no longer describes GitHub as a mirror.
+
+*** Fixes
+
+- The rerun tests built their fixtures through the keyword arguments of
+  =make-pre-test-result= without passing any of them.  Guile 3.0.10 inlines calls
+  to keyword-argument procedures, and that call allocated the record with the
+  wrong field count, so =rerun.scm= failed on a Guile 3.0.10 machine while
+  passing on 3.0.9 and 3.0.11.  The fixtures now use the positional constructor,
+  =make-raw-pre-test-result=, which is exported for anyone building a result
+  tree by hand.
+
+*** Documentation
+
+- [[file:docs/running.org][Running tests]] has a *Rerunning only what failed* section: the record every
+  run writes, why an empty record selects nothing, the =#all= marker, and what a
+  parallel run records.
+- The environment table in [[file:docs/getting-started.org][Getting started]] lists every variable the runner
+  reads, including =VERITAS_JOBS=, =VERITAS_PARTITION= and =VERITAS_ONLY_FAILED=.
+- [[file:docs/reporting.org][Reports and diagnostics]] says what a run leaves in =reports/= and which
+  variable moves each file.
+- The README shows the rerun command and names the pipeline.
 
 ** v1.1.1 (2026-11-04)
 
