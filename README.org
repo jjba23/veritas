@@ -139,6 +139,12 @@ CI/CD runs on GitHub Actions: =ci.yml= hands the =maak-test= and =maak-deploy=
 tasks to Byggsteg, which publishes the API documentation from =trunk=, and
 =tests.yml= checks the JUnit document a run writes against its schema.
 
+=AGENTS.md= is generated: =maak agents= downloads the skills pinned in
+=maak.scm= and writes them next to the practices from the same file, so change
+the task rather than the file.  The same task is the recipe for another
+repository: copy it, replace the data, and it writes that project's
+=AGENTS.md= the same way.
+
 * License
 :PROPERTIES:
 :CUSTOM_ID: license
