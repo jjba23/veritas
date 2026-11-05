@@ -42,7 +42,7 @@ _compiled_dir() {
 }
 
 build() {
-  cd "$srcdir/veritas"
+  cd "$srcdir/$pkgname-$pkgver"
 
   # Byte-compile every module, mirroring the source tree under a staging
   # directory that package() copies into the compiled site directory.
@@ -58,13 +58,13 @@ build() {
 }
 
 check() {
-  cd "$srcdir/veritas"
+  cd "$srcdir/$pkgname-$pkgver"
 
   VERITAS_TEST_TYPE=unit guile -L ./src -L ./test -c '((@ (veritas runner) run-tests))'
 }
 
 package() {
-  cd "$srcdir/veritas"
+  cd "$srcdir/$pkgname-$pkgver"
 
   # The launcher resolves its modules and resources relative to its
   # own prefix, so the installed layout below is what it expects.
