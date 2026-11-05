@@ -9,7 +9,14 @@ This project adheres loosely to [[https://semver.org/spec/v2.0.0.html][Semantic 
 
 *[Unreleased]*
 
-Nothing yet.
+*** MIT license and a GitHub pipeline
+
+- veritas is MIT licensed: =LICENSE= replaces =COPYING=, every source header
+  states =SPDX-License-Identifier: MIT=, and the packaging recipes, the
+  container label and the manual page name the new license.
+- CI/CD runs on GitHub Actions.  =ci.yml= hands Byggsteg the two maak tasks
+  the Woodpecker pipeline submitted, =maak-test= and =maak-deploy=, and
+  =.woodpecker/= is gone.
 
 *[Released]*
 

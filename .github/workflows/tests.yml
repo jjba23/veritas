@@ -1,7 +1,10 @@
 # veritas
 #
-# The project is hosted on Codeberg, whose CI lives in .woodpecker.  This
-# workflow is for a mirror on GitHub, where the point is the report itself:
+# SPDX-License-Identifier: MIT
+# Copyright © Josep Bigorra <jjbigorra@gmail.com>
+#
+# The pipeline in ci.yml runs the suite on Byggsteg, which reports it in its
+# own log.  This workflow is the part that has to run on the runner itself:
 # GitHub parses no test results of its own, so the JUnit document is validated
 # against the schema and then handed to the action that turns it into a check
 # with annotations.  A document that no action can read is the failure a local
