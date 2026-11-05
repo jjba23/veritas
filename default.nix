@@ -57,7 +57,7 @@ stdenv.mkDerivation {
 
   meta = with lib; {
     description = "Testing framework for GNU Guile";
-    homepage = "https://codeberg.org/jjba23/veritas";
+    homepage = "https://github.com/jjba23/veritas";
     license = licenses.mit;
     platforms = guile.meta.platforms;
   };

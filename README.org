@@ -67,7 +67,7 @@ guix install guile-veritas          # GNU Guix, the recommended route
 #+end_src
 
 #+begin_src shell
-git clone https://codeberg.org/jjba23/veritas.git
+git clone https://github.com/jjba23/veritas.git
 cd veritas
 guix shell -m manifest.scm -- ./bin/veritas --version
 #+end_src

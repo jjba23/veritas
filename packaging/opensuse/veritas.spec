@@ -24,7 +24,7 @@ Version:        1.2.0
 Release:        0
 Summary:        Testing framework for Guile Scheme
 License:        MIT
-URL:            https://codeberg.org/jjba23/veritas
+URL:            https://github.com/jjba23/veritas
 Source0:        %{name}-%{version}.tar.gz
 BuildRequires:  pkgconfig(guile-3.0)
 BuildRequires:  guile-json

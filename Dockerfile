@@ -45,7 +45,7 @@ ENV LANG=C.UTF-8 \
 
 LABEL org.opencontainers.image.title="veritas" \
       org.opencontainers.image.description="Testing framework for Guile Scheme" \
-      org.opencontainers.image.url="https://codeberg.org/jjba23/veritas" \
+      org.opencontainers.image.url="https://github.com/jjba23/veritas" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.version="${VERSION}"
 

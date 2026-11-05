@@ -9,7 +9,7 @@ pkgver=1.2.0
 pkgrel=1
 pkgdesc="Testing framework for Guile Scheme"
 arch=('any')
-url="https://codeberg.org/jjba23/veritas"
+url="https://github.com/jjba23/veritas"
 license=('MIT')
 
 depends=(
@@ -26,7 +26,7 @@ makedepends=(
 )
 
 source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
-sha256sums=('96e2ad3bccb3bc921301629048522b542f761663055dd89fe375cff48ed77733')
+sha256sums=('10674900960048eefa47c841bfa07a17dc0f4ab8a21b26c7e6358e785cbb4077')
 
 # Guile looks for byte-compiled modules under the site-ccache directory,
 # which differs between distributions, so ask Guile's pkg-config file
