@@ -50,38 +50,47 @@
 
 Blocks until every thunk has reported back through a shared channel.  A thunk
 that raises sends a formatted error string instead of a value, so one failure
-cannot hang the run.  Results come back in completion order, which is not the
-order of @var{thunks}.
+cannot hang the run.  Results come back in the order of @var{thunks}, not in
+completion order: two runs of one suite have to report the same lines, and
+which fiber finished first is not part of a result.
 
 @example
 (evaluate-thunks-concurrently
  (list (lambda () (sleep 1) 'delayed)
        (lambda () 'instant)))
-@result{} (instant delayed)
+@result{} (delayed instant)
 @end example"
-  (let ((channel
-          (make-channel)))
+  (let ((channel (make-channel))
+        (pending thunks))
     (run-fibers (lambda ()
-                  (for-each (lambda (func)
-                              (spawn-fiber (lambda ()
-                                             ;; Report the exception instead of letting the
-                                             ;; fiber die without a word.
-                                             (catch #t
-                                                    (lambda ()
-                                                      (let ((result (func)))
-                                                        (put-message channel
-                                                                     result)))
-                                                    (lambda (key . args)
-                                                      (put-message channel
-                                                                   (format #f
-                                                                    "~a: ~a"
-                                                                    key args)))))))
-                            thunks)
+                  (let spawn ((rest pending) (position 0))
+                    (unless (null? rest)
+                      (spawn-fiber (lambda ()
+                                     ;; Report the exception instead of letting
+                                     ;; the fiber die without a word, and say
+                                     ;; where the answer belongs.
+                                     (put-message channel
+                                                  (cons position
+                                                        (catch #t
+                                                               (car rest)
+                                                               (lambda (key . args)
+                                                                 (format #f
+                                                                         "~a: ~a"
+                                                                         key
+                                                                         args)))))))
+                      (spawn (cdr rest) (+ position 1))))
 
-                  ;; Consumed inside run-fibers: this map blocks the main fiber until
-                  ;; every thunk has reported, so no #:drain? is needed.
-                  (map (lambda (_)
-                         (get-message channel)) thunks)))))
+                  ;; Consumed inside run-fibers: this drain blocks the main
+                  ;; fiber until every thunk has reported, so no #:drain? is
+                  ;; needed.  The position each answer carries is what puts the
+                  ;; results back in the order they were asked for.
+                  (let drain ((left (length pending)) (collected '()))
+                    (if (zero? left)
+                        (map cdr (sort collected
+                                       (lambda (a b) (< (car a) (car b)))))
+                        (drain (- left 1)
+                               (cons (get-message channel)
+                                     collected))))))))
 
 (define-syntax-rule (evaluate-thunks thunks)
   "Evaluate @var{thunks} one after another, keeping their order.

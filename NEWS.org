@@ -9,7 +9,13 @@ This project adheres loosely to [[https://semver.org/spec/v2.0.0.html][Semantic 
 
 *[Unreleased]*
 
-Nothing yet.
+*** Fixes
+
+- A suite reported its children in completion order.  They run in fibers and the
+evaluator collected them as they reported, so a nested suite could move inside
+the JUnit document from one run to the next and two runs of one suite did not
+produce the same document.  =evaluate-thunks-concurrently= now returns its
+results in declaration order, which is what [[file:docs/running.org][Running tests]] says a run does.
 
 *[Released]*
 

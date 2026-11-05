@@ -7,6 +7,7 @@
   #:use-module (ice-9 format)
   #:use-module (ice-9 regex)
   #:use-module (srfi srfi-1)
+  #:use-module (fibers channels)
   #:use-module (ice-9 textual-ports)
   #:use-module (veritas veritas)
   #:use-module (veritas model)
@@ -51,6 +52,21 @@
          (test "after"
                (assert-equal #:expect 2 #:got 2))))
 
+(define (second-finishes-first-suite)
+  "A suite whose second child finishes before its first.
+
+The first child waits for the second to say it is done, so completion order is
+the reverse of declaration order without depending on how fast the machine is."
+  (let ((started (make-channel)))
+    (suite "concurrent"
+           #:shuffle? #f
+           (test "waits"
+                 (begin (get-message started)
+                        (assert-true #t)))
+           (test "signals"
+                 (begin (put-message started #t)
+                        (assert-true #t))))))
+
 (define (indices-of result)
   (map test-result-index (suite-result-test-results result)))
 
@@ -85,6 +101,22 @@ check into a coin toss."
                         (second (indices-of ((flat-suite) vc))))
                    ((assert-equal #:expect 3 #:got (length first)) vc)
                    ((assert-equal #:expect second #:got first) vc))))
+
+         (test "a child that finishes first does not jump ahead of a slow one"
+               (lambda (vc)
+                 ;; The children run in fibers and the second one finishes
+                 ;; first, so a result list built as the fibers report puts it
+                 ;; ahead and the report reads differently from run to run.
+                 (let* ((suite-result
+                          (quietly (lambda () ((second-finishes-first-suite)
+                                               vc))))
+                        (names (map (lambda (child)
+                                      (pre-test-result-name
+                                       (test-result-results child)))
+                                    (suite-result-test-results suite-result))))
+                   ((assert-equal #:expect '("waits" "signals")
+                                  #:got names)
+                    vc))))
 
          (test "three runs of one suite produce the same JUnit document"
                (lambda (vc)
