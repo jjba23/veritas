@@ -1,3 +1,10 @@
+veritas (1.4.3-1) unstable; urgency=medium
+
+  * Ship .github/FUNDING.yml, so the repository shows a Sponsor button for
+    Buy Me a Coffee.
+
+ -- Josep Bigorra <jjbigorra@gmail.com>  Tue, 10 Nov 2026 00:00:00 +0100
+
 veritas (1.4.0-1) unstable; urgency=medium
 
   * Property-based testing: property runs a thunk over generated inputs and

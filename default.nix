@@ -19,7 +19,7 @@
 
 stdenv.mkDerivation {
   pname = "guile-veritas";
-  version = "1.4.0";
+  version = "1.4.3";
 
   src = ./.;
 
