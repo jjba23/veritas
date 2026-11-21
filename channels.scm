@@ -17,8 +17,8 @@
         (url "https://github.com/jjba23/guix-jointhefreeworld")
         (branch "trunk")
         ;; The collection this configuration is built against, at the commit
-        ;; that carries guile-dokgen 0.9.0.
-        (commit "139880f859c578974f68d959c956ab25042b7258")
+        ;; that carries guile-dokgen 0.9.1.
+        (commit "dc9f38c259e924bd9d15637498eb73a58a1f265d")
         (introduction
          (make-channel-introduction
           "b0ac3f05075d7959860fc9e1db5871acddea3986"
