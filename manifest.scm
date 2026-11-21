@@ -28,7 +28,9 @@
                           guile-fibers
                           guile-json-4
                           guile-ares-rs
-                          guile-documenta
+                          ;; `guile-dokgen' is not in (gnu): it comes from the
+                          ;; jointhefreeworld channel `channels.scm' pins.
+                          (specification->package "guile-dokgen")
                           texinfo
                           lcov
                           emacs-no-x

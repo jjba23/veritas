@@ -1,0 +1,7 @@
+flowchart LR
+  cli["(veritas cli)"] --> env["VERITAS_* settings"]
+  env --> runner["(veritas runner)"]
+  runner --> files["test files"]
+  files --> suites["suites and tests"]
+  suites --> results["(veritas model) results"]
+  results --> reports["(veritas reporter)"]

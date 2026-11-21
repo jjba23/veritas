@@ -12,7 +12,9 @@
   ;; helper it calls.
   #:use-module ((maak container) #:prefix ct:)
   ;; `slurp' reads a downloaded skill line by line.
-  #:use-module ((ice-9 rdelim) #:select (read-line)))
+  #:use-module ((ice-9 rdelim) #:select (read-line))
+  ;; `scandir' names the mermaid sources `maak diagrams' renders.
+  #:use-module (ice-9 ftw))
 
 ;; ====== Maak constants ======
 
@@ -32,6 +34,11 @@
   '(scm))
 
 ;; ====== Maak tasks ======
+;;
+;; A task that needs the development environment enters it through
+;; `channels.scm': `manifest.scm' names `guile-dokgen', which comes from the
+;; jointhefreeworld channel, so a plain `guix shell -m manifest.scm' would not
+;; find it.
 
 (define (compile)
   "Compile all project source code."
@@ -51,19 +58,60 @@
                                      "-c" "'((@ (ares server) run-nrepl-server))'")))
 
 (define (docs)
-  "Generate the API documentation."
+  "Generate the API documentation.
+
+`dokgen' writes the Texinfo chapter and `texi2any' renders it: two calls, so a
+failure names the step that failed instead of an `&&' chain.
+
+`dokgen' writes the chapter to doc/api and draws the mermaid diagrams the
+commentaries carry into doc/api/diagrams.  `texi2any' copies neither a
+stylesheet, a script nor an image into its output, so the HTML goes to
+doc/api-dist and the three are copied beside it afterwards."
   (delete-file-recursively "doc")
-  ;; `documenta' writes the Texinfo tree and `texi2any' renders it: two calls,
-  ;; so a failure names the step that failed instead of an `&&' chain.
-  (time-machine-manifest-shell (list "documenta" "api"
+  (time-machine-manifest-shell (list "dokgen" "api"
+                                     "--destination" "doc/api"
                                      (~ "./src/~a" project-name))
                                #:verbose? #t)
-  (time-machine-manifest-shell (list "texi2any" "-v" "--html"
-                                     (~ "--css-ref=~a" api-docs-css-url)
-                                     "-o" "index_html"
-                                     "./doc/api/index.texi")
-                               #:verbose? #t)
-  (mv "./index_html" "./doc/api-dist"))
+  (mkdir-p "doc/api-dist")
+  ;; `-I doc/api' is what finds the diagrams beside the chapter, and the head
+  ;; below points the page at the stylesheet and the script `dokgen' writes
+  ;; there.  `--no-split' keeps the reference one page.
+  (time-machine-manifest-shell
+   (list "texi2any" "-v" "--html" "--no-split"
+         (~ "--css-ref=~a" api-docs-css-url)
+         "-I" "doc/api"
+         "-c" (shell-quote
+               (string-append
+                "EXTRA_HEAD="
+                "<link rel=\"stylesheet\" href=\"dokgen.css\">"
+                "<script src=\"dokgen.js\" defer></script>"))
+         "-o" "doc/api-dist/index.html"
+         "./doc/api/index.texi")
+   #:verbose? #t)
+  (for-each (lambda (asset)
+              (when (file-exists? (~ "doc/api/~a" asset))
+                (cp (~ "doc/api/~a" asset) "doc/api-dist"
+                    #:force? #t #:verbose? #t)))
+            '("dokgen.css" "dokgen.js"))
+  (when (file-exists? "doc/api/diagrams")
+    (cp "doc/api/diagrams" "doc/api-dist" #:force? #t #:verbose? #t)))
+
+(define (diagrams)
+  "Render every mermaid source under resources/diagrams to the SVG beside it.
+
+The images are committed, so this runs only when a diagram's source changes;
+the API reference draws the diagrams the commentaries carry during `docs'."
+  (for-each
+   (lambda (name)
+     (let* ((source (in-vicinity "resources/diagrams" name))
+            (image (string-append (string-drop-right source 4) ".svg")))
+       (run (list "mmdc" "-i" source "-o" image
+                  "--backgroundColor" "transparent")
+            #:verbose? #t)))
+   (scandir "resources/diagrams"
+            (lambda (name)
+              (and (not (member name '("." "..")))
+                   (string-suffix? ".mmd" name))))))
 
 (define (deploy)
   "Publish the API docs."
@@ -91,30 +139,31 @@
   (delete-file-recursively "reports/html")
   ;; The runner writes the five reports itself (LCOV, JSON, Cobertura, JaCoCo
   ;; and the one-page HTML), merged over every test file.
-  (manifest-shell (list "guile" "-L" "./src" "-L" "./test"
-                        "-c" "'((@ (veritas runner) run-tests))'")
-                  #:env (append '("VERITAS_TEST_TYPE=unit"
-                                  "VERITAS_RUN_BENCHMARKS=true")
-                                coverage-environment)))
+  (time-machine-manifest-shell (list "guile" "-L" "./src" "-L" "./test"
+                                     "-c" "'((@ (veritas runner) run-tests))'")
+                               #:env (append '("VERITAS_TEST_TYPE=unit"
+                                               "VERITAS_RUN_BENCHMARKS=true")
+                                             coverage-environment)))
 
 (define (test-fast)
   "Run the test suite without measuring coverage."
-  (manifest-shell (list "guile" "-L" "./src" "-L" "./test"
-                        "-c" "'((@ (veritas runner) run-tests))'")
-                  ;; The explicit `false' wins over the test files that ask for
-                  ;; coverage themselves, so this really is the quick loop.
-                  #:env '("VERITAS_TEST_TYPE=unit"
-                          "VERITAS_RUN_BENCHMARKS=true"
-                          "VERITAS_COVERAGE=false")))
+  (time-machine-manifest-shell (list "guile" "-L" "./src" "-L" "./test"
+                                     "-c" "'((@ (veritas runner) run-tests))'")
+                               ;; The explicit `false' wins over the test files
+                               ;; that ask for coverage themselves, so this
+                               ;; really is the quick loop.
+                               #:env '("VERITAS_TEST_TYPE=unit"
+                                       "VERITAS_RUN_BENCHMARKS=true"
+                                       "VERITAS_COVERAGE=false")))
 
 (define (coverage-report)
   "Rebuild the coverage reports from the LCOV trace of the last run."
   ;; The run already writes them; this is for rebuilding after the fact, and it
   ;; needs nothing but Guile - no `genhtml', no extra tool to install.
-  (manifest-shell (list "guile" "-L" "./src"
-                        "-c"
-                        "'((@ (veritas coverage) regenerate-coverage-reports))'")
-                  #:allow-failure? #t))
+  (time-machine-manifest-shell (list "guile" "-L" "./src"
+                                     "-c"
+                                     "'((@ (veritas coverage) regenerate-coverage-reports))'")
+                               #:allow-failure? #t))
 
 (define (validate)
   "Format, compile and test, in that order."

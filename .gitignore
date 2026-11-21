@@ -1,6 +1,5 @@
-*.log
 dist/
 .nrepl-port
 api-dist
-doc/api
+doc/
 reports

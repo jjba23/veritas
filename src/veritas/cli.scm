@@ -18,6 +18,21 @@
 ;; their module loads - such as @code{VERITAS_RUN_BENCHMARKS} and
 ;; @code{VERITAS_ONLY_TEST} - observe the values supplied on the command line.
 ;;
+;; The run itself is a straight line, and every stage of it is a module:
+;;
+;; ```mermaid
+;; graph LR
+;;   cli["(veritas cli)"] --> env["VERITAS_* settings"]
+;;   env --> runner["(veritas runner)"]
+;;   runner --> files["test files"]
+;;   files --> suites["suites and tests"]
+;;   suites --> results["(veritas model) results"]
+;;   results --> reports["(veritas reporter)"]
+;; ```
+;;
+;; Only the first stage is this module's: a run started by hand and a run
+;; started by an editor meet at the environment variables and go on from there.
+;;
 ;;; Code:
 
 (define-module (veritas cli)
@@ -33,7 +48,7 @@
                     veritas-man-page-name))
 
 (define veritas-version
-  "1.4.4")
+  "1.5.0")
 
 (define veritas-man-page-name
   "veritas(1)")
