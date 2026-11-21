@@ -4,6 +4,7 @@
 ;; Copyright © Josep Bigorra <jjbigorra@gmail.com>
 
 (use-modules (guix packages)
+             (gnu packages)
              (gnu)
              (guix utils)
              (guix git-download)
@@ -31,7 +32,7 @@
                           ;; `guile-dokgen' is not in (gnu): it comes from the
                           ;; jointhefreeworld channel `channels.scm' pins.
                           (specification->package "guile-dokgen")
-                          texinfo
+                          (specification->package "texinfo")
                           lcov
                           emacs-no-x
                           watchexec))
