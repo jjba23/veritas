@@ -6,6 +6,8 @@
 #+attr_html: :width 160 :alt Veritas logo
 [[file:logo.svg]]
 
+- 📖 *API reference:* [[https://jointhefreeworld.org/api-docs/veritas/index.html][Veritas API reference]]
+
 #+begin_quote
 /QUIDQUID AGIS, PRUDENTER AGAS/ — whatever you do, do it wisely
 #+end_quote
