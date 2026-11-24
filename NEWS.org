@@ -9,6 +9,15 @@ This project adheres loosely to [[https://semver.org/spec/v2.0.0.html][Semantic 
 
 *[Unreleased]*
 
+Nothing yet.
+
+*[Released]*
+
+** v1.6.0 (2026-11-25)
+
+A feature release: end-to-end tests, with the services they talk to started,
+waited for and stopped by the framework itself.
+
 *** Added
 
 - =veritas e2e= runs end-to-end tests: a =service= is a command with the
@@ -29,7 +38,12 @@ This project adheres loosely to [[https://semver.org/spec/v2.0.0.html][Semantic 
   report.  Logs default to =reports/services/<name>.log=.
 - The new page [[file:docs/e2e.org][End-to-end tests]] covers all of it.
 
-*[Released]*
+*** Packaging
+
+- The version strings of the source, the manual page and the three packaging
+  recipes name the tag again: 1.5.2, 1.5.3 and 1.5.4 were tagged without one,
+  so =veritas --version= claimed 1.5.0 while the tags said otherwise.
+
 
 ** v1.5.1 (2026-11-21)
 

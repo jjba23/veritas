@@ -1,3 +1,10 @@
+veritas (1.6.0-1) unstable; urgency=medium
+
+  * Add end-to-end testing: services, readiness waits, and a suite that
+    starts a system before its tests and stops it after them.
+
+ -- Josep Bigorra <jjbigorra@gmail.com>  Wed, 25 Nov 2026 00:00:00 +0100
+
 veritas (1.5.0-1) unstable; urgency=medium
 
   * Generate the API documentation with guile-dokgen.
