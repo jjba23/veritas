@@ -1,0 +1,264 @@
+#+TITLE: End-to-end tests
+#+DATE: 2026-11-24
+
+[[file:index.org][← Documentation index]] · [[file:../README.org][README]]
+
+* Contents
+:PROPERTIES:
+:CUSTOM_ID: contents
+:END:
+
+- [[#shape][The shape of an end-to-end test]]
+- [[#services][Services]]
+- [[#readiness][Readiness]]
+- [[#suite][A suite over a running system]]
+- [[#http][Talking over HTTP]]
+- [[#logs][Logs, and what to read when a run fails]]
+- [[#scoped][A process for one test]]
+- [[#related][Related]]
+
+* The shape of an end-to-end test
+:PROPERTIES:
+:CUSTOM_ID: shape
+:END:
+
+An end-to-end test is a test that talks to a program while it runs: it starts
+what the program needs, waits until that is ready, exercises it over an
+interface it really offers, and asserts on the answer with the matchers of
+[[file:language.org][Writing tests]].  The module that does the starting and the
+waiting is =(veritas e2e)=:
+
+#+begin_src scheme
+(use-modules (veritas veritas) (veritas e2e))
+#+end_src
+
+Nothing about the end-to-end case is a separate kind of test.  They are files
+like any other, so =--only-test=, =--only-tag=, =--retries=, =--changed= and the
+reporters work the same way; a project usually keeps them in a test type of
+their own, so the unit tests stay the fast loop:
+
+#+begin_src sh
+veritas                     # test/veritas/unit/…
+veritas --test-type e2e     # test/veritas/e2e/…
+#+end_src
+
+* Services
+:PROPERTIES:
+:CUSTOM_ID: services
+:END:
+
+A =service= is a command, the directory it runs in, the environment it gets, the
+file its output goes to, and a procedure that says when it is ready:
+
+#+begin_src scheme
+(make-service #:name "api"
+              #:command '("app" "serve")
+              #:env '("PORT=8080")
+              #:wait (lambda (instance)
+                      (wait-for-http "http://127.0.0.1:8080/health")))
+#+end_src
+
+=#:command= is a program and its arguments, and it is executed directly: the
+program is the process, nothing in the list is re-read as shell syntax, and the
+list needs no quoting.  =#:env= is a list of ~NAME=value~ assignments added to
+the environment the service already has, and only the first ~=~ of an assignment
+separates the name from the value.  =#:dir= is the directory to run in, and
+=#:log-path= defaults to =reports/services/<name>.log=.
+
+The rest of the API is about the process itself:
+
+| =start-service=          | start the spec, return the running instance     |
+| =service-running?=       | whether the process is still there              |
+| =stop-service=           | stop it, and answer whether it is gone          |
+| =service-instance-pid=   | the pid, for a test that needs to signal it     |
+| =service-log=            | everything it has written to its log so far     |
+| =service-log-tail=       | the last lines of that, for a failure report    |
+
+=stop-service= asks the service to stop and kills it only if it is still there
+after =#:timeout= seconds (10 by default).  It signals the session the service
+leads, not just the process, so a server that forked workers takes them with it
+rather than leaving them behind for the rest of the run, and it reaps what it
+stopped, so a long run does not collect zombies.
+
+A service outlives its readiness: readiness says the service is up, and the
+tests after it are the reason it has to stay up.  A command that prints its
+ready line and exits is a command, and the first test that talks to it will say
+so.
+
+* Readiness
+:PROPERTIES:
+:CUSTOM_ID: readiness
+:END:
+
+=#:wait= is called with the instance once it is started, and is the only place a
+service declares itself ready.  There are three, and a spec composes them:
+
+#+begin_src scheme
+(wait-for-port "127.0.0.1" 8080 #:timeout 30)          ; a socket accepts
+(wait-for-http "http://127.0.0.1:8080/health")         ; a status answers
+(wait-for-log instance "listening on 8080")            ; a line was printed
+#+end_src
+
+All three take =#:timeout= and =#:interval=, poll every =#:interval= seconds,
+and raise once =#:timeout= has passed.  =wait-for-http= also takes =#:status=,
+=#:method=, =#:body= and =#:headers=, and returns the response that matched, so
+a spec that waits can also read what it waited for.
+
+Waiting is not the same as sleeping.  A =(sleep 2)= is the time the machine that
+wrote it needed; a wait is the time the machine running it needs, and it fails
+with the reason - a port that never opened, a status that never came, a line
+that was never printed - instead of failing later in a test that had nothing to
+do with it.
+
+=free-port= returns a port nothing is listening on, for a service to be told to
+use.  Two suites run side by side - and veritas runs the tasks of a file
+concurrently - so two services that both hardcode =8080= are one flaky test
+waiting to happen:
+
+#+begin_src scheme
+(define port (free-port))
+
+(make-service #:name "api"
+              #:command (list "app" "serve" "--port" (number->string port))
+              #:wait (lambda (instance) (wait-for-port "127.0.0.1" port)))
+#+end_src
+
+* A suite over a running system
+:PROPERTIES:
+:CUSTOM_ID: suite
+:END:
+
+=e2e-suite= takes a name, the services to run, and the tests.  It starts every
+service before the first test, waits for each to be ready, runs the tests against
+the running system, and stops the services after the last one, whether the tests
+passed or not:
+
+#+begin_src scheme
+(define (spec)
+  (veritas-run
+   (e2e-suite "a service that says when it is ready"
+     (list (make-service #:name "slow"
+                         #:command '("sh" "-c"
+                                     "sleep 1; echo listening; while :; do sleep 1; done")
+                         #:wait (lambda (instance)
+                                  (wait-for-log instance "listening"))))
+     (test "the service is running and its line is in its log"
+           (assert-service-running #:service "slow")
+           (assert-contains #:expect (service-log (running-service "slow"))
+                            #:got "listening")))))
+#+end_src
+
+A test inside an =e2e-suite= is a test body like any other - it does not receive
+the instance - so =running-service= returns it by name.
+=assert-service-running= checks that a service is still up when the assertion
+runs, which is what catches a system that died in the middle of a test rather
+than before it:
+
+#+begin_src scheme
+(assert-service-running #:service "slow" #:name "the service survived the write")
+#+end_src
+
+Every keyword =suite= takes is passed through, so =#:timeout=, =#:tags=,
+=#:skip?=, =#:shuffle?= and =#:concurrent?= mean here what they mean there.  A
+suite that fails to start stops what it started and reports the failure: a
+half-started environment is never handed to a test.
+
+A =#:timeout= that fires is the one thing that cannot be cleaned up after: the
+suite is aborted rather than failed, so its teardown never runs and the services
+of that suite keep running, each in a session of its own.  =ps= and the logs
+under =reports/services/= are where to find them.
+
+* Talking over HTTP
+:PROPERTIES:
+:CUSTOM_ID: http
+:END:
+
+=http-get=, =http-post= and =http-request= (which takes =#:method=) send a
+request and return the response:
+
+#+begin_src scheme
+(define base "http://127.0.0.1:8080")
+
+(let ((response (http-post (string-append base "/carts")
+                           #:body "{\"item\":\"tea\"}"
+                           #:headers '((content-type . (application/json))))))
+  (assert-equal #:expect 201 #:got (http-status response))
+  (assert-equal #:expect "tea" #:got (assoc-ref (http-json response) "item")))
+#+end_src
+
+| =http-status=      | the status code, as a number                          |
+| =http-body=        | the body, as a string                                 |
+| =http-headers=     | every header, as the client parsed them                |
+| =http-header=      | one header, first value, name matched without case    |
+| =http-json=        | the body parsed as JSON, objects as string-keyed alists |
+
+A response is returned as it is, whatever its status: =404= is an answer, and a
+test that expects one asserts on it.  Only a request that no server answered
+raises, which is also why =wait-for-http= can retry one.
+
+An assertion that reaches the network is a value like any other, so =lazy= puts
+the work inside the assertion, where a timeout can catch it:
+
+#+begin_src scheme
+(test "the cart endpoint answers"
+      (assert-equal #:expect 200
+                    #:got (lazy (http-status (http-get (string-append base "/carts/1"))))))
+#+end_src
+
+* Logs, and what to read when a run fails
+:PROPERTIES:
+:CUSTOM_ID: logs
+:END:
+
+Everything a service writes to its standard output and its standard error goes
+to its log file, which by default is =reports/services/<name>.log= and is appended to
+rather than replaced.  When an end-to-end run fails under CI, that file is
+normally the whole of what there is to read, and =service-log-tail= is how a
+test puts the end of it in the report:
+
+#+begin_src scheme
+(test "the api comes up"
+      (assert-service-running #:service "api")
+      (assert-contains #:expect (service-log-tail (running-service "api"))
+                       #:got "listening"))
+#+end_src
+
+* A process for one test
+:PROPERTIES:
+:CUSTOM_ID: scoped
+:END:
+
+A test that needs a process of its own - one that restarts a service to watch it
+recover, or talks to a second instance - brackets it with =with-services=, which
+starts the services, calls the thunk with the instances, and stops them however
+the thunk ends:
+
+#+begin_src scheme
+;; api-spec is a service spec, as above.
+(test "a restarted service serves again"
+      (with-services (lambda (instances)
+                       (let ((api (car instances)))
+                         (stop-service api)
+                         (assert-false (service-running? api))))
+                     #:services (list api-spec)))
+#+end_src
+
+The teardown waits for the fiber to be finished rather than for a suspension, so
+a =sleep= or a socket read in the thunk does not tear the services down in the
+middle of the test using them.
+
+A dependency that is a container rather than a process is
+[[file:../src/veritas/container.scm][=veritas container=]]: =container-run=,
+=container-wait-for-port=, =container-logs= and =with-container= are the same
+idea against a Docker-compatible runtime.  A suite that needs one starts it in
+the suite's own =#:before-all= and removes it in =#:after-all=.
+
+* Related
+:PROPERTIES:
+:CUSTOM_ID: related
+:END:
+
+- [[file:language.org][Writing tests]] — the tests that make up an end-to-end suite
+- [[file:running.org][Running tests]] — discovery, test types, and how a file runs
+- [[file:debugging.org][Debugging a run]] — traces and retries for an intermittent failure
+- [[file:reporting.org][Reports and diagnostics]] — where a failure is reported

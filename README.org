@@ -113,6 +113,7 @@ notes live in [[file:NEWS.org][NEWS]].
 | [[file:docs/index.org][Documentation index]]                            | the map of all of it                                        |
 | [[file:docs/getting-started.org][Getting started]]                                | install, first test, environment variables                  |
 | [[file:docs/language.org][Writing tests]]                                  | tests, suites, 24 matchers, doubles, snapshots, generators  |
+| [[file:docs/e2e.org][End-to-end tests]]                               | services, readiness, HTTP, logs of a running system          |
 | [[file:docs/running.org][Running tests]]                                  | discovery, ordering, seeds, parallel workers, coverage      |
 | [[file:docs/incremental.org][Change-aware runs]]                              | run only the test files a diff or a branch can reach        |
 | [[file:docs/debugging.org][Debugging a run]]                                | step-by-step traces, =-\-show-trace=, retries               |

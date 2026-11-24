@@ -18,6 +18,7 @@ guarantees, and where its seams are.
 |---------------------------------------+------------------------------------------------------------------|
 | [[file:getting-started.org][Getting started]]                     | install, run the first test, set the environment variables       |
 | [[file:language.org][Writing tests]]                       | tests, suites, assertions, matchers, doubles, snapshots          |
+| [[file:e2e.org][End-to-end tests]]                    | services, readiness, a suite over a running system, HTTP        |
 | [[file:running.org][Running tests]]                       | discovery, ordering, shuffling, seeds, parallel workers          |
 | [[file:incremental.org][Change-aware runs]]                   | running only the test files a diff or a branch can reach         |
 | [[file:debugging.org][Debugging a run]]                     | traces of every step, =-\-show-trace=, retries for flaky tests    |

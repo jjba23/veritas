@@ -9,7 +9,25 @@ This project adheres loosely to [[https://semver.org/spec/v2.0.0.html][Semantic 
 
 *[Unreleased]*
 
-Nothing yet.
+*** Added
+
+- =veritas e2e= runs end-to-end tests: a =service= is a command with the
+  directory, environment and log file it runs with, =e2e-suite= starts the
+  services of a suite before its first test and stops them after its last, and
+  =with-services= brackets a process around one test.  A service is stopped by
+  its session rather than by its pid alone, so the programs it forked go with
+  it, and it is reaped, so a run leaves no zombies.
+- =wait-for-port=, =wait-for-http= and =wait-for-log= are readiness: they poll
+  and fail with the reason instead of sleeping for the time the test author
+  happened to need.  =free-port= hands out a port nothing listens on, so two
+  suites can run beside each other.
+- =http-get=, =http-post= and =http-request= talk to the running system, and
+  =http-status=, =http-body=, =http-header= and =http-json= read the answer; a
+  =404= is returned as an answer rather than raised, so a test can expect one.
+- =assert-service-running= reports a service that died during a test, and
+  =service-log= / =service-log-tail= put the end of what it printed in the
+  report.  Logs default to =reports/services/<name>.log=.
+- The new page [[file:docs/e2e.org][End-to-end tests]] covers all of it.
 
 *[Released]*
 
