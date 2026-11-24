@@ -255,12 +255,21 @@ would be deleted while the test was still running."
                                       100))))))
          (test "collecting coverage leaves the VM engine as it found it"
                (lambda (vc)
-                 (let ((before (vm-engine))
-                       (during #f))
-                   (collect-coverage (lambda ()
-                                       (set! during (vm-engine))
-                                       'done))
-                   (check-equal vc during #:expect 'debug)
+                 (let ((before (vm-engine)))
+                   ;; The engine belongs to a thread, and a collection may
+                   ;; suspend the fiber it runs in, which can then resume on
+                   ;; another thread: read from inside the measured thunk, the
+                   ;; engine says where the scheduler put the fiber rather than
+                   ;; what the collection switched to.  So the switch is read
+                   ;; here, through `with-debug-vm', where nothing can come
+                   ;; between it and the read, and what the collection itself is
+                   ;; held to is the restoration - the data the tests above
+                   ;; assert on is what shows the measurement ran on the debug
+                   ;; engine.
+                   (check-equal vc (with-debug-vm (lambda ()
+                                                    (vm-engine)))
+                                #:expect 'debug)
+                   (collect-coverage (lambda () 'done))
                    (check-equal vc (vm-engine) #:expect before))))
          (test "an empty collection is an empty report, not a covered one"
                (lambda (vc)
