@@ -18,7 +18,7 @@
         (branch "trunk")
         ;; The collection this configuration is built against, at the commit
         ;; that carries guile-dokgen 0.11.0.
-        (commit "fafafe4e22b43dc89037facf8bd4c8977c4c7146")
+        (commit "59d58acbd759cb7952dcbfade1045d5318c24344")
         (introduction
          (make-channel-introduction
           "b0ac3f05075d7959860fc9e1db5871acddea3986"
